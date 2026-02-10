@@ -1,1 +1,1 @@
-web: cd finance_app && gunicorn finance_app.wsgi:application --log-file -
+web: cd finance_app && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn finance_app.wsgi:application --log-file -
