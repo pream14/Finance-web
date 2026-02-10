@@ -6,8 +6,25 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         User = get_user_model()
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-            self.stdout.write(self.style.SUCCESS('Admin user created successfully'))
+        admin_user, created = User.objects.get_or_create(
+            username='admin',
+            defaults={
+                'email': 'admin@example.com',
+                'is_staff': True,
+                'is_superuser': True,
+            }
+        )
+        
+        if created:
+            admin_user.set_password('admin123')
+            admin_user.role = 'owner'
+            admin_user.save()
+            self.stdout.write(self.style.SUCCESS('Admin user created successfully with owner role'))
         else:
-            self.stdout.write(self.style.WARNING('Admin user already exists'))
+            # Update existing admin to ensure it has owner role and correct password
+            admin_user.role = 'owner'
+            admin_user.set_password('admin123')  # Reset password to known value
+            admin_user.is_staff = True
+            admin_user.is_superuser = True
+            admin_user.save()
+            self.stdout.write(self.style.SUCCESS('Admin user updated with owner role'))
