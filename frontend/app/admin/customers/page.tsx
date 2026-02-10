@@ -49,7 +49,7 @@ interface Transaction {
   created_at: string
 }
 
-const CITIES = ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Fujairah', 'Umm Al Quwain', 'Ras Al Khaimah']
+const CITIES = ['Manakudi', 'Koranad', 'Myd']
 
 function normalizeCustomer(apiCustomer: any): Customer {
   const createdBy = typeof apiCustomer.created_by === 'object'
@@ -561,13 +561,9 @@ export default function CustomersPage() {
                           <SelectValue placeholder="Select city" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Dubai">Dubai</SelectItem>
-                          <SelectItem value="Abu Dhabi">Abu Dhabi</SelectItem>
-                          <SelectItem value="Sharjah">Sharjah</SelectItem>
-                          <SelectItem value="Ajman">Ajman</SelectItem>
-                          <SelectItem value="Fujairah">Fujairah</SelectItem>
-                          <SelectItem value="Umm Al Quwain">Umm Al Quwain</SelectItem>
-                          <SelectItem value="Ras Al Khaimah">Ras Al Khaimah</SelectItem>
+                          <SelectItem value="Manakudi">Manakudi</SelectItem>
+                          <SelectItem value="Koranad">Koranad</SelectItem>
+                          <SelectItem value="Myd">Myd</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -859,7 +855,7 @@ export default function CustomersPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Full Name</label>
                     <Input
-                      placeholder="Ahmed Hassan"
+                      placeholder="pream kumar"
                       value={addFormData.name}
                       onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
                       className="border-border/50"
@@ -869,7 +865,7 @@ export default function CustomersPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Phone</label>
                     <Input
-                      placeholder="+971 50 123 4567"
+                      placeholder="1234567890"
                       value={addFormData.phone}
                       onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
                       className="border-border/50"
