@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Basic settings
-DEBUG = True  # Set to False in production
+# Basic settings  
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 SECRET_KEY = os.getenv('SECRET_KEY', 'your-dev-secret-key')  # Use a proper key in production
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.173.233', '10.90.129.233']  # Add your production domains
+ALLOWED_HOSTS = ['*']  # Allow all hosts for now, secure in production later
 
 # Root URL conf
 ROOT_URLCONF = 'finance_app.urls'  # Adjust if your project name is different
@@ -83,14 +84,30 @@ CORS_ALLOWED_ORIGINS = [
 
 # Database settings
 # Database settings
+# Database settings
 import dj_database_url
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f"postgres://{os.getenv('DATABASE_USER')}:{os.getenv('DATABASE_PASSWORD')}@{os.getenv('DATABASE_HOST')}:{os.getenv('DATABASE_PORT')}/{os.getenv('DATABASE_NAME')}",
-        conn_max_age=600
-    )
-}
+DATABASES = {}
+
+if os.getenv('DATABASE_URL'):
+    # Production (Railway/Render)
+    DATABASES['default'] = dj_database_url.config(conn_max_age=600)
+elif os.getenv('DATABASE_NAME'):
+    # Local Development with Postgres variables
+    DATABASES['default'] = {
+        'ENGINE': os.getenv('DATABASE_ENGINE', 'django.db.backends.postgresql'),
+        'NAME': os.getenv('DATABASE_NAME'),
+        'USER': os.getenv('DATABASE_USER'),
+        'PASSWORD': os.getenv('DATABASE_PASSWORD'),
+        'HOST': os.getenv('DATABASE_HOST'),
+        'PORT': os.getenv('DATABASE_PORT'),
+    }
+else:
+    # Fallback (Build process or no config)
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 
 # Custom user model
 AUTH_USER_MODEL = 'users.User'
