@@ -894,7 +894,7 @@ export default function CustomersPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Address</label>
                   <Input
-                    placeholder="Al Wasl Road, Dubai"
+                    placeholder="anna nagar"
                     value={addFormData.address}
                     onChange={(e) => setAddFormData({ ...addFormData, address: e.target.value })}
                     className="border-border/50"
