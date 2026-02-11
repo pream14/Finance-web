@@ -14,6 +14,10 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 SECRET_KEY = os.getenv('SECRET_KEY', 'your-dev-secret-key')  # Use a proper key in production
 ALLOWED_HOSTS = ['*']  # Allow all hosts for now, secure in production later
 
+# Security settings for Railway/Production
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:8000,https://finance-web-production-0681.up.railway.app').split(',')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Root URL conf
 ROOT_URLCONF = 'finance_app.urls'  # Adjust if your project name is different
 
