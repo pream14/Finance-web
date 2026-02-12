@@ -140,12 +140,21 @@ class PaymentAnalyticsView(APIView):
     """
     def get(self, request):
         from django.db.models import Sum, Count, Q
-        from datetime import date, timedelta
+        from datetime import date, timedelta, datetime
         
-        # Get date range from query params (default: last 30 days)
+        # Get date range from query params
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
         days = int(request.query_params.get('days', 30))
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days)
+        
+        if start_date_param and end_date_param:
+            # Custom date range
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date()
+        else:
+            # Default to last N days
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
         
         # Filter loans by date range
         loans = Loan.objects.filter(

@@ -5,7 +5,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key } from 'lucide-react'
 import { transactionsApi, expensesApi, authApi, dashboardApi } from '@/lib/api'
 
 function getMonthRange(ym: string) {
@@ -232,15 +233,33 @@ export default function AdminDashboard() {
             <Button variant="outline" asChild>
               <Link href="/admin/expenses">Expenses</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/admin/users/add">Add Staff</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/auth/change-password">Change Password</Link>
-            </Button>
-            <Button variant="ghost" onClick={handleLogout}>
-              Logout
-            </Button>
+            
+            {/* Settings Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/users/add" className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Add Staff
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/auth/change-password" className="flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Change Password
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

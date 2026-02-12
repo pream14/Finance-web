@@ -55,15 +55,26 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [days, setDays] = useState(30)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await api.paymentAnalytics.get(days)
-      setAnalytics(data)
+      
+      let queryParams = {}
+      
+      if (startDate && endDate) {
+        queryParams = { start_date: startDate, end_date: endDate }
+      } else {
+        queryParams = { days }
+      }
+      
+      const response = await api.paymentAnalytics.get(queryParams as any)
+      setAnalytics(response.data)
     } catch (err: any) {
-      setError(err.message || 'Failed to load analytics')
+      setError(err.response?.data?.error || 'Failed to fetch analytics')
     } finally {
       setLoading(false)
     }
@@ -71,7 +82,21 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchAnalytics()
-  }, [days])
+  }, [])
+
+  const setQuickDate = (days: number) => {
+    setDays(days)
+    setStartDate('')
+    setEndDate('')
+    fetchAnalytics()
+  }
+
+  const handleCustomDateRange = () => {
+    if (startDate && endDate) {
+      setDays(0) // Reset days when using custom dates
+      fetchAnalytics()
+    }
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -129,26 +154,89 @@ export default function AnalyticsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Date Filters */}
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Payment Analytics</h1>
+          <h1 className="text-3xl font-bold text-foreground">Payment Analytics</h1>
           <p className="text-muted-foreground">
-            Track cash vs online payment trends
+            Track cash vs online payment methods
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={days.toString()} onValueChange={(value) => setDays(parseInt(value))}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-              <SelectItem value="365">Last year</SelectItem>
-            </SelectContent>
-          </Select>
+        
+        <div className="flex flex-col md:flex-row gap-3">
+          {/* Quick Date Options */}
+          <div className="flex gap-2">
+            <Button 
+              variant={days === 1 ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setQuickDate(1)}
+            >
+              Today
+            </Button>
+            <Button 
+              variant={days === 7 ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setQuickDate(7)}
+            >
+              Yesterday
+            </Button>
+            <Button 
+              variant={days === 7 ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setQuickDate(7)}
+            >
+              Week
+            </Button>
+            <Button 
+              variant={days === 30 ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setQuickDate(30)}
+            >
+              Month
+            </Button>
+            <Button 
+              variant={days === 90 ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setQuickDate(90)}
+            >
+              Quarter
+            </Button>
+            <Button 
+              variant={days === 365 ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setQuickDate(365)}
+            >
+              Year
+            </Button>
+          </div>
+          
+          {/* Custom Date Range */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-2 border rounded-md text-sm"
+              placeholder="Start Date"
+            />
+            <span className="text-muted-foreground">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-2 border rounded-md text-sm"
+              placeholder="End Date"
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCustomDateRange}
+              disabled={!startDate || !endDate}
+            >
+              Apply
+            </Button>
+          </div>
+          
           <Button variant="outline" size="sm" onClick={fetchAnalytics}>
             <Calendar className="w-4 h-4 mr-2" />
             Refresh
@@ -158,51 +246,10 @@ export default function AnalyticsPage() {
 
       {/* Simple Cash vs Online Balance */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-foreground">Cash vs Online Balance</h2>
+        <h2 className="text-2xl font-bold text-foreground">Cash vs Online Summary</h2>
         
-        {/* Main Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Cash Balance</p>
-                  <p className={`text-3xl font-bold ${analytics.summary.cash_flow.net_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(analytics.summary.cash_flow.net_cash_flow)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {analytics.summary.cash_flow.net_cash_flow >= 0 ? 'Cash on hand' : 'Cash deficit'}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-lg ${analytics.summary.cash_flow.net_cash_flow >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                  <DollarSign className={`w-8 h-8 ${analytics.summary.cash_flow.net_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Online Balance</p>
-                  <p className={`text-3xl font-bold ${analytics.summary.cash_flow.net_online_flow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(analytics.summary.cash_flow.net_online_flow)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {analytics.summary.cash_flow.net_online_flow >= 0 ? 'Online funds available' : 'Online deficit'}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-lg ${analytics.summary.cash_flow.net_online_flow >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                  <CreditCard className={`w-8 h-8 ${analytics.summary.cash_flow.net_online_flow >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-border/50">
             <CardContent className="p-6">
               <div className="text-center">
@@ -244,9 +291,7 @@ export default function AnalyticsPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-border/50">
             <CardContent className="p-6">
               <div className="text-center">
@@ -260,13 +305,18 @@ export default function AnalyticsPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-border/50">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Period</p>
-                <p className="text-sm">
-                  {formatDate(analytics.summary.period.start_date)} - {formatDate(analytics.summary.period.end_date)}
+                <p className="text-sm font-medium text-muted-foreground">Net Cash Flow</p>
+                <p className={`text-xl font-bold ${analytics.summary.cash_flow.net_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {analytics.summary.cash_flow.net_cash_flow >= 0 ? '+' : ''}{formatCurrency(analytics.summary.cash_flow.net_cash_flow)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {analytics.summary.cash_flow.net_cash_flow >= 0 ? 'Cash surplus' : 'Cash deficit'}
                 </p>
               </div>
             </CardContent>
@@ -275,12 +325,23 @@ export default function AnalyticsPage() {
           <Card className="border-border/50">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Total Flow</p>
-                <p className={`text-xl font-bold ${analytics.summary.cash_flow.total_flow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {analytics.summary.cash_flow.total_flow >= 0 ? '+' : ''}{formatCurrency(analytics.summary.cash_flow.total_flow)}
+                <p className="text-sm font-medium text-muted-foreground">Net Online Flow</p>
+                <p className={`text-xl font-bold ${analytics.summary.cash_flow.net_online_flow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {analytics.summary.cash_flow.net_online_flow >= 0 ? '+' : ''}{formatCurrency(analytics.summary.cash_flow.net_online_flow)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {analytics.summary.cash_flow.total_flow >= 0 ? 'Net surplus' : 'Net deficit'}
+                  {analytics.summary.cash_flow.net_online_flow >= 0 ? 'Online surplus' : 'Online deficit'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50">
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Period</p>
+                <p className="text-sm">
+                  {formatDate(analytics.summary.period.start_date)} - {formatDate(analytics.summary.period.end_date)}
                 </p>
               </div>
             </CardContent>
