@@ -135,7 +135,8 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
 class PaymentAnalyticsView(APIView):
     """
-    Analytics endpoint for payment method tracking
+    Enhanced analytics endpoint for payment method tracking
+    Includes both loan disbursement and customer repayment analytics
     """
     def get(self, request):
         from django.db.models import Sum, Count, Q
@@ -152,44 +153,111 @@ class PaymentAnalyticsView(APIView):
             created_at__date__lte=end_date
         )
         
-        # Payment method totals
-        payment_totals = loans.values('payment_method').annotate(
+        # Filter transactions by date range
+        transactions = Transaction.objects.filter(
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        )
+        
+        # LOAN DISBURSEMENT ANALYTICS (How you give money)
+        disbursement_totals = loans.values('payment_method').annotate(
             total_amount=Sum('principal_amount'),
             count=Count('id')
         ).order_by('-total_amount')
         
-        # Daily breakdown
-        daily_data = loans.extra({
+        total_disbursement = loans.aggregate(total=Sum('principal_amount'))['total'] or 0
+        cash_disbursement = loans.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or 0
+        online_disbursement = loans.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or 0
+        
+        # CUSTOMER REPAYMENT ANALYTICS (How customers pay you back)
+        repayment_totals = transactions.values('payment_method').annotate(
+            total_amount=Sum('amount'),
+            count=Count('id')
+        ).order_by('-total_amount')
+        
+        total_repaid = transactions.aggregate(total=Sum('amount'))['total'] or 0
+        cash_repaid = transactions.filter(payment_method='cash').aggregate(total=Sum('amount'))['total'] or 0
+        online_repaid = transactions.filter(payment_method='online').aggregate(total=Sum('amount'))['total'] or 0
+        
+        # Cash Flow Analysis
+        net_cash_flow = cash_disbursement - cash_repaid
+        net_online_flow = online_disbursement - online_repaid
+        
+        # Daily breakdown for both disbursement and repayment
+        daily_disbursement = loans.extra({
             'day': 'date(created_at)'
         }).values('day', 'payment_method').annotate(
             total_amount=Sum('principal_amount'),
             count=Count('id')
         ).order_by('day')
         
-        # Summary stats
-        total_loans = loans.count()
-        total_amount = loans.aggregate(total=Sum('principal_amount'))['total'] or 0
-        cash_amount = loans.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or 0
-        online_amount = loans.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or 0
+        daily_repayment = transactions.extra({
+            'day': 'date(created_at)'
+        }).values('day', 'payment_method').annotate(
+            total_amount=Sum('amount'),
+            count=Count('id')
+        ).order_by('day')
         
-        # Calculate percentages
-        cash_percentage = (cash_amount / total_amount * 100) if total_amount > 0 else 0
-        online_percentage = (online_amount / total_amount * 100) if total_amount > 0 else 0
+        # Collection Method Distribution
+        collection_methods = transactions.values('payment_method').annotate(
+            total_amount=Sum('amount'),
+            count=Count('id'),
+            avg_amount=Sum('amount') / Count('id')
+        ).order_by('-total_amount')
         
         return Response({
             'summary': {
-                'total_loans': total_loans,
-                'total_amount': total_amount,
-                'cash_amount': cash_amount,
-                'online_amount': online_amount,
-                'cash_percentage': round(cash_percentage, 2),
-                'online_percentage': round(online_percentage, 2),
-                'date_range': {
+                'period': {
                     'start_date': start_date.isoformat(),
                     'end_date': end_date.isoformat(),
                     'days': days
+                },
+                'disbursement': {
+                    'total_loans': loans.count(),
+                    'total_amount': total_disbursement,
+                    'cash_amount': cash_disbursement,
+                    'online_amount': online_disbursement,
+                    'cash_percentage': round((cash_disbursement / total_disbursement * 100) if total_disbursement > 0 else 0, 2),
+                    'online_percentage': round((online_disbursement / total_disbursement * 100) if total_disbursement > 0 else 0, 2),
+                },
+                'repayment': {
+                    'total_transactions': transactions.count(),
+                    'total_repaid': total_repaid,
+                    'cash_repaid': cash_repaid,
+                    'online_repaid': online_repaid,
+                    'cash_percentage': round((cash_repaid / total_repaid * 100) if total_repaid > 0 else 0, 2),
+                    'online_percentage': round((online_repaid / total_repaid * 100) if total_repaid > 0 else 0, 2),
+                },
+                'cash_flow': {
+                    'net_cash_flow': net_cash_flow,
+                    'net_online_flow': net_online_flow,
+                    'total_flow': net_cash_flow + net_online_flow,
+                    'interpretation': self._interpret_cash_flow(net_cash_flow, net_online_flow)
                 }
             },
-            'payment_breakdown': list(payment_totals),
-            'daily_data': list(daily_data)
+            'disbursement_breakdown': list(disbursement_totals),
+            'repayment_breakdown': list(repayment_totals),
+            'collection_methods': list(collection_methods),
+            'daily_data': {
+                'disbursement': list(daily_disbursement),
+                'repayment': list(daily_repayment)
+            }
         })
+    
+    def _interpret_cash_flow(self, net_cash, net_online):
+        """Provide interpretation of cash flow"""
+        if net_cash > 0:
+            cash_status = f"Cash out: ₹{net_cash:,.0f}"
+        elif net_cash < 0:
+            cash_status = f"Cash in: ₹{abs(net_cash):,.0f}"
+        else:
+            cash_status = "Cash balanced"
+            
+        if net_online > 0:
+            online_status = f"Online out: ₹{net_online:,.0f}"
+        elif net_online < 0:
+            online_status = f"Online in: ₹{abs(net_online):,.0f}"
+        else:
+            online_status = "Online balanced"
+            
+        return f"{cash_status} | {online_status}"
