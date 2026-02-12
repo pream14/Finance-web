@@ -49,6 +49,12 @@ class Loan(models.Model):
     max_days = models.PositiveIntegerField(null=True, blank=True, help_text="Maximum days for loan completion")
     last_interest_payment_date = models.DateField(null=True, blank=True, help_text="Last date when interest was paid")
     
+    # Payment method tracking
+    payment_method = models.CharField(max_length=10, choices=[
+        ('cash', 'Cash'),
+        ('online', 'Online Transfer'),
+    ], default='cash', help_text="How the loan amount was disbursed")
+    
     def __str__(self):
         return f"{self.customer.name} - {self.loan_type} - {self.principal_amount}"
     

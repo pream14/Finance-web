@@ -118,6 +118,10 @@ export default function CustomersPage() {
   const [maxDays, setMaxDays] = useState('')
   const [allowAsalPaymentAnytime, setAllowAsalPaymentAnytime] = useState(true)
 
+  // Payment method fields
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [newPaymentMethod, setNewPaymentMethod] = useState('cash')
+
   // For existing customer loan creation
   const [newMonthlyInterestRate, setNewMonthlyInterestRate] = useState('')
   const [newInterestCycleDay, setNewInterestCycleDay] = useState('')
@@ -318,6 +322,7 @@ export default function CustomersPage() {
           customer: newId,
           loan_type: firstLoanType,
           principal_amount: principal,
+          payment_method: paymentMethod,
         }
 
         // Add loan-specific fields
@@ -344,6 +349,7 @@ export default function CustomersPage() {
       setAddLoanWithCustomer(false)
       setFirstLoanType(LOAN_TYPES[0])
       setFirstLoanPrincipal('')
+      setPaymentMethod('cash')
       setMonthlyInterestRate('')
       setInterestCycleDay('')
       setDailyCollectionAmount('')
@@ -409,6 +415,7 @@ export default function CustomersPage() {
         customer: addLoanForCustomer.id,
         loan_type: newLoanType,
         principal_amount: principal,
+        payment_method: newPaymentMethod,
       }
 
       // Add loan-specific fields
@@ -433,6 +440,7 @@ export default function CustomersPage() {
       setAddLoanForCustomer(null)
       setNewLoanPrincipal('')
       setNewLoanType(LOAN_TYPES[0])
+      setNewPaymentMethod('cash')
       setNewMonthlyInterestRate('')
       setNewInterestCycleDay('')
       setNewDailyCollectionAmount('')
@@ -799,6 +807,18 @@ export default function CustomersPage() {
                     </p>
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Payment Method</label>
+                    <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                      <SelectTrigger className="border-border/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="online">Online Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Principal amount (₹)</label>
                     <Input
                       type="number"
@@ -1018,6 +1038,18 @@ export default function CustomersPage() {
                           <p className="text-xs text-muted-foreground">
                             DC: principal collection. Monthly: interest/principal per month. DL: interest + asal per installment.
                           </p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Payment Method</label>
+                          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                            <SelectTrigger className="border-border/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="online">Online Transfer</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium text-foreground">Principal amount (₹)</label>
