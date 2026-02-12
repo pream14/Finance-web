@@ -237,11 +237,6 @@ class PaymentAnalyticsView(APIView):
             },
             'disbursement_breakdown': list(disbursement_totals),
             'repayment_breakdown': list(repayment_totals),
-            'collection_methods': list(collection_methods),
-            'daily_data': {
-                'disbursement': list(daily_disbursement),
-                'repayment': list(daily_repayment)
-            }
         })
     
     def _interpret_cash_flow(self, net_cash, net_online):
