@@ -63,18 +63,33 @@ export default function AnalyticsPage() {
       setLoading(true)
       setError(null)
       
-      let queryParams = {}
+      let url = '/transactions/payment-analytics'
       
       if (startDate && endDate) {
-        queryParams = { start_date: startDate, end_date: endDate }
-      } else {
-        queryParams = { days }
+        url += `?start_date=${startDate}&end_date=${endDate}`
+      } else if (days > 0) {
+        url += `?days=${days}`
       }
       
-      const response = await api.paymentAnalytics.get(queryParams as any)
-      setAnalytics(response.data)
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Token ${token}` } : {}),
+      }
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}${url}`, {
+        headers,
+      })
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }))
+        throw new Error(error.error || error.detail || 'Failed to fetch analytics')
+      }
+      
+      const data = await response.json()
+      setAnalytics(data)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch analytics')
+      setError(err.message || 'Failed to fetch analytics')
     } finally {
       setLoading(false)
     }
@@ -246,7 +261,6 @@ export default function AnalyticsPage() {
 
       {/* Simple Cash vs Online Balance */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-foreground">Cash vs Online Summary</h2>
         
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
