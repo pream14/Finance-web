@@ -200,6 +200,20 @@ export default function CustomersPage() {
     setTimeout(() => setShowCitySuggestions(false), 200)
   }
 
+  // Handle click outside to hide suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.city-input-container')) {
+        setShowCitySuggestions(false)
+        setShowEditCitySuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // Handle edit form city input
   const handleEditCityInputChange = (value: string) => {
     setEditFormData({ ...editFormData, city: value })
@@ -618,13 +632,11 @@ export default function CustomersPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">City</label>
-                      <div className="relative">
+                      <div className="relative city-input-container">
                         <Input
                           placeholder="Type city or area..."
                           value={editFormData.city || ''}
                           onChange={(e) => handleEditCityInputChange(e.target.value)}
-                          onBlur={handleEditCityBlur}
-                          onFocus={() => editFormData.city?.trim() && setShowEditCitySuggestions(true)}
                           className="border-border/50"
                         />
                         {showEditCitySuggestions && editCitySuggestions.length > 0 && (
@@ -633,7 +645,7 @@ export default function CustomersPage() {
                               <div
                                 key={city}
                                 className="px-3 py-2 hover:bg-muted cursor-pointer text-sm"
-                                onClick={() => handleEditCitySelect(city)}
+                                onMouseDown={() => handleEditCitySelect(city)}
                               >
                                 {city}
                               </div>
@@ -939,13 +951,11 @@ export default function CustomersPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">City / Area</label>
-                  <div className="relative">
+                  <div className="relative city-input-container">
                     <Input
                       placeholder="Type city or area..."
                       value={addFormData.city}
                       onChange={(e) => handleCityInputChange(e.target.value)}
-                      onBlur={handleCityBlur}
-                      onFocus={() => addFormData.city.trim() && setShowCitySuggestions(true)}
                       className="border-border/50"
                       required
                     />
@@ -955,7 +965,7 @@ export default function CustomersPage() {
                           <div
                             key={city}
                             className="px-3 py-2 hover:bg-muted cursor-pointer text-sm"
-                            onClick={() => handleCitySelect(city)}
+                            onMouseDown={() => handleCitySelect(city)}
                           >
                             {city}
                           </div>
