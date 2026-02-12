@@ -26,7 +26,7 @@ class LoanSerializer(serializers.ModelSerializer):
                  # DC Loan fields
                  'daily_collection_amount', 'expected_total_days',
                  # DL Loan fields
-                 'daily_interest_rate', 'max_days', 'allow_asal_payment_anytime',
+                 'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Calculated fields
                  'expected_interest', 'total_pending_interest', 'days_since_start', 'has_transactions']
         read_only_fields = ['remaining_amount', 'pending_interest', 'start_date', 'status', 'created_by', 'created_at', 'updated_at']
@@ -103,7 +103,7 @@ class LoanDetailSerializer(serializers.ModelSerializer):
                  # DC Loan fields
                  'daily_collection_amount', 'expected_total_days',
                  # DL Loan fields
-                 'daily_interest_rate', 'max_days', 'allow_asal_payment_anytime',
+                 'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Calculated fields
                  'expected_interest', 'total_pending_interest', 'days_since_start']
     

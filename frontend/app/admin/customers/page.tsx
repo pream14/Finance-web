@@ -91,6 +91,11 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [editFormData, setEditFormData] = useState<Partial<Customer>>({})
   const [addFormData, setAddFormData] = useState({ name: '', phone: '', address: '', city: '' })
+  const [existingCities, setExistingCities] = useState<string[]>([])
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([])
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
+  const [editCitySuggestions, setEditCitySuggestions] = useState<string[]>([])
+  const [showEditCitySuggestions, setShowEditCitySuggestions] = useState(false)
   const [addLoanWithCustomer, setAddLoanWithCustomer] = useState(false)
   const [firstLoanType, setFirstLoanType] = useState<string>(LOAN_TYPES[0])
   const [firstLoanPrincipal, setFirstLoanPrincipal] = useState('')
@@ -161,6 +166,65 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchCustomers()
   }, [])
+
+  // Extract existing cities from customers
+  useEffect(() => {
+    const cities = [...new Set(customers.map(c => c.city).filter(Boolean))]
+    setExistingCities(cities.sort())
+  }, [customers])
+
+  // Handle city input with suggestions
+  const handleCityInputChange = (value: string) => {
+    setAddFormData({ ...addFormData, city: value })
+    
+    if (value.trim()) {
+      const filtered = existingCities.filter(city => 
+        city.toLowerCase().includes(value.toLowerCase())
+      )
+      setCitySuggestions(filtered.slice(0, 5)) // Show max 5 suggestions
+      setShowCitySuggestions(true)
+    } else {
+      setCitySuggestions([])
+      setShowCitySuggestions(false)
+    }
+  }
+
+  const handleCitySelect = (city: string) => {
+    setAddFormData({ ...addFormData, city })
+    setCitySuggestions([])
+    setShowCitySuggestions(false)
+  }
+
+  const handleCityBlur = () => {
+    // Hide suggestions after a short delay to allow click on suggestion
+    setTimeout(() => setShowCitySuggestions(false), 200)
+  }
+
+  // Handle edit form city input
+  const handleEditCityInputChange = (value: string) => {
+    setEditFormData({ ...editFormData, city: value })
+    
+    if (value.trim()) {
+      const filtered = existingCities.filter(city => 
+        city.toLowerCase().includes(value.toLowerCase())
+      )
+      setEditCitySuggestions(filtered.slice(0, 5))
+      setShowEditCitySuggestions(true)
+    } else {
+      setEditCitySuggestions([])
+      setShowEditCitySuggestions(false)
+    }
+  }
+
+  const handleEditCitySelect = (city: string) => {
+    setEditFormData({ ...editFormData, city })
+    setEditCitySuggestions([])
+    setShowEditCitySuggestions(false)
+  }
+
+  const handleEditCityBlur = () => {
+    setTimeout(() => setShowEditCitySuggestions(false), 200)
+  }
 
   // Handle customer row click - navigate to detail page
   const handleCustomerClick = (customer: Customer) => {
@@ -256,7 +320,6 @@ export default function CustomersPage() {
           if (maxDays) {
             loanData.max_days = parseInt(maxDays)
           }
-          loanData.allow_asal_payment_anytime = allowAsalPaymentAnytime
         }
 
         await loansApi.create(loanData)
@@ -348,7 +411,6 @@ export default function CustomersPage() {
         if (newMaxDays) {
           loanData.max_days = parseInt(newMaxDays)
         }
-        loanData.allow_asal_payment_anytime = newAllowAsalPaymentAnytime
       }
 
       await loansApi.create(loanData)
@@ -556,16 +618,29 @@ export default function CustomersPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">City</label>
-                      <Select value={editFormData.city || ''} onValueChange={(val) => setEditFormData({ ...editFormData, city: val })}>
-                        <SelectTrigger className="border-border/50">
-                          <SelectValue placeholder="Select city" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Manakudi">Manakudi</SelectItem>
-                          <SelectItem value="Koranad">Koranad</SelectItem>
-                          <SelectItem value="Myd">Myd</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="relative">
+                        <Input
+                          placeholder="Type city or area..."
+                          value={editFormData.city || ''}
+                          onChange={(e) => handleEditCityInputChange(e.target.value)}
+                          onBlur={handleEditCityBlur}
+                          onFocus={() => editFormData.city?.trim() && setShowEditCitySuggestions(true)}
+                          className="border-border/50"
+                        />
+                        {showEditCitySuggestions && editCitySuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                            {editCitySuggestions.map((city, index) => (
+                              <div
+                                key={city}
+                                className="px-3 py-2 hover:bg-muted cursor-pointer text-sm"
+                                onClick={() => handleEditCitySelect(city)}
+                              >
+                                {city}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -814,18 +889,6 @@ export default function CustomersPage() {
                           className="border-border/50"
                         />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="allow-asal-payment"
-                          checked={newAllowAsalPaymentAnytime}
-                          onChange={(e) => setNewAllowAsalPaymentAnytime(e.target.checked)}
-                          className="rounded border-border"
-                        />
-                        <label htmlFor="allow-asal-payment" className="text-sm font-medium text-foreground">
-                          Allow Asal Payment Anytime
-                        </label>
-                      </div>
                     </>
                   )}
                   <div className="flex gap-2 pt-2">
@@ -876,19 +939,30 @@ export default function CustomersPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">City / Area</label>
-                  <Select
-                    value={addFormData.city}
-                    onValueChange={(val) => setAddFormData({ ...addFormData, city: val })}
-                  >
-                    <SelectTrigger className="border-border/50">
-                      <SelectValue placeholder="Select city" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CITIES.map((city) => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      placeholder="Type city or area..."
+                      value={addFormData.city}
+                      onChange={(e) => handleCityInputChange(e.target.value)}
+                      onBlur={handleCityBlur}
+                      onFocus={() => addFormData.city.trim() && setShowCitySuggestions(true)}
+                      className="border-border/50"
+                      required
+                    />
+                    {showCitySuggestions && citySuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                        {citySuggestions.map((city, index) => (
+                          <div
+                            key={city}
+                            className="px-3 py-2 hover:bg-muted cursor-pointer text-sm"
+                            onClick={() => handleCitySelect(city)}
+                          >
+                            {city}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1040,18 +1114,6 @@ export default function CustomersPage() {
                                 className="border-border/50"
                               />
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id="allow-asal-payment-new"
-                              checked={allowAsalPaymentAnytime}
-                              onChange={(e) => setAllowAsalPaymentAnytime(e.target.checked)}
-                              className="rounded border-border"
-                            />
-                            <label htmlFor="allow-asal-payment-new" className="text-sm font-medium text-foreground">
-                              Allow Asal Payment Anytime
-                            </label>
                           </div>
                         </div>
                       )}

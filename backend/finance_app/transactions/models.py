@@ -47,7 +47,7 @@ class Loan(models.Model):
     # DL Loan specific fields
     daily_interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Daily interest rate percentage")
     max_days = models.PositiveIntegerField(null=True, blank=True, help_text="Maximum days for loan completion")
-    allow_asal_payment_anytime = models.BooleanField(default=True, help_text="Allow principal payment anytime for DL loan")
+    last_interest_payment_date = models.DateField(null=True, blank=True, help_text="Last date when interest was paid")
     
     def __str__(self):
         return f"{self.customer.name} - {self.loan_type} - {self.principal_amount}"
@@ -60,16 +60,19 @@ class Loan(models.Model):
         return interest.quantize(Decimal('0.01'))
     
     def calculate_dl_interest(self, as_of_date=None):
-        """Calculate DL loan interest based on days from start_date"""
+        """Calculate DL loan interest based on days from last interest payment or start date"""
         if self.loan_type != 'DL Loan' or not self.daily_interest_rate:
             return Decimal('0'), 0
         if as_of_date is None:
             as_of_date = date.today()
-        days = (as_of_date - self.start_date).days
+        
+        # Use last interest payment date if available, otherwise use start date
+        start_date = self.last_interest_payment_date or self.start_date
+        days = (as_of_date - start_date).days
         if days < 0:
             days = 0
         # Interest = principal × (daily_rate / 100) × days
-        interest = self.principal_amount * (self.daily_interest_rate / Decimal('100')) * days
+        interest = self.remaining_amount * (self.daily_interest_rate / Decimal('100')) * days
         return interest.quantize(Decimal('0.01')), days
     
     def get_total_pending_interest(self):
@@ -152,6 +155,8 @@ class Transaction(models.Model):
                     loan.pending_interest = expected_interest - interest_paid
                 else:
                     loan.pending_interest = Decimal('0')
+                    # Update last interest payment date when interest is fully paid
+                    loan.last_interest_payment_date = self.created_at.date()
             
             # Check if loan is fully paid
             if loan.remaining_amount <= 0:
