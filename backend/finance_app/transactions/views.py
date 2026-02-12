@@ -131,3 +131,64 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         transaction.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class PaymentAnalyticsView(APIView):
+    """
+    Analytics endpoint for payment method tracking
+    """
+    def get(self, request):
+        from django.db.models import Sum, Count, Q
+        from datetime import date, timedelta
+        
+        # Get date range from query params (default: last 30 days)
+        days = int(request.query_params.get('days', 30))
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Filter loans by date range
+        loans = Loan.objects.filter(
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        )
+        
+        # Payment method totals
+        payment_totals = loans.values('payment_method').annotate(
+            total_amount=Sum('principal_amount'),
+            count=Count('id')
+        ).order_by('-total_amount')
+        
+        # Daily breakdown
+        daily_data = loans.extra({
+            'day': 'date(created_at)'
+        }).values('day', 'payment_method').annotate(
+            total_amount=Sum('principal_amount'),
+            count=Count('id')
+        ).order_by('day')
+        
+        # Summary stats
+        total_loans = loans.count()
+        total_amount = loans.aggregate(total=Sum('principal_amount'))['total'] or 0
+        cash_amount = loans.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or 0
+        online_amount = loans.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or 0
+        
+        # Calculate percentages
+        cash_percentage = (cash_amount / total_amount * 100) if total_amount > 0 else 0
+        online_percentage = (online_amount / total_amount * 100) if total_amount > 0 else 0
+        
+        return Response({
+            'summary': {
+                'total_loans': total_loans,
+                'total_amount': total_amount,
+                'cash_amount': cash_amount,
+                'online_amount': online_amount,
+                'cash_percentage': round(cash_percentage, 2),
+                'online_percentage': round(online_percentage, 2),
+                'date_range': {
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat(),
+                    'days': days
+                }
+            },
+            'payment_breakdown': list(payment_totals),
+            'daily_data': list(daily_data)
+        })

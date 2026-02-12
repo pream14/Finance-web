@@ -312,4 +312,21 @@ export const dashboardApi = {
       created_at: string;
     }>;
   }>('/transactions/dashboard-stats/'),
+
+  paymentAnalytics: {
+    get: (days?: number) => apiRequest<any>(`/transactions/payment-analytics/${days ? `?days=${days}` : ''}`),
+  },
+};
+
+export const api = {
+  customers: customersApi,
+  loans: loansApi,
+  transactions: transactionsApi,
+  expenses: expensesApi,
+  dashboard: {
+    get: () => apiRequest<any>('/transactions/dashboard-stats/'),
+  },
+  paymentAnalytics: {
+    get: (days?: number) => apiRequest<any>(`/transactions/payment-analytics/${days ? `?days=${days}` : ''}`),
+  },
 };
