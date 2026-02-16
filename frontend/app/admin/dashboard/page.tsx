@@ -233,7 +233,10 @@ export default function AdminDashboard() {
             <Button variant="outline" asChild>
               <Link href="/admin/expenses">Expenses</Link>
             </Button>
-            
+            <Button variant="outline" asChild>
+              <Link href="/admin/reports">Reports</Link>
+            </Button>
+
             {/* Settings Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -330,3 +330,61 @@ export const api = {
     get: (days?: number) => apiRequest<any>(`/transactions/payment-analytics/${days ? `?days=${days}` : ''}`),
   },
 };
+
+// Reports API
+export const reportsApi = {
+  getData: (params: {
+    start_date: string;
+    end_date: string;
+    report_type: string;
+    area?: string;
+    loan_type?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('start_date', params.start_date);
+    queryParams.append('end_date', params.end_date);
+    queryParams.append('report_type', params.report_type);
+    if (params.area) queryParams.append('area', params.area);
+    if (params.loan_type) queryParams.append('loan_type', params.loan_type);
+    return apiRequest<any>(`/transactions/reports/?${queryParams.toString()}`);
+  },
+
+  download: async (params: {
+    start_date: string;
+    end_date: string;
+    report_type: string;
+    format: 'csv' | 'pdf';
+    area?: string;
+    loan_type?: string;
+  }) => {
+    const token = getAuthToken();
+    const queryParams = new URLSearchParams();
+    queryParams.append('start_date', params.start_date);
+    queryParams.append('end_date', params.end_date);
+    queryParams.append('report_type', params.report_type);
+    queryParams.append('format', params.format);
+    if (params.area) queryParams.append('area', params.area);
+    if (params.loan_type) queryParams.append('loan_type', params.loan_type);
+
+    const response = await fetch(
+      `${API_BASE_URL}/transactions/reports/download/?${queryParams.toString()}`,
+      {
+        headers: {
+          ...(token ? { Authorization: `Token ${token}` } : {}),
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error('Download failed');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report_${params.report_type}_${params.start_date}_to_${params.end_date}.${params.format}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+};
