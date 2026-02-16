@@ -116,7 +116,7 @@ export default function ReportsPage() {
                 start_date: startDate,
                 end_date: endDate,
                 report_type: reportType,
-                format,
+                file_format: format,
                 ...(area && area !== '_all' ? { area } : {}),
                 ...(loanType && loanType !== '_all' ? { loan_type: loanType } : {}),
             })
@@ -216,8 +216,8 @@ export default function ReportsPage() {
                                 key={tab.id}
                                 onClick={() => setReportType(tab.id)}
                                 className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${active
-                                        ? 'border-primary bg-primary/5 shadow-sm'
-                                        : 'border-border/50 hover:border-border bg-card hover:bg-muted/30'
+                                    ? 'border-primary bg-primary/5 shadow-sm'
+                                    : 'border-border/50 hover:border-border bg-card hover:bg-muted/30'
                                     }`}
                             >
                                 <div className={`p-2.5 rounded-lg ${active ? 'bg-primary/10' : 'bg-muted'}`}>

@@ -353,7 +353,7 @@ export const reportsApi = {
     start_date: string;
     end_date: string;
     report_type: string;
-    format: 'csv' | 'pdf';
+    file_format: 'csv' | 'pdf';
     area?: string;
     loan_type?: string;
   }) => {
@@ -362,7 +362,7 @@ export const reportsApi = {
     queryParams.append('start_date', params.start_date);
     queryParams.append('end_date', params.end_date);
     queryParams.append('report_type', params.report_type);
-    queryParams.append('format', params.format);
+    queryParams.append('file_format', params.file_format);
     if (params.area) queryParams.append('area', params.area);
     if (params.loan_type) queryParams.append('loan_type', params.loan_type);
 
@@ -381,7 +381,7 @@ export const reportsApi = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `report_${params.report_type}_${params.start_date}_to_${params.end_date}.${params.format}`;
+    a.download = `report_${params.report_type}_${params.start_date}_to_${params.end_date}.${params.file_format}`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);

@@ -161,7 +161,7 @@ class ReportDownloadView(APIView):
         if error:
             return Response(error, status=status.HTTP_400_BAD_REQUEST)
 
-        fmt = request.query_params.get('format', 'csv').lower()
+        fmt = request.query_params.get('file_format', 'csv').lower()
         report_type = data['report_type']
         summary = data['summary']
         breakdown = data['breakdown']
