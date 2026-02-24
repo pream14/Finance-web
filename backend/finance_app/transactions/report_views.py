@@ -338,7 +338,7 @@ class ReportDownloadView(APIView):
         elements.append(Spacer(1, 30))
         footer_style = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8,
                                        textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
-        elements.append(Paragraph(f"Generated on {date.today().strftime('%d %b %Y')} • Finance Collection Management System", footer_style))
+        elements.append(Paragraph(f"Generated on {date.today().strftime('%d %b %Y')} ", footer_style))
 
         doc.build(elements)
         buffer.seek(0)

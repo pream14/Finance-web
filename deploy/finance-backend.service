@@ -1,0 +1,37 @@
+# finance-backend.service
+# Copy to: /etc/systemd/system/finance-backend.service
+# Enable:  sudo systemctl enable finance-backend
+# Start:   sudo systemctl start finance-backend
+# Logs:    sudo journalctl -u finance-backend -f
+
+[Unit]
+Description=Finance App — Django/Gunicorn Backend
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=exec
+User=finance
+Group=finance
+WorkingDirectory=/opt/finance/backend/finance_app
+EnvironmentFile=/opt/finance/backend/finance_app/.env
+
+ExecStart=/opt/finance/backend/venv/bin/gunicorn \
+    finance_app.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
+
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/finance /var/backups/finance_app
+
+[Install]
+WantedBy=multi-user.target

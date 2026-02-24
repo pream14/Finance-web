@@ -45,7 +45,6 @@ class LoanSerializer(serializers.ModelSerializer):
         elif obj.loan_type == 'DL Loan':
             interest, _ = obj.calculate_dl_interest()
             result = str(interest)
-        print(f"DEBUG get_expected_interest: Loan {obj.id}, Type: {obj.loan_type}, monthly_rate: {obj.monthly_interest_rate}, daily_rate: {obj.daily_interest_rate}, result: {result}")
         return result
     
     def get_total_pending_interest(self, obj):

@@ -1,0 +1,33 @@
+# finance-frontend.service
+# Copy to: /etc/systemd/system/finance-frontend.service
+# Enable:  sudo systemctl enable finance-frontend
+# Start:   sudo systemctl start finance-frontend
+# Logs:    sudo journalctl -u finance-frontend -f
+
+[Unit]
+Description=Finance App — Next.js Frontend
+After=network.target
+
+[Service]
+Type=exec
+User=finance
+Group=finance
+WorkingDirectory=/opt/finance/frontend
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+EnvironmentFile=/opt/finance/frontend/.env.production.local
+
+ExecStart=/usr/bin/node .next/standalone/server.js
+
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/finance
+
+[Install]
+WantedBy=multi-user.target

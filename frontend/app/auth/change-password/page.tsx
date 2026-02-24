@@ -90,9 +90,6 @@ export default function ChangePasswordPage() {
             {/* Header */}
             <header className="border-b border-border bg-card/95 backdrop-blur-sm z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
                     <h1 className="text-xl font-bold text-foreground">Change Password</h1>
                 </div>
             </header>
