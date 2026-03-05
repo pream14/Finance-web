@@ -43,6 +43,7 @@ class Loan(models.Model):
     # DC Loan specific fields
     daily_collection_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Daily collection amount")
     expected_total_days = models.PositiveIntegerField(null=True, blank=True, help_text="Expected total days for completion")
+    dc_deduction_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, default=0, help_text="Advance interest deducted when giving DC loan (e.g. ₹150 per ₹1000)")
     
     # DL Loan specific fields
     daily_interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Daily interest rate percentage")
@@ -54,6 +55,12 @@ class Loan(models.Model):
         ('cash', 'Cash'),
         ('online', 'Online Transfer'),
     ], default='cash', help_text="How the loan amount was disbursed")
+    
+    @property
+    def amount_given_to_customer(self):
+        """Amount actually given to customer after DC deduction"""
+        deduction = self.dc_deduction_amount or Decimal('0')
+        return self.principal_amount - deduction
     
     def __str__(self):
         return f"{self.customer.name} - {self.loan_type} - {self.principal_amount}"
@@ -182,3 +189,28 @@ class Transaction(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['created_by']),
         ]
+
+
+class DailyCashBook(models.Model):
+    """Stores daily cash book entries with opening and closing balances (iruppu)"""
+    date = models.DateField(unique=True, db_index=True)
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Iruppu - cash in hand at start of day")
+    closing_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Cash in hand at end of day")
+    notes = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='cashbook_entries',
+        null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"CashBook {self.date} - Opening: {self.opening_balance}, Closing: {self.closing_balance}"
+    
+    class Meta:
+        db_table = 'transactions_dailycashbook'
+        verbose_name = 'Daily Cash Book'
+        verbose_name_plural = 'Daily Cash Book Entries'
+        ordering = ['-date']

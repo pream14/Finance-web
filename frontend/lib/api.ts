@@ -388,3 +388,31 @@ export const reportsApi = {
     document.body.removeChild(a);
   },
 };
+
+// Cash Book API
+export const cashBookApi = {
+  get: (date?: string) => {
+    const queryParams = new URLSearchParams();
+    if (date) queryParams.append('date', date);
+    const query = queryParams.toString();
+    return apiRequest<any>(`/transactions/daily-cashbook/${query ? `?${query}` : ''}`);
+  },
+
+  saveOpeningBalance: (data: { date: string; opening_balance: number; notes?: string }) =>
+    apiRequest<any>('/transactions/daily-cashbook/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Revenue Report API
+export const revenueApi = {
+  get: (params?: { range?: string; start_date?: string; end_date?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.range) queryParams.append('range', params.range);
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    const query = queryParams.toString();
+    return apiRequest<any>(`/transactions/revenue-report/${query ? `?${query}` : ''}`);
+  },
+};

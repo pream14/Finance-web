@@ -16,6 +16,7 @@ class LoanSerializer(serializers.ModelSerializer):
     total_pending_interest = serializers.SerializerMethodField()
     days_since_start = serializers.SerializerMethodField()
     has_transactions = serializers.SerializerMethodField()
+    amount_given_to_customer = serializers.SerializerMethodField()
     
     class Meta:
         model = Loan
@@ -24,18 +25,25 @@ class LoanSerializer(serializers.ModelSerializer):
                  # Monthly Interest Loan fields
                  'monthly_interest_rate', 'interest_cycle_day',
                  # DC Loan fields
-                 'daily_collection_amount', 'expected_total_days',
+                 'daily_collection_amount', 'expected_total_days', 'dc_deduction_amount',
                  # DL Loan fields
                  'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Payment method
                  'payment_method',
                  # Calculated fields
-                 'expected_interest', 'total_pending_interest', 'days_since_start', 'has_transactions']
+                 'expected_interest', 'total_pending_interest', 'days_since_start', 'has_transactions',
+                 'amount_given_to_customer']
         read_only_fields = ['remaining_amount', 'pending_interest', 'start_date', 'status', 'created_by', 'created_at', 'updated_at']
     
     def get_has_transactions(self, obj):
         """Check if loan has any transactions"""
         return obj.transactions.exists()
+    
+    def get_amount_given_to_customer(self, obj):
+        """Amount given to customer after DC deduction"""
+        if obj.loan_type == 'DC Loan' and obj.dc_deduction_amount:
+            return str(obj.amount_given_to_customer)
+        return str(obj.principal_amount)
     
     def get_expected_interest(self, obj):
         """Get current cycle's expected interest"""
@@ -45,7 +53,6 @@ class LoanSerializer(serializers.ModelSerializer):
         elif obj.loan_type == 'DL Loan':
             interest, _ = obj.calculate_dl_interest()
             result = str(interest)
-        print(f"DEBUG get_expected_interest: Loan {obj.id}, Type: {obj.loan_type}, monthly_rate: {obj.monthly_interest_rate}, daily_rate: {obj.daily_interest_rate}, result: {result}")
         return result
     
     def get_total_pending_interest(self, obj):
@@ -95,6 +102,7 @@ class LoanDetailSerializer(serializers.ModelSerializer):
     expected_interest = serializers.SerializerMethodField()
     total_pending_interest = serializers.SerializerMethodField()
     days_since_start = serializers.SerializerMethodField()
+    amount_given_to_customer = serializers.SerializerMethodField()
     
     class Meta:
         model = Loan
@@ -103,13 +111,14 @@ class LoanDetailSerializer(serializers.ModelSerializer):
                  # Monthly Interest Loan fields
                  'monthly_interest_rate', 'interest_cycle_day',
                  # DC Loan fields
-                 'daily_collection_amount', 'expected_total_days',
+                 'daily_collection_amount', 'expected_total_days', 'dc_deduction_amount',
                  # DL Loan fields
                  'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Payment method
                  'payment_method',
                  # Calculated fields
-                 'expected_interest', 'total_pending_interest', 'days_since_start']
+                 'expected_interest', 'total_pending_interest', 'days_since_start',
+                 'amount_given_to_customer']
     
     def get_expected_interest(self, obj):
         """Get current cycle's expected interest"""
@@ -130,6 +139,12 @@ class LoanDetailSerializer(serializers.ModelSerializer):
             from datetime import date
             return (date.today() - obj.start_date).days
         return 0
+    
+    def get_amount_given_to_customer(self, obj):
+        """Amount given to customer after DC deduction"""
+        if obj.loan_type == 'DC Loan' and obj.dc_deduction_amount:
+            return str(obj.amount_given_to_customer)
+        return str(obj.principal_amount)
 
 class TransactionSerializer(serializers.ModelSerializer):
     loan_type = serializers.CharField(source='loan.loan_type', read_only=True)

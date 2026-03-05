@@ -165,11 +165,6 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
             <div className="min-h-screen bg-background">
                 <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
-                        <Button variant="ghost" size="icon" asChild>
-                            <Link href="/admin/customers">
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                        </Button>
                         <h1 className="text-lg font-semibold text-foreground">Customer Not Found</h1>
                     </div>
                 </header>
@@ -194,11 +189,6 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
             <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" asChild>
-                            <Link href="/admin/customers">
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                        </Button>
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-primary/10 rounded-lg">
                                 <User className="w-6 h-6 text-primary" />
@@ -303,8 +293,8 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             key={status}
                                             onClick={() => setLoanStatusFilter(status)}
                                             className={`px-3 py-1 text-xs font-medium rounded-full transition-colors capitalize ${loanStatusFilter === status
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                                 }`}
                                         >
                                             {status}
@@ -370,6 +360,18 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                         {new Date(new Date(loan.start_date).getTime() + loan.expected_total_days * 86400000).toLocaleDateString('en-IN')}
                                                     </span>
                                                 </div>
+                                            )}
+                                            {loan.loan_type === 'DC Loan' && (loan as any).dc_deduction_amount > 0 && (
+                                                <>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-muted-foreground">Deduction</span>
+                                                        <span className="text-orange-600 font-medium">₹{Number((loan as any).dc_deduction_amount || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-muted-foreground">Given to Customer</span>
+                                                        <span className="text-green-600 font-medium">₹{Number((loan as any).amount_given_to_customer || loan.principal_amount).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                </>
                                             )}
                                             {loan.start_date && (
                                                 <div className="flex justify-between text-xs">
