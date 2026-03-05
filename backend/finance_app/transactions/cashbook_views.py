@@ -82,11 +82,26 @@ class DailyCashBookView(APIView):
             dc_deduction_amount__gt=0
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
-        # Interest revenue collected today (from all loan types)
-        interest_collected = Transaction.objects.filter(
+        # Interest revenue collected today broken down by loan type
+        monthly_interest = Transaction.objects.filter(
             created_at__date=target_date,
+            loan__loan_type='Monthly Interest Loan',
             interest_amount__gt=0
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
+
+        dl_interest = Transaction.objects.filter(
+            created_at__date=target_date,
+            loan__loan_type='DL Loan',
+            interest_amount__gt=0
+        ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
+
+        dc_interest = Transaction.objects.filter(
+            created_at__date=target_date,
+            loan__loan_type='DC Loan',
+            interest_amount__gt=0
+        ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
+
+        total_interest_collected = monthly_interest + dl_interest + dc_interest
 
         # Calculate closing balance
         # Closing = Opening + Cash Collections - Cash Loans Given - Expenses
@@ -96,8 +111,8 @@ class DailyCashBookView(APIView):
         cashbook_entry.closing_balance = closing_balance
         cashbook_entry.save()
 
-        # Total revenue = DC deductions + Interest collected
-        total_revenue = dc_deduction_revenue + interest_collected
+        # Total revenue = DC deductions + all interest collected
+        total_revenue = dc_deduction_revenue + total_interest_collected
 
         # Get expense details
         expense_list = list(Expense.objects.filter(
@@ -125,7 +140,10 @@ class DailyCashBookView(APIView):
             'closing_balance': str(closing_balance),
             'revenue': {
                 'dc_deduction': str(dc_deduction_revenue),
-                'interest_collected': str(interest_collected),
+                'monthly_interest': str(monthly_interest),
+                'dl_interest': str(dl_interest),
+                'dc_interest': str(dc_interest),
+                'total_interest_collected': str(total_interest_collected),
                 'total': str(total_revenue),
             },
             'details': {

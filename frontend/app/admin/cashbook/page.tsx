@@ -26,7 +26,10 @@ interface CashBookData {
     closing_balance: string
     revenue: {
         dc_deduction: string
-        interest_collected: string
+        monthly_interest: string
+        dl_interest: string
+        dc_interest: string
+        total_interest_collected: string
         total: string
     }
     details: {
@@ -454,14 +457,22 @@ export default function CashBookPage() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                     <div className="text-center py-2">
                                         <p className="text-xs text-muted-foreground">DC Deduction</p>
                                         <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.dc_deduction).toLocaleString('en-IN')}</p>
                                     </div>
                                     <div className="text-center py-2">
-                                        <p className="text-xs text-muted-foreground">Interest Collected</p>
-                                        <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.interest_collected).toLocaleString('en-IN')}</p>
+                                        <p className="text-xs text-muted-foreground">Monthly Interest</p>
+                                        <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.monthly_interest).toLocaleString('en-IN')}</p>
+                                    </div>
+                                    <div className="text-center py-2">
+                                        <p className="text-xs text-muted-foreground">DL Interest</p>
+                                        <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.dl_interest).toLocaleString('en-IN')}</p>
+                                    </div>
+                                    <div className="text-center py-2">
+                                        <p className="text-xs text-muted-foreground">DC Interest</p>
+                                        <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.dc_interest).toLocaleString('en-IN')}</p>
                                     </div>
                                     <div className="text-center py-2 bg-emerald-500/10 rounded-lg">
                                         <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>

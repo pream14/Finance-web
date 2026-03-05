@@ -345,8 +345,9 @@ export default function CustomersPage() {
           if (expectedTotalDays) {
             loanData.expected_total_days = parseInt(expectedTotalDays)
           }
-          if (dcDeductionAmount) {
-            loanData.dc_deduction_amount = parseFloat(dcDeductionAmount)
+          const deduction = dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)
+          if (deduction) {
+            loanData.dc_deduction_amount = parseFloat(deduction)
           }
         } else if (firstLoanType === 'DL Loan') {
           loanData.daily_interest_rate = parseFloat(dailyInterestRate)
@@ -442,8 +443,9 @@ export default function CustomersPage() {
         if (newExpectedTotalDays) {
           loanData.expected_total_days = parseInt(newExpectedTotalDays)
         }
-        if (newDcDeductionAmount) {
-          loanData.dc_deduction_amount = parseFloat(newDcDeductionAmount)
+        const deduction = newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)
+        if (deduction) {
+          loanData.dc_deduction_amount = parseFloat(deduction)
         }
       } else if (newLoanType === 'DL Loan') {
         loanData.daily_interest_rate = parseFloat(newDailyInterestRate)
@@ -801,8 +803,8 @@ export default function CustomersPage() {
 
         {/* Add new loan modal (for existing customer) */}
         {addLoanForCustomer && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setAddLoanForCustomer(null)}>
-            <Card className="w-full max-w-md border-border/50" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto" onClick={() => setAddLoanForCustomer(null)}>
+            <Card className="w-full max-w-md border-border/50 my-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Add new loan</CardTitle>
                 <CardDescription>{addLoanForCustomer.name} — same customer</CardDescription>
@@ -888,53 +890,24 @@ export default function CustomersPage() {
                     <>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Daily Collection Amount (₹)</label>
-                        <Input
-                          type="number"
-                          min="1"
-                          step="0.01"
-                          placeholder="e.g. 100"
-                          value={newDailyCollectionAmount}
-                          onChange={(e) => setNewDailyCollectionAmount(e.target.value)}
-                          className="border-border/50"
-                          required
-                        />
+                        <Input type="number" min="1" step="0.01" placeholder="e.g. 100" value={newDailyCollectionAmount} onChange={(e) => setNewDailyCollectionAmount(e.target.value)} className="border-border/50" required />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Expected Total Days (Optional)</label>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="e.g. 120"
-                          value={newExpectedTotalDays}
-                          onChange={(e) => setNewExpectedTotalDays(e.target.value)}
-                          className="border-border/50"
-                        />
+                        <Input type="number" min="1" placeholder="e.g. 120" value={newExpectedTotalDays} onChange={(e) => setNewExpectedTotalDays(e.target.value)} className="border-border/50" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Deduction / Advance Interest (₹)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="Auto: 15% of principal"
-                          value={newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)}
-                          onChange={(e) => setNewDcDeductionAmount(e.target.value)}
-                          className="border-border/50"
-                        />
+                        <Input type="number" min="0" step="1" placeholder="Auto: 15% of principal" value={newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)} onChange={(e) => setNewDcDeductionAmount(e.target.value)} className="border-border/50" />
                         <p className="text-xs text-muted-foreground">₹150 per ₹1,000 (auto-calculated, editable)</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Amount Given to Customer</label>
                         <div className="px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-md">
                           <span className="text-lg font-bold text-green-600">
-                            ₹{(() => {
-                              const principal = parseFloat(newLoanPrincipal) || 0
-                              const deduction = parseFloat(newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)) || 0
-                              return Math.max(0, principal - deduction).toLocaleString('en-IN')
-                            })()}
+                            ₹{(() => { const pr = parseFloat(newLoanPrincipal) || 0; const d = parseFloat(newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)) || 0; return Math.max(0, pr - d).toLocaleString('en-IN') })()}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Principal minus deduction</p>
                       </div>
                     </>
                   )}
@@ -1149,55 +1122,26 @@ export default function CustomersPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <label className="text-sm font-medium text-foreground">Daily Collection Amount (₹)</label>
-                              <Input
-                                type="number"
-                                min="1"
-                                step="0.01"
-                                placeholder="e.g. 100"
-                                value={dailyCollectionAmount}
-                                onChange={(e) => setDailyCollectionAmount(e.target.value)}
-                                className="border-border/50"
-                                required={addLoanWithCustomer}
-                              />
+                              <Input type="number" min="1" step="0.01" placeholder="e.g. 100" value={dailyCollectionAmount} onChange={(e) => setDailyCollectionAmount(e.target.value)} className="border-border/50" required={addLoanWithCustomer} />
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium text-foreground">Expected Total Days (Optional)</label>
-                              <Input
-                                type="number"
-                                min="1"
-                                placeholder="e.g. 120"
-                                value={expectedTotalDays}
-                                onChange={(e) => setExpectedTotalDays(e.target.value)}
-                                className="border-border/50"
-                              />
+                              <Input type="number" min="1" placeholder="e.g. 120" value={expectedTotalDays} onChange={(e) => setExpectedTotalDays(e.target.value)} className="border-border/50" />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <label className="text-sm font-medium text-foreground">Deduction / Advance Interest (₹)</label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="1"
-                                placeholder="Auto: 15% of principal"
-                                value={dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)}
-                                onChange={(e) => setDcDeductionAmount(e.target.value)}
-                                className="border-border/50"
-                              />
+                              <Input type="number" min="0" step="1" placeholder="Auto: 15% of principal" value={dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)} onChange={(e) => setDcDeductionAmount(e.target.value)} className="border-border/50" />
                               <p className="text-xs text-muted-foreground">₹150 per ₹1,000 (auto-calculated, editable)</p>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium text-foreground">Amount Given to Customer</label>
                               <div className="px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-md">
                                 <span className="text-lg font-bold text-green-600">
-                                  ₹{(() => {
-                                    const principal = parseFloat(firstLoanPrincipal) || 0
-                                    const deduction = parseFloat(dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)) || 0
-                                    return Math.max(0, principal - deduction).toLocaleString('en-IN')
-                                  })()}
+                                  ₹{(() => { const pr = parseFloat(firstLoanPrincipal) || 0; const d = parseFloat(dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)) || 0; return Math.max(0, pr - d).toLocaleString('en-IN') })()}
                                 </span>
                               </div>
-                              <p className="text-xs text-muted-foreground">Principal minus deduction</p>
                             </div>
                           </div>
                         </div>
