@@ -236,6 +236,9 @@ export default function AdminDashboard() {
             <Button variant="outline" asChild>
               <Link href="/admin/reports">Reports</Link>
             </Button>
+            <Button variant="outline" asChild className="border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+              <Link href="/admin/cashbook">Cash Book</Link>
+            </Button>
 
             {/* Settings Dropdown */}
             <DropdownMenu>

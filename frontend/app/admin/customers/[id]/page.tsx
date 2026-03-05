@@ -293,8 +293,8 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             key={status}
                                             onClick={() => setLoanStatusFilter(status)}
                                             className={`px-3 py-1 text-xs font-medium rounded-full transition-colors capitalize ${loanStatusFilter === status
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                                 }`}
                                         >
                                             {status}
@@ -360,6 +360,18 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                         {new Date(new Date(loan.start_date).getTime() + loan.expected_total_days * 86400000).toLocaleDateString('en-IN')}
                                                     </span>
                                                 </div>
+                                            )}
+                                            {loan.loan_type === 'DC Loan' && (loan as any).dc_deduction_amount > 0 && (
+                                                <>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-muted-foreground">Deduction</span>
+                                                        <span className="text-orange-600 font-medium">₹{Number((loan as any).dc_deduction_amount || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-muted-foreground">Given to Customer</span>
+                                                        <span className="text-green-600 font-medium">₹{Number((loan as any).amount_given_to_customer || loan.principal_amount).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                </>
                                             )}
                                             {loan.start_date && (
                                                 <div className="flex justify-between text-xs">
