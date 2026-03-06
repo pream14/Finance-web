@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Users, Plus, Trash2, Edit3, Wallet, Eye, X, Filter, ChevronDown, ChevronUp } from 'lucide-react'
 import { customersApi, loansApi, transactionsApi } from '@/lib/api'
 
@@ -107,7 +108,8 @@ export default function CustomersPage() {
 
   // Monthly Interest Loan fields
   const [monthlyInterestRate, setMonthlyInterestRate] = useState('')
-  const [interestCycleDay, setInterestCycleDay] = useState('')
+  const [interestCycleDay, setInterestCycleDay] = useState(new Date().getDate().toString())
+  const [firstMonthInterestPaid, setFirstMonthInterestPaid] = useState(true)
 
   // DC Loan fields
   const [dailyCollectionAmount, setDailyCollectionAmount] = useState('')
@@ -125,7 +127,8 @@ export default function CustomersPage() {
 
   // For existing customer loan creation
   const [newMonthlyInterestRate, setNewMonthlyInterestRate] = useState('')
-  const [newInterestCycleDay, setNewInterestCycleDay] = useState('')
+  const [newInterestCycleDay, setNewInterestCycleDay] = useState(new Date().getDate().toString())
+  const [newFirstMonthInterestPaid, setNewFirstMonthInterestPaid] = useState(true)
   const [newDailyCollectionAmount, setNewDailyCollectionAmount] = useState('')
   const [newExpectedTotalDays, setNewExpectedTotalDays] = useState('')
   const [newDailyInterestRate, setNewDailyInterestRate] = useState('')
@@ -356,7 +359,19 @@ export default function CustomersPage() {
           }
         }
 
-        await loansApi.create(loanData)
+        const createdLoan = await loansApi.create(loanData)
+
+        // If ML loan and first month interest is collected, create interest transaction
+        if (firstLoanType === 'Monthly Interest Loan' && firstMonthInterestPaid && createdLoan?.id) {
+          const interestAmt = (principal * parseFloat(monthlyInterestRate)) / 100
+          await transactionsApi.create({
+            loan: createdLoan.id,
+            amount: interestAmt,
+            interest_amount: interestAmt,
+            payment_method: paymentMethod,
+            description: 'First month interest collected at loan creation',
+          })
+        }
       }
 
       // Reset form
@@ -366,7 +381,8 @@ export default function CustomersPage() {
       setFirstLoanPrincipal('')
       setPaymentMethod('cash')
       setMonthlyInterestRate('')
-      setInterestCycleDay('')
+      setInterestCycleDay(new Date().getDate().toString())
+      setFirstMonthInterestPaid(true)
       setDailyCollectionAmount('')
       setExpectedTotalDays('')
       setDcDeductionAmount('')
@@ -454,7 +470,19 @@ export default function CustomersPage() {
         }
       }
 
-      await loansApi.create(loanData)
+      const createdLoan = await loansApi.create(loanData)
+
+      // If ML loan and first month interest is collected, create interest transaction
+      if (newLoanType === 'Monthly Interest Loan' && newFirstMonthInterestPaid && createdLoan?.id) {
+        const interestAmt = (principal * parseFloat(newMonthlyInterestRate)) / 100
+        await transactionsApi.create({
+          loan: createdLoan.id,
+          amount: interestAmt,
+          interest_amount: interestAmt,
+          payment_method: newPaymentMethod,
+          description: 'First month interest collected at loan creation',
+        })
+      }
 
       // Reset form
       setAddLoanForCustomer(null)
@@ -462,7 +490,8 @@ export default function CustomersPage() {
       setNewLoanType(LOAN_TYPES[0])
       setNewPaymentMethod('cash')
       setNewMonthlyInterestRate('')
-      setNewInterestCycleDay('')
+      setNewInterestCycleDay(new Date().getDate().toString())
+      setNewFirstMonthInterestPaid(true)
       setNewDailyCollectionAmount('')
       setNewExpectedTotalDays('')
       setNewDcDeductionAmount('')
@@ -881,6 +910,22 @@ export default function CustomersPage() {
                           className="border-border/50"
                           required
                         />
+                        <p className="text-xs text-muted-foreground">Defaults to today&apos;s date ({new Date().getDate()}), editable</p>
+                      </div>
+                      <div className="flex items-center gap-2 py-1">
+                        <Checkbox
+                          id="newFirstMonthInterest"
+                          checked={newFirstMonthInterestPaid}
+                          onCheckedChange={(checked) => setNewFirstMonthInterestPaid(checked === true)}
+                        />
+                        <label htmlFor="newFirstMonthInterest" className="text-sm font-medium text-foreground cursor-pointer">
+                          First month interest collected
+                        </label>
+                        {newFirstMonthInterestPaid && newMonthlyInterestRate && newLoanPrincipal && (
+                          <span className="text-xs text-emerald-600 font-medium">
+                            (₹{((parseFloat(newLoanPrincipal) || 0) * (parseFloat(newMonthlyInterestRate) || 0) / 100).toLocaleString('en-IN')})
+                          </span>
+                        )}
                       </div>
                     </>
                   )}
@@ -1086,34 +1131,52 @@ export default function CustomersPage() {
 
                       {/* Monthly Interest Loan Fields */}
                       {firstLoanType === 'Monthly Interest Loan' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">Monthly Interest Rate (%)</label>
-                            <Input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              placeholder="e.g. 5"
-                              value={monthlyInterestRate}
-                              onChange={(e) => setMonthlyInterestRate(e.target.value)}
-                              className="border-border/50"
-                              required={addLoanWithCustomer}
-                            />
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-foreground">Monthly Interest Rate (%)</label>
+                              <Input
+                                type="number"
+                                min="0.1"
+                                step="0.1"
+                                placeholder="e.g. 5"
+                                value={monthlyInterestRate}
+                                onChange={(e) => setMonthlyInterestRate(e.target.value)}
+                                className="border-border/50"
+                                required={addLoanWithCustomer}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-foreground">Interest Cycle Day</label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="31"
+                                placeholder="e.g. 5"
+                                value={interestCycleDay}
+                                onChange={(e) => setInterestCycleDay(e.target.value)}
+                                className="border-border/50"
+                                required={addLoanWithCustomer}
+                              />
+                              <p className="text-xs text-muted-foreground">Defaults to today&apos;s date ({new Date().getDate()}), editable</p>
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">Interest Cycle Day</label>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="31"
-                              placeholder="e.g. 5"
-                              value={interestCycleDay}
-                              onChange={(e) => setInterestCycleDay(e.target.value)}
-                              className="border-border/50"
-                              required={addLoanWithCustomer}
+                          <div className="flex items-center gap-2 py-1">
+                            <Checkbox
+                              id="firstMonthInterest"
+                              checked={firstMonthInterestPaid}
+                              onCheckedChange={(checked) => setFirstMonthInterestPaid(checked === true)}
                             />
+                            <label htmlFor="firstMonthInterest" className="text-sm font-medium text-foreground cursor-pointer">
+                              First month interest collected
+                            </label>
+                            {firstMonthInterestPaid && monthlyInterestRate && firstLoanPrincipal && (
+                              <span className="text-xs text-emerald-600 font-medium">
+                                (₹{((parseFloat(firstLoanPrincipal) || 0) * (parseFloat(monthlyInterestRate) || 0) / 100).toLocaleString('en-IN')})
+                              </span>
+                            )}
                           </div>
-                        </div>
+                        </>
                       )}
 
                       {/* DC Loan Fields */}
