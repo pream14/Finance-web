@@ -40,6 +40,14 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         {children}
         <Analytics />
+        <script dangerouslySetInnerHTML={{
+          __html: `
+          document.addEventListener('wheel', function(e) {
+            if (document.activeElement && document.activeElement.type === 'number') {
+              document.activeElement.blur();
+            }
+          }, { passive: true });
+        ` }} />
       </body>
     </html>
   )
