@@ -459,7 +459,7 @@ export default function CashBookPage() {
                             <CardContent>
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                     <div className="text-center py-2">
-                                        <p className="text-xs text-muted-foreground">DC Deduction</p>
+                                        <p className="text-xs text-muted-foreground">DC Interest</p>
                                         <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.dc_deduction).toLocaleString('en-IN')}</p>
                                     </div>
                                     <div className="text-center py-2">
@@ -469,10 +469,6 @@ export default function CashBookPage() {
                                     <div className="text-center py-2">
                                         <p className="text-xs text-muted-foreground">DL Interest</p>
                                         <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.dl_interest).toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <div className="text-center py-2">
-                                        <p className="text-xs text-muted-foreground">DC Interest</p>
-                                        <p className="text-lg font-bold text-emerald-600">₹{p(cashBookData.revenue.dc_interest).toLocaleString('en-IN')}</p>
                                     </div>
                                     <div className="text-center py-2 bg-emerald-500/10 rounded-lg">
                                         <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>
