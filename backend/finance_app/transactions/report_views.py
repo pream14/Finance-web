@@ -254,7 +254,7 @@ class ReportDownloadView(APIView):
                                       fontName='Helvetica-Bold', alignment=TA_RIGHT)
 
         summary_data = [
-            [Paragraph('Metric', header_style), Paragraph('Amount (₹)', header_style)],
+            [Paragraph('Metric', header_style), Paragraph('Amount', header_style)],
             [Paragraph('Total Disbursed', cell_style), Paragraph(summary['total_disbursed'], value_style)],
             [Paragraph('Total Loans Issued', cell_style), Paragraph(str(summary['total_loans_count']), value_style)],
             [Paragraph('Total Collected', cell_style), Paragraph(summary['total_collected'], value_style)],
@@ -413,7 +413,7 @@ class CustomerReportDownloadView(APIView):
         # Loan summary section
         elements.append(Paragraph('Loan Summary', section_style))
 
-        loan_header = ['Loan Type', 'Principal (₹)', 'Remaining (₹)', 'Status', 'Start Date']
+        loan_header = ['Loan Type', 'Principal', 'Remaining', 'Status', 'Start Date']
         loan_data = [loan_header]
         for loan in loans:
             loan_data.append([
@@ -446,7 +446,7 @@ class CustomerReportDownloadView(APIView):
         if transactions:
             elements.append(Paragraph('Collection Entries', section_style))
 
-            txn_header = ['Date', 'Loan Type', 'Amount (₹)', 'Asal (₹)', 'Interest (₹)', 'Method', 'Description']
+            txn_header = ['Date', 'Loan Type', 'Amount', 'Asal', 'Interest', 'Method', 'Description']
             txn_data = [txn_header]
             total_amount = Decimal('0')
             total_asal = Decimal('0')
@@ -472,22 +472,22 @@ class CustomerReportDownloadView(APIView):
                 f'{total_interest:,.0f}', '', ''
             ])
 
-            col_widths = [0.9*inch, 1.1*inch, 0.85*inch, 0.8*inch, 0.8*inch, 0.7*inch, 1.3*inch]
+            col_widths = [0.8*inch, 1.0*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.8*inch, 1.2*inch]
             txn_table = Table(txn_data, colWidths=col_widths)
             txn_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('FONTSIZE', (0, 0), (-1, 0), 7),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
                 ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
                 ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('TOPPADDING', (0, 0), (-1, -1), 5),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
                 ('ALIGN', (2, 0), (4, -1), 'RIGHT'),
             ]))
             elements.append(txn_table)

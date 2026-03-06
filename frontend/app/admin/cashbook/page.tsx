@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
     BookOpen, ArrowLeft, Calendar, TrendingUp, TrendingDown,
     Wallet, RefreshCw, ArrowUpRight, ArrowDownRight, DollarSign,
-    ChevronLeft, ChevronRight, Save, Pencil
+    ChevronLeft, ChevronRight, Save, Pencil, Download, Filter
 } from 'lucide-react'
 import { cashBookApi, revenueApi } from '@/lib/api'
 
@@ -47,7 +47,6 @@ interface CashBookData {
 }
 
 interface RevenueData {
-    range: string
     start_date: string
     end_date: string
     revenue: {
@@ -90,6 +89,9 @@ export default function CashBookPage() {
     const [newOpeningBalance, setNewOpeningBalance] = useState('')
     const [savingBalance, setSavingBalance] = useState(false)
     const [revenueRange, setRevenueRange] = useState('today')
+    const [startDate, setStartDate] = useState('')
+    const [endDate, setEndDate] = useState('')
+    const [showCustomDateRange, setShowCustomDateRange] = useState(false)
 
     const fetchCashBookData = async (date: string) => {
         try {
@@ -105,10 +107,19 @@ export default function CashBookPage() {
         }
     }
 
-    const fetchRevenueData = async (range: string) => {
+    const fetchRevenueData = async (range?: string, start?: string, end?: string) => {
         try {
             setRevenueLoading(true)
-            const data = await revenueApi.get({ range })
+            let params: any = {}
+            
+            if (start && end) {
+                params.start_date = start
+                params.end_date = end
+            } else {
+                params.range = range || revenueRange
+            }
+            
+            const data = await revenueApi.get(params)
             setRevenueData(data)
         } catch (err: any) {
             console.error('Failed to load revenue data:', err)
@@ -130,6 +141,47 @@ export default function CashBookPage() {
             alert(err.message || 'Failed to save opening balance')
         } finally {
             setSavingBalance(false)
+        }
+    }
+
+    const setQuickRevenueRange = (type: string) => {
+        const now = new Date()
+        let start = '', end = ''
+        
+        switch (type) {
+            case 'today':
+                start = end = getToday()
+                break
+            case 'week':
+                const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+                const weekEnd = new Date(weekStart)
+                weekEnd.setDate(weekStart.getDate() + 6)
+                start = weekStart.toISOString().split('T')[0]
+                end = weekEnd.toISOString().split('T')[0]
+                break
+            case 'month':
+                start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+                end = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`
+                break
+            case 'last_month':
+                const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+                start = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`
+                end = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-${new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).getDate()}`
+                break
+        }
+        
+        setStartDate(start)
+        setEndDate(end)
+        setShowCustomDateRange(false)
+        setRevenueRange(type)
+        fetchRevenueData(type, start, end)
+    }
+
+    const applyCustomDateRange = () => {
+        if (startDate && endDate) {
+            setShowCustomDateRange(false)
+            setRevenueRange('custom')
+            fetchRevenueData('custom', startDate, endDate)
         }
     }
 
@@ -183,6 +235,35 @@ export default function CashBookPage() {
                         <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         </Button>
+                        <Button variant="outline" onClick={() => {
+                            const data = cashBookData ? {
+                                date: selectedDate,
+                                opening_balance: cashBookData.opening_balance,
+                                cash_collections: cashBookData.cash_collections,
+                                online_collections: cashBookData.online_collections,
+                                total_collections: cashBookData.total_collections,
+                                cash_loans_given: cashBookData.cash_loans_given,
+                                online_loans_given: cashBookData.online_loans_given,
+                                total_loans_given: cashBookData.total_loans_given,
+                                expenses: cashBookData.expenses,
+                                closing_balance: cashBookData.closing_balance,
+                                revenue: cashBookData.revenue,
+                                details: cashBookData.details
+                            } : null
+                            if (data) {
+                                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `cashbook_${selectedDate}.json`
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                                window.URL.revokeObjectURL(url)
+                            }
+                        }} title="Export Cash Book Data">
+                            <Download className="w-4 h-4" />
+                        </Button>
                         <Button asChild variant="outline">
                             <Link href="/admin/dashboard">Dashboard</Link>
                         </Button>
@@ -232,14 +313,25 @@ export default function CashBookPage() {
                     <div className="py-12 text-center">
                         <RefreshCw className="w-8 h-8 text-primary mx-auto mb-3 animate-spin" />
                         <p className="text-muted-foreground">Loading cash book...</p>
+                        <p className="text-xs text-muted-foreground mt-2">Please wait while we fetch your data</p>
                     </div>
                 ) : error ? (
                     <Card className="border-border/50">
                         <CardContent className="py-12 text-center">
-                            <p className="text-red-500">{error}</p>
-                            <Button onClick={() => fetchCashBookData(selectedDate)} className="mt-4">
-                                Retry
-                            </Button>
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <RefreshCw className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-red-600 mb-2">Failed to Load Data</h3>
+                            <p className="text-muted-foreground mb-4">{error}</p>
+                            <div className="flex gap-3 justify-center">
+                                <Button onClick={() => fetchCashBookData(selectedDate)}>
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Retry
+                                </Button>
+                                <Button variant="outline" onClick={() => window.location.reload()}>
+                                    Reload Page
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 ) : cashBookData && (
@@ -493,66 +585,134 @@ export default function CashBookPage() {
                                 <TrendingUp className="w-5 h-5 text-violet-600" />
                                 <CardTitle className="text-base">Revenue Report</CardTitle>
                             </div>
-                            <Select value={revenueRange} onValueChange={setRevenueRange}>
-                                <SelectTrigger className="w-40 border-border/50">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="today">Today</SelectItem>
-                                    <SelectItem value="week">This Week</SelectItem>
-                                    <SelectItem value="month">This Month</SelectItem>
-                                    <SelectItem value="last_month">Last Month</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                                <Select value={revenueRange} onValueChange={(value) => {
+                                    if (value !== 'custom') {
+                                        setQuickRevenueRange(value)
+                                    } else {
+                                        setShowCustomDateRange(true)
+                                    }
+                                }}>
+                                    <SelectTrigger className="w-40 border-border/50">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="today">Today</SelectItem>
+                                        <SelectItem value="week">This Week</SelectItem>
+                                        <SelectItem value="month">This Month</SelectItem>
+                                        <SelectItem value="last_month">Last Month</SelectItem>
+                                        <SelectItem value="custom">Custom Range</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setShowCustomDateRange(!showCustomDateRange)}
+                                    title="Custom Date Range"
+                                >
+                                    <Filter className="w-4 h-4" />
+                                </Button>
+                            </div>
                         </div>
                     </CardHeader>
+                    {/* Custom Date Range Section */}
+                    {showCustomDateRange && (
+                        <div className="px-6 pb-4 border-b border-border/30">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Start Date</label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                        <Input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="pl-10"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground mb-1.5 block">End Date</label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                        <Input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="pl-10"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                    <Button onClick={applyCustomDateRange} disabled={!startDate || !endDate || revenueLoading}>
+                                        Apply
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setShowCustomDateRange(false)}>
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <CardContent>
                         {revenueLoading ? (
-                            <div className="py-6 text-center">
-                                <RefreshCw className="w-5 h-5 text-primary mx-auto mb-2 animate-spin" />
-                                <p className="text-sm text-muted-foreground">Loading...</p>
+                            <div className="py-8 text-center">
+                                <div className="flex flex-col items-center">
+                                    <RefreshCw className="w-6 h-6 text-violet-600 mx-auto mb-3 animate-spin" />
+                                    <p className="text-sm text-muted-foreground">Loading revenue data...</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Please wait while we calculate your revenue</p>
+                                </div>
                             </div>
-                        ) : revenueData ? (
+                        ) : (
                             <div className="space-y-4">
-                                <div className="text-xs text-muted-foreground text-center">
-                                    {formatDate(revenueData.start_date)} — {formatDate(revenueData.end_date)}
-                                </div>
+                                {revenueData && (
+                                    <>
+                                        <div className="text-xs text-muted-foreground text-center bg-violet-500/10 rounded-lg py-2 px-3">
+                                            <span className="font-medium">
+                                                {formatDate(revenueData.start_date)} — {formatDate(revenueData.end_date)}
+                                            </span>
+                                            {revenueRange === 'custom' && (
+                                                <span className="ml-2 text-violet-600">(Custom Range)</span>
+                                            )}
+                                        </div>
 
-                                {/* Revenue Breakdown */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    <div className="text-center py-3 px-2 bg-background/50 rounded-lg">
-                                        <p className="text-xs text-muted-foreground">DC Deduction</p>
-                                        <p className="text-lg font-bold text-violet-600">₹{p(revenueData.revenue.dc_deduction).toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <div className="text-center py-3 px-2 bg-background/50 rounded-lg">
-                                        <p className="text-xs text-muted-foreground">Monthly Interest</p>
-                                        <p className="text-lg font-bold text-violet-600">₹{p(revenueData.revenue.monthly_interest).toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <div className="text-center py-3 px-2 bg-background/50 rounded-lg">
-                                        <p className="text-xs text-muted-foreground">DL Interest</p>
-                                        <p className="text-lg font-bold text-violet-600">₹{p(revenueData.revenue.dl_interest).toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <div className="text-center py-3 px-2 bg-violet-500/20 rounded-lg ring-1 ring-violet-500/30">
-                                        <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>
-                                        <p className="text-xl font-bold text-violet-700">₹{p(revenueData.revenue.total).toLocaleString('en-IN')}</p>
-                                    </div>
-                                </div>
+                                        {/* Revenue Breakdown */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            <div className="text-center py-3 px-2 bg-background/50 rounded-lg">
+                                                <p className="text-xs text-muted-foreground">DC Deduction</p>
+                                                <p className="text-lg font-bold text-violet-600">₹{p(revenueData.revenue.dc_deduction).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="text-center py-3 px-2 bg-background/50 rounded-lg">
+                                                <p className="text-xs text-muted-foreground">Monthly Interest</p>
+                                                <p className="text-lg font-bold text-violet-600">₹{p(revenueData.revenue.monthly_interest).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="text-center py-3 px-2 bg-background/50 rounded-lg">
+                                                <p className="text-xs text-muted-foreground">DL Interest</p>
+                                                <p className="text-lg font-bold text-violet-600">₹{p(revenueData.revenue.dl_interest).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="text-center py-3 px-2 bg-violet-500/20 rounded-lg ring-1 ring-violet-500/30">
+                                                <p className="text-xs text-muted-foreground font-medium">Total Revenue</p>
+                                                <p className="text-xl font-bold text-violet-700">₹{p(revenueData.revenue.total).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
 
-                                {/* Summary */}
-                                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/30">
-                                    <div className="text-center">
-                                        <p className="text-xs text-muted-foreground">Total Collections</p>
-                                        <p className="text-sm font-bold text-green-600">₹{p(revenueData.summary.total_collections).toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-xs text-muted-foreground">Total Loans Given</p>
-                                        <p className="text-sm font-bold text-red-600">₹{p(revenueData.summary.total_loans_given).toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-xs text-muted-foreground">Total Expenses</p>
-                                        <p className="text-sm font-bold text-orange-600">₹{p(revenueData.summary.total_expenses).toLocaleString('en-IN')}</p>
-                                    </div>
-                                </div>
+                                        {/* Summary */}
+                                        <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/30">
+                                            <div className="text-center">
+                                                <p className="text-xs text-muted-foreground">Total Collections</p>
+                                                <p className="text-sm font-bold text-green-600">₹{p(revenueData.summary.total_collections).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs text-muted-foreground">Total Loans Given</p>
+                                                <p className="text-sm font-bold text-red-600">₹{p(revenueData.summary.total_loans_given).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs text-muted-foreground">Total Expenses</p>
+                                                <p className="text-sm font-bold text-orange-600">₹{p(revenueData.summary.total_expenses).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ) : (
                             <p className="text-center text-muted-foreground py-4">No revenue data available</p>
