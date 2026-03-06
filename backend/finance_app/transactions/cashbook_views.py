@@ -34,11 +34,10 @@ class DailyCashBookView(APIView):
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
 
-        # If opening balance is 0, try to get previous day's closing balance
+        # If opening balance is 0 and no manual override, try to get previous day's closing balance
         if cashbook_entry.opening_balance == 0:
             previous_entry = DailyCashBook.objects.filter(
-                date__lt=target_date,
-                closing_balance__gt=0
+                date__lt=target_date
             ).order_by('-date').first()
             if previous_entry:
                 cashbook_entry.opening_balance = previous_entry.closing_balance
