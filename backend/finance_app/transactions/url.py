@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import LoanViewSet, TransactionViewSet, PaymentAnalyticsView
 from .dashboard_views import DashboardStatsView
-from .report_views import ReportDataView, ReportDownloadView
+from .report_views import ReportDataView, ReportDownloadView, CustomerReportDownloadView
 from .cashbook_views import DailyCashBookView, RevenueReportView
 
 router = DefaultRouter()
@@ -14,6 +14,7 @@ urlpatterns = [
     path('payment-analytics/', PaymentAnalyticsView.as_view(), name='payment-analytics'),
     path('reports/', ReportDataView.as_view(), name='reports'),
     path('reports/download/', ReportDownloadView.as_view(), name='reports-download'),
+    path('customer-report/<int:customer_id>/download/', CustomerReportDownloadView.as_view(), name='customer-report-download'),
     path('daily-cashbook/', DailyCashBookView.as_view(), name='daily-cashbook'),
     path('revenue-report/', RevenueReportView.as_view(), name='revenue-report'),
     path('', include(router.urls)),

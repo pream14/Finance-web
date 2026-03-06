@@ -4,8 +4,8 @@ import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw } from 'lucide-react'
-import { customersApi, loansApi, transactionsApi } from '@/lib/api'
+import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download } from 'lucide-react'
+import { customersApi, loansApi, transactionsApi, customerReportApi } from '@/lib/api'
 
 interface Loan {
     id: number
@@ -202,6 +202,14 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                     <div className="flex gap-2">
                         <Button onClick={() => fetchCustomerData()} variant="outline" size="icon" title="Refresh">
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button 
+                            onClick={() => customerReportApi.download(customer.id, customer.name, selectedLoan?.id)} 
+                            variant="outline" 
+                            size="sm"
+                            title="Download Customer Report"
+                        >
+                            <Download className="w-4 h-4" />
                         </Button>
                         <Button asChild>
                             <Link href="/collections">Add Collection</Link>

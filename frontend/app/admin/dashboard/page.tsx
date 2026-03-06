@@ -228,9 +228,6 @@ export default function AdminDashboard() {
               <Link href="/admin/customers">Customers</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/admin/analytics">Analytics</Link>
-            </Button>
-            <Button variant="outline" asChild>
               <Link href="/admin/expenses">Expenses</Link>
             </Button>
             <Button variant="outline" asChild>

@@ -165,11 +165,6 @@ export default function EmployerManagementPage() {
             <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" asChild>
-                            <Link href="/admin/dashboard">
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                        </Button>
                         <div>
                             <h1 className="text-2xl font-bold text-foreground">Employer Management</h1>
                             <p className="text-sm text-muted-foreground">Manage your staff and collectors</p>
