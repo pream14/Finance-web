@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
     BookOpen, ArrowLeft, Calendar, TrendingUp, TrendingDown,
     Wallet, RefreshCw, ArrowUpRight, ArrowDownRight, DollarSign,
-    ChevronLeft, ChevronRight, Save
+    ChevronLeft, ChevronRight, Save, Pencil
 } from 'lucide-react'
 import { cashBookApi, revenueApi } from '@/lib/api'
 
@@ -133,6 +133,7 @@ export default function CashBookPage() {
         }
     }
 
+
     const goToPreviousDay = () => {
         const d = new Date(selectedDate + 'T00:00:00')
         d.setDate(d.getDate() - 1)
@@ -243,7 +244,7 @@ export default function CashBookPage() {
                     </Card>
                 ) : cashBookData && (
                     <>
-                        {/* Opening Balance (Iruppu) */}
+                        {/* Opening Balance (Iruppu) - Auto from previous day, editable */}
                         <Card className="border-border/50 mb-6 bg-gradient-to-br from-indigo-500/5 to-indigo-500/10">
                             <CardContent className="py-5 px-6">
                                 <div className="flex items-center justify-between">
@@ -266,19 +267,23 @@ export default function CashBookPage() {
                                                         <Save className="w-3 h-3 mr-1" />
                                                         {savingBalance ? '...' : 'Save'}
                                                     </Button>
-                                                    <Button size="sm" variant="outline" onClick={() => setEditingBalance(false)} className="h-8">
+                                                    <Button size="sm" variant="outline" onClick={() => { setEditingBalance(false); setNewOpeningBalance(cashBookData.opening_balance) }} className="h-8">
                                                         Cancel
                                                     </Button>
                                                 </div>
                                             ) : (
-                                                <p className="text-2xl font-bold text-indigo-600">
-                                                    ₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}
-                                                </p>
+                                                <>
+                                                    <p className="text-2xl font-bold text-indigo-600">
+                                                        ₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">Auto from previous day&apos;s closing balance</p>
+                                                </>
                                             )}
                                         </div>
                                     </div>
                                     {!editingBalance && (
                                         <Button variant="outline" size="sm" onClick={() => setEditingBalance(true)}>
+                                            <Pencil className="w-3 h-3 mr-1" />
                                             Edit
                                         </Button>
                                     )}
