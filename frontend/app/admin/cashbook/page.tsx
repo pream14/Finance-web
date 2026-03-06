@@ -714,8 +714,6 @@ export default function CashBookPage() {
                                     </>
                                 )}
                             </div>
-                        ) : (
-                            <p className="text-center text-muted-foreground py-4">No revenue data available</p>
                         )}
                     </CardContent>
                 </Card>
