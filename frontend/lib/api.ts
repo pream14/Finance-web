@@ -416,3 +416,47 @@ export const revenueApi = {
     return apiRequest<any>(`/transactions/revenue-report/${query ? `?${query}` : ''}`);
   },
 };
+
+// Customer Report PDF Download
+export const customerReportApi = {
+  download: async (customerId: number, customerName: string, loanId?: number) => {
+    const token = getAuthToken();
+    const queryParams = new URLSearchParams();
+    if (loanId) queryParams.append('loan_id', loanId.toString());
+    const query = queryParams.toString();
+
+    const response = await fetch(
+      `${API_BASE_URL}/transactions/customer-report/${customerId}/download/${query ? `?${query}` : ''}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Download failed' }));
+      throw new Error(error.error || 'Failed to download customer report');
+    }
+
+    // Create a download link for the PDF
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Use customer name in filename (sanitize for filesystem)
+    const safeName = customerName.replace(' ', '_').replace('/', '-');
+    const filename = loanId ? `${safeName}_loan_${loanId}_report.pdf` : `${safeName}_all_loans_report.pdf`;
+    link.download = filename;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    return true;
+  },
+};

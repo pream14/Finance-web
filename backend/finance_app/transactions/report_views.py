@@ -346,3 +346,175 @@ class ReportDownloadView(APIView):
         response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
         return response
+
+
+class CustomerReportDownloadView(APIView):
+    """Generate PDF report for a specific customer's loan collection entries."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, customer_id):
+        try:
+            customer = Customer.objects.get(id=customer_id)
+        except Customer.DoesNotExist:
+            return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        loan_id = request.query_params.get('loan_id')
+
+        # Get loans for this customer
+        loans_qs = Loan.objects.filter(customer=customer)
+        if loan_id:
+            loans_qs = loans_qs.filter(id=loan_id)
+
+        loans = list(loans_qs.order_by('-created_at'))
+
+        if not loans:
+            return Response({'error': 'No loans found for this customer'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get transactions
+        transactions_qs = Transaction.objects.filter(loan__customer=customer)
+        if loan_id:
+            transactions_qs = transactions_qs.filter(loan_id=loan_id)
+        transactions = list(transactions_qs.order_by('-created_at'))
+
+        # Generate PDF
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import inch, mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=15*mm, bottomMargin=15*mm,
+                                leftMargin=12*mm, rightMargin=12*mm)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Styles
+        title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=16,
+                                     textColor=colors.HexColor('#1a1a2e'), spaceAfter=4)
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10,
+                                        textColor=colors.HexColor('#666666'), alignment=TA_CENTER, spaceAfter=15)
+        section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=13,
+                                        textColor=colors.HexColor('#1a1a2e'), spaceBefore=10, spaceAfter=8)
+        cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9)
+        header_style_white = ParagraphStyle('HeaderWhite', parent=styles['Normal'], fontSize=9,
+                                             textColor=colors.white, fontName='Helvetica-Bold')
+        value_style = ParagraphStyle('Value', parent=styles['Normal'], fontSize=9,
+                                      fontName='Helvetica-Bold', alignment=TA_RIGHT)
+
+        # Title
+        elements.append(Paragraph(f'Customer Report — {customer.name}', title_style))
+        elements.append(Paragraph(
+            f'Phone: {customer.phone_number} | Area: {customer.area} | Address: {customer.address}',
+            subtitle_style
+        ))
+
+        # Loan summary section
+        elements.append(Paragraph('Loan Summary', section_style))
+
+        loan_header = ['Loan Type', 'Principal (₹)', 'Remaining (₹)', 'Status', 'Start Date']
+        loan_data = [loan_header]
+        for loan in loans:
+            loan_data.append([
+                loan.loan_type,
+                f'{loan.principal_amount:,.0f}',
+                f'{loan.remaining_amount:,.0f}',
+                loan.status.title(),
+                loan.created_at.strftime('%d %b %Y') if loan.created_at else '-',
+            ])
+
+        loan_table = Table(loan_data, colWidths=[1.5*inch, 1.2*inch, 1.2*inch, 0.9*inch, 1.1*inch])
+        loan_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN', (1, 0), (2, -1), 'RIGHT'),
+        ]))
+        elements.append(loan_table)
+        elements.append(Spacer(1, 15))
+
+        # Collection entries section
+        if transactions:
+            elements.append(Paragraph('Collection Entries', section_style))
+
+            txn_header = ['Date', 'Loan Type', 'Amount (₹)', 'Asal (₹)', 'Interest (₹)', 'Method', 'Description']
+            txn_data = [txn_header]
+            total_amount = Decimal('0')
+            total_asal = Decimal('0')
+            total_interest = Decimal('0')
+
+            for txn in transactions:
+                txn_data.append([
+                    txn.created_at.strftime('%d %b %Y') if txn.created_at else '-',
+                    txn.loan.loan_type if txn.loan else '-',
+                    f'{txn.amount:,.0f}',
+                    f'{txn.asal_amount:,.0f}' if txn.asal_amount else '0',
+                    f'{txn.interest_amount:,.0f}' if txn.interest_amount else '0',
+                    txn.payment_method.title() if txn.payment_method else '-',
+                    (txn.description or '-')[:30],
+                ])
+                total_amount += txn.amount or Decimal('0')
+                total_asal += txn.asal_amount or Decimal('0')
+                total_interest += txn.interest_amount or Decimal('0')
+
+            # Add total row
+            txn_data.append([
+                'TOTAL', '', f'{total_amount:,.0f}', f'{total_asal:,.0f}',
+                f'{total_interest:,.0f}', '', ''
+            ])
+
+            col_widths = [0.9*inch, 1.1*inch, 0.85*inch, 0.8*inch, 0.8*inch, 0.7*inch, 1.3*inch]
+            txn_table = Table(txn_data, colWidths=col_widths)
+            txn_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('ALIGN', (2, 0), (4, -1), 'RIGHT'),
+            ]))
+            elements.append(txn_table)
+        else:
+            elements.append(Paragraph('No collection entries found.', cell_style))
+
+        # Footer
+        elements.append(Spacer(1, 25))
+        footer_style = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8,
+                                       textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
+        elements.append(Paragraph(
+            f"Generated on {date.today().strftime('%d %b %Y')} | {len(transactions)} entries | {len(loans)} loan(s)",
+            footer_style
+        ))
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        # Use customer name in filename (sanitize for filesystem)
+        safe_name = customer.name.replace(' ', '_').replace('/', '-')
+        if loan_id:
+            loan_obj = loans[0]
+            loan_label = loan_obj.loan_type.replace(' ', '_')
+            filename = f"{safe_name}_{loan_label}_report"
+        else:
+            filename = f"{safe_name}_all_loans_report"
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+        return response
