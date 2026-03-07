@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Download, User } from 'lucide-react'
-import { transactionsApi, loansApi } from '@/lib/api'
+import { transactionsApi, loansApi, reportsApi, customersApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -16,6 +16,7 @@ interface Transaction {
   customer_name: string
   loan_type: string
   amount: string
+  interest_amount: string
   description: string
   payment_method: string
   created_at: string
@@ -27,6 +28,7 @@ interface Transaction {
 
 export default function DatewiseCollectionsPage() {
   const [entries, setEntries] = useState<Transaction[]>([])
+  const [customers, setCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,7 +37,18 @@ export default function DatewiseCollectionsPage() {
   const [endDate, setEndDate] = useState('')
   const [filterLoanType, setFilterLoanType] = useState('all')
   const [filterCollectedBy, setFilterCollectedBy] = useState('all')
+  const [filterArea, setFilterArea] = useState('All Areas')
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // Interest summary state
+  const [interestSummary, setInterestSummary] = useState({
+    monthlyInterestCollected: 0,
+    dlInterestCollected: 0,
+    totalInterestCollected: 0
+  })
+  
+  // Report loading state
+  const [reportLoading, setReportLoading] = useState(false)
 
   // Get unique collectors from entries
   const collectors = useMemo(() => {
@@ -47,6 +60,93 @@ export default function DatewiseCollectionsPage() {
     })
     return Array.from(uniqueCollectors).sort()
   }, [entries])
+
+  // Get unique areas from customers data
+  const areas = useMemo(() => {
+    const uniqueAreas = new Set<string>()
+    customers.forEach(customer => {
+      if (customer.area) uniqueAreas.add(customer.area)
+    })
+    return ['All Areas', ...Array.from(uniqueAreas).sort()]
+  }, [customers])
+
+  // Apply client-side filters
+  const filteredEntries = useMemo(() => {
+    return entries.filter(entry => {
+      // Loan type filter
+      if (filterLoanType !== 'all' && entry.loan_type !== filterLoanType) {
+        return false
+      }
+      // Area filter - match customer area
+      if (filterArea !== 'All Areas') {
+        const customer = customers.find(c => c.name === entry.customer_name)
+        if (!customer || customer.area !== filterArea) {
+          return false
+        }
+      }
+      // Collected by filter
+      if (filterCollectedBy !== 'all' && entry.collected_by_name !== filterCollectedBy) {
+        return false
+      }
+      // Search filter (customer name)
+      if (searchTerm && !entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false
+      }
+      return true
+    })
+  }, [entries, filterLoanType, filterArea, filterCollectedBy, searchTerm])
+
+  // Calculate total amount
+  const totalAmount = useMemo(() => {
+    return filteredEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0)
+  }, [filteredEntries])
+
+  // Calculate total interest
+  const totalInterest = useMemo(() => {
+    return filteredEntries.reduce((sum, entry) => {
+      if (entry.loan_type === 'Monthly Interest Loan' || entry.loan_type === 'DL Loan') {
+        return sum + parseFloat(entry.interest_amount || '0')
+      }
+      return sum
+    }, 0)
+  }, [filteredEntries])
+
+  // Calculate interest summary from filtered entries
+  const calculateInterestSummary = useMemo(() => {
+    let monthlyInterest = 0
+    let dlInterest = 0
+    
+    filteredEntries.forEach((entry: Transaction) => {
+      if (entry.loan_type === 'Monthly Interest Loan') {
+        monthlyInterest += parseFloat(entry.interest_amount || '0')
+      } else if (entry.loan_type === 'DL Loan') {
+        dlInterest += parseFloat(entry.interest_amount || '0')
+      }
+    })
+    
+    const totalInterest = monthlyInterest + dlInterest
+    
+    return {
+      monthlyInterestCollected: monthlyInterest,
+      dlInterestCollected: dlInterest,
+      totalInterestCollected: totalInterest
+    }
+  }, [filteredEntries])
+
+  // Update interest summary when filtered entries change
+  useEffect(() => {
+    setInterestSummary(calculateInterestSummary)
+  }, [filteredEntries])
+
+  // Fetch customers data
+  const fetchCustomers = async () => {
+    try {
+      const data = await customersApi.getAll()
+      setCustomers(data)
+    } catch (err: any) {
+      console.error('Error fetching customers:', err)
+    }
+  }
 
   // Fetch entries with filters
   const fetchEntries = async () => {
@@ -99,32 +199,33 @@ export default function DatewiseCollectionsPage() {
     }
   }
 
-  // Fetch entries on component mount and when date filters change
+  // Download collection report as PDF
+  const downloadCollectionReport = async () => {
+    try {
+      setReportLoading(true)
+      const start = startDate || new Date().toISOString().split('T')[0]
+      const end = endDate || new Date().toISOString().split('T')[0]
+      
+      await reportsApi.download({
+        start_date: start,
+        end_date: end,
+        report_type: 'transactions', // Changed from area_wise to transactions to get table data
+        file_format: 'pdf',
+        ...(filterArea !== 'all' && { area: filterArea }),
+        ...(filterLoanType !== 'all' && { loan_type: filterLoanType })
+      })
+    } catch (err: any) {
+      alert(err.message || 'Failed to download report')
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  // Fetch entries and customers on component mount and when date filters change
   useEffect(() => {
     fetchEntries()
+    fetchCustomers()
   }, [startDate, endDate])
-
-  // Apply client-side filters
-  const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
-      // Loan type filter
-      if (filterLoanType !== 'all' && entry.loan_type !== filterLoanType) {
-        return false
-      }
-      // Collected by filter
-      if (filterCollectedBy !== 'all' && entry.collected_by_name !== filterCollectedBy) {
-        return false
-      }
-      // Search filter (customer name)
-      if (searchTerm && !entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false
-      }
-      return true
-    })
-  }, [entries, filterLoanType, filterCollectedBy, searchTerm])
-
-  // Calculate total amount
-  const totalAmount = filteredEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0)
 
   // Quick date presets
   const setToday = () => {
@@ -161,10 +262,11 @@ export default function DatewiseCollectionsPage() {
     setEndDate('')
     setFilterLoanType('all')
     setFilterCollectedBy('all')
+    setFilterArea('All Areas')
     setSearchTerm('')
   }
 
-  const hasActiveFilters = startDate || endDate || filterLoanType !== 'all' || filterCollectedBy !== 'all' || searchTerm
+  const hasActiveFilters = startDate || endDate || filterLoanType !== 'all' || filterCollectedBy !== 'all' || filterArea !== 'All Areas' || searchTerm
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,11 +274,6 @@ export default function DatewiseCollectionsPage() {
       <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/collections">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Calendar className="w-6 h-6 text-primary" />
@@ -190,6 +287,17 @@ export default function DatewiseCollectionsPage() {
           <div className="flex gap-2">
             <Button onClick={fetchEntries} variant="outline" size="icon" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              onClick={downloadCollectionReport}
+              disabled={reportLoading}
+              variant="outline"
+              size="sm"
+              title="Download Report"
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {reportLoading ? '...' : 'Download'}
             </Button>
             <Button asChild>
               <Link href="/collections">Add Collection</Link>
@@ -217,7 +325,7 @@ export default function DatewiseCollectionsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Quick Date Presets */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground mr-2 flex items-center">Quick:</span>
               <Button variant="outline" size="sm" onClick={setToday} className="h-8 text-xs">
                 Today
@@ -231,10 +339,23 @@ export default function DatewiseCollectionsPage() {
               <Button variant="outline" size="sm" onClick={setThisMonth} className="h-8 text-xs">
                 This Month
               </Button>
+              <div className="ml-auto flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Search Customer:</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Customer name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 border-border/50 h-8 w-48"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Filter Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               {/* Start Date */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Start Date</label>
@@ -242,7 +363,7 @@ export default function DatewiseCollectionsPage() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="border-border/50 h-9"
+                  className="border-border/50 h-9 w-40"
                 />
               </div>
 
@@ -253,7 +374,7 @@ export default function DatewiseCollectionsPage() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="border-border/50 h-9"
+                  className="border-border/50 h-9 w-40"
                 />
               </div>
 
@@ -261,7 +382,7 @@ export default function DatewiseCollectionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Loan Type</label>
                 <Select value={filterLoanType} onValueChange={setFilterLoanType}>
-                  <SelectTrigger className="border-border/50 h-9">
+                  <SelectTrigger className="border-border/50 h-9 w-32">
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
@@ -282,7 +403,7 @@ export default function DatewiseCollectionsPage() {
                   Collected By
                 </label>
                 <Select value={filterCollectedBy} onValueChange={setFilterCollectedBy}>
-                  <SelectTrigger className="border-border/50 h-9">
+                  <SelectTrigger className="border-border/50 h-9 w-32">
                     <SelectValue placeholder="All Collectors" />
                   </SelectTrigger>
                   <SelectContent>
@@ -296,19 +417,21 @@ export default function DatewiseCollectionsPage() {
                 </Select>
               </div>
 
-              {/* Search */}
+              {/* Area Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Search Customer</label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Customer name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 border-border/50 h-9"
-                  />
-                </div>
+                <label className="text-xs font-medium text-muted-foreground">Area</label>
+                <Select value={filterArea} onValueChange={setFilterArea}>
+                  <SelectTrigger className="border-border/50 h-9 w-32">
+                    <SelectValue placeholder="All Areas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {areas.map((area) => (
+                      <SelectItem key={area} value={area}>
+                        {area}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -402,7 +525,7 @@ export default function DatewiseCollectionsPage() {
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Date</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Customer</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Loan Type</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Details</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Interest</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground">Amount</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground">Balance</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Method</th>
@@ -430,8 +553,8 @@ export default function DatewiseCollectionsPage() {
                             {entry.loan_type}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground max-w-[200px] truncate">
-                          {entry.description || '-'}
+                        <td className="py-3 px-4 text-right font-medium text-blue-600 whitespace-nowrap">
+                          ₹{(entry.loan_type === 'Monthly Interest Loan' || entry.loan_type === 'DL Loan') ? (parseFloat(entry.interest_amount || '0')).toLocaleString('en-IN') : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-green-600 whitespace-nowrap">
                           ₹{parseFloat(entry.amount).toLocaleString('en-IN')}
@@ -460,9 +583,10 @@ export default function DatewiseCollectionsPage() {
               <div className="mt-4 pt-4 border-t border-border/50">
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-foreground">Total ({filteredEntries.length} entries)</span>
-                  <span className="font-bold text-green-600 text-xl">
-                    ₹{totalAmount.toLocaleString('en-IN')}
-                  </span>
+                  <div className="text-right space-x-4">
+                    <span className="text-sm text-muted-foreground">Interest: ₹{totalInterest.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-green-600 text-lg">Total: ₹{totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>

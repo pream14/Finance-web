@@ -484,7 +484,6 @@ export default function CollectionsPage() {
 
           // Get expected interest from API (already calculated)
           const expectedInterest = loan.expected_interest ? parseFloat(loan.expected_interest) : 0
-          console.log('Loan ID:', loan.id, 'Expected Interest:', loan.expected_interest, 'Parsed:', expectedInterest)
 
           // Auto-populate default amounts based on loan type
           if (loan.loan_type === 'DC Loan') {
@@ -695,11 +694,6 @@ export default function CollectionsPage() {
       <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Wallet className="w-6 h-6 text-primary" />
@@ -1029,8 +1023,8 @@ export default function CollectionsPage() {
                                 return (
                                   <div className="flex flex-col items-center gap-1">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${isMyEntry
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-yellow-100 text-yellow-800'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-yellow-100 text-yellow-800'
                                       }`}>
                                       {isMyEntry ? 'Paid' : `By ${todayEntry.collected_by_name?.split(' ')[0] || 'Other'}`}
                                     </span>
