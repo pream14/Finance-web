@@ -159,7 +159,7 @@ def _get_report_data(request):
                 'id': txn.id,
                 'date': txn.created_at.strftime('%d/%m/%Y') if txn.created_at else '',
                 'customer_name': txn.loan.customer.name if txn.loan and txn.loan.customer else 'Unknown',
-                'loan_type': txn.loan.loan_type if txn.loan else 'Unknown',
+                'loan_type': 'ML' if txn.loan.loan_type == 'Monthly Interest Loan' else 'DL' if txn.loan.loan_type == 'DL Loan' else txn.loan.loan_type if txn.loan else 'Unknown',
                 'interest': interest_display,
                 'amount': str(txn.amount),
                 'balance': str(txn.loan.remaining_amount or 0) if txn.loan else '0',
@@ -167,12 +167,43 @@ def _get_report_data(request):
                 'collected_by': collector_name,
             })
 
+        # Collector-wise summary
+        collector_totals = {}
+        for txn in transactions:
+            c_name = 'Unknown'
+            if txn.created_by:
+                full = txn.created_by.get_full_name()
+                c_name = full if full else txn.created_by.username
+            if c_name not in collector_totals:
+                collector_totals[c_name] = {'count': 0, 'total': Decimal('0')}
+            collector_totals[c_name]['count'] += 1
+            collector_totals[c_name]['total'] += txn.amount or Decimal('0')
+
+        collector_summary = []
+        for name, data in sorted(collector_totals.items(), key=lambda x: x[1]['total'], reverse=True):
+            collector_summary.append({
+                'name': name,
+                'count': data['count'],
+                'total': str(data['total']),
+            })
+
+        # DC deduction revenue from loans created in the period
+        dc_loans_in_period = Loan.objects.filter(
+            loan_type='DC Loan',
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date,
+            dc_deduction_amount__gt=0,
+        )
+        if area:
+            dc_loans_in_period = dc_loans_in_period.filter(customer__area__iexact=area)
+        dc_deduction_total = dc_loans_in_period.aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
+
     # Get distinct areas for filter dropdown
     all_areas = list(
         Customer.objects.values_list('area', flat=True).distinct().order_by('area')
     )
 
-    return {
+    result = {
         'report_type': report_type,
         'filters': {
             'start_date': start_date,
@@ -183,7 +214,27 @@ def _get_report_data(request):
         'summary': summary,
         'breakdown': breakdown,
         'available_areas': all_areas,
-    }, None
+    }
+
+    # Include extra data for transactions report
+    if report_type == 'transactions':
+        result['collector_summary'] = collector_summary
+        result['dc_deduction_revenue'] = str(dc_deduction_total)
+
+        # New loans given in the period
+        new_loans_qs = loans_qs.select_related('customer').order_by('-created_at')
+        new_loans_list = []
+        for loan in new_loans_qs:
+            new_loans_list.append({
+                'date': loan.created_at.strftime('%d/%m/%Y') if loan.created_at else '',
+                'customer_name': loan.customer.name if loan.customer else 'Unknown',
+                'loan_type': loan.loan_type,
+                'principal': str(loan.principal_amount),
+                'dc_deduction': str(loan.dc_deduction_amount or 0) if loan.loan_type == 'DC Loan' else '-',
+            })
+        result['new_loans'] = new_loans_list
+
+    return result, None
 
 
 class ReportDataView(APIView):
@@ -215,7 +266,7 @@ class ReportDownloadView(APIView):
         filename = f"report_{report_type}_{start}_to_{end}"
 
         if fmt == 'pdf':
-            return self._generate_pdf(filename, report_type, summary, breakdown, data['filters'])
+            return self._generate_pdf(filename, report_type, summary, breakdown, data['filters'], data)
         else:
             return self._generate_csv(filename, report_type, summary, breakdown)
 
@@ -267,7 +318,7 @@ class ReportDownloadView(APIView):
 
         return response
 
-    def _generate_pdf(self, filename, report_type, summary, breakdown, filters):
+    def _generate_pdf(self, filename, report_type, summary, breakdown, filters, full_data=None):
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import inch, mm
@@ -301,43 +352,45 @@ class ReportDownloadView(APIView):
             subtitle_style
         ))
 
-        # Summary table
+        # Styles used in tables
         header_style = ParagraphStyle('Header', parent=styles['Normal'], fontSize=12,
                                        textColor=colors.white, fontName='Helvetica-Bold')
         cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=10)
         value_style = ParagraphStyle('Value', parent=styles['Normal'], fontSize=10,
                                       fontName='Helvetica-Bold', alignment=TA_RIGHT)
 
-        summary_data = [
-            [Paragraph('Metric', header_style), Paragraph('Amount', header_style)],
-            [Paragraph('Total Disbursed', cell_style), Paragraph(summary['total_disbursed'], value_style)],
-            [Paragraph('Total Loans Issued', cell_style), Paragraph(str(summary['total_loans_count']), value_style)],
-            [Paragraph('Total Collected', cell_style), Paragraph(summary['total_collected'], value_style)],
-            [Paragraph('Principal Collected', cell_style), Paragraph(summary['total_principal_collected'], value_style)],
-            [Paragraph('Interest Earned (Income)', cell_style), Paragraph(summary['total_interest_collected'], value_style)],
-            [Paragraph('Total Expenses', cell_style), Paragraph(summary['total_expenses'], value_style)],
-            [Paragraph('Net Income', cell_style), Paragraph(summary['net_income'], value_style)],
-        ]
+        # Summary table (skip for transactions report — detailed table is more useful)
+        if report_type != 'transactions':
+            summary_data = [
+                [Paragraph('Metric', header_style), Paragraph('Amount', header_style)],
+                [Paragraph('Total Disbursed', cell_style), Paragraph(summary['total_disbursed'], value_style)],
+                [Paragraph('Total Loans Issued', cell_style), Paragraph(str(summary['total_loans_count']), value_style)],
+                [Paragraph('Total Collected', cell_style), Paragraph(summary['total_collected'], value_style)],
+                [Paragraph('Principal Collected', cell_style), Paragraph(summary['total_principal_collected'], value_style)],
+                [Paragraph('Interest Earned (Income)', cell_style), Paragraph(summary['total_interest_collected'], value_style)],
+                [Paragraph('Total Expenses', cell_style), Paragraph(summary['total_expenses'], value_style)],
+                [Paragraph('Net Income', cell_style), Paragraph(summary['net_income'], value_style)],
+            ]
 
-        summary_table = Table(summary_data, colWidths=[3.5*inch, 2.5*inch])
-        summary_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ]))
-        elements.append(summary_table)
-        elements.append(Spacer(1, 20))
+            summary_table = Table(summary_data, colWidths=[3.5*inch, 2.5*inch])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                ('TOPPADDING', (0, 0), (-1, 0), 10),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+                ('TOPPADDING', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ]))
+            elements.append(summary_table)
+            elements.append(Spacer(1, 20))
 
         # Breakdown table
         if breakdown:
@@ -399,6 +452,126 @@ class ReportDownloadView(APIView):
                     ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
                 ]))
                 elements.append(bd_table)
+
+            # For transactions report: add total row, collector summary, and DC deduction revenue
+            if report_type == 'transactions' and full_data:
+                elements.append(Spacer(1, 10))
+
+                # Total collected row
+                total_amount = sum(Decimal(row['amount']) for row in breakdown)
+                total_interest = sum(
+                    Decimal(row['interest']) for row in breakdown
+                    if row['interest'] != '-'
+                )
+                totals_data = [
+                    ['', '', '', f'Interest: {total_interest}', f'Total: {total_amount}', '', '', ''],
+                ]
+                totals_table = Table(totals_data, colWidths=[0.75*inch, 1.1*inch, 0.95*inch, 0.7*inch, 0.75*inch, 0.75*inch, 0.7*inch, 0.95*inch])
+                totals_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8f5e9')),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                    ('ALIGN', (3, 0), (4, 0), 'RIGHT'),
+                ]))
+                elements.append(totals_table)
+                elements.append(Spacer(1, 20))
+
+                # Collector Summary
+                collector_summary = full_data.get('collector_summary', [])
+                if collector_summary:
+                    section_style2 = ParagraphStyle('Section2', parent=styles['Heading2'], fontSize=13,
+                                                     textColor=colors.HexColor('#1a1a2e'), spaceBefore=10, spaceAfter=8)
+                    elements.append(Paragraph('Collector Summary', section_style2))
+                    cs_data = [['Collector', 'Collections', 'Total Amount']]
+                    for cs in collector_summary:
+                        cs_data.append([cs['name'], str(cs['count']), cs['total']])
+                    cs_table = Table(cs_data, colWidths=[2.5*inch, 1.5*inch, 2.0*inch])
+                    cs_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 10),
+                        ('FONTSIZE', (0, 1), (-1, -1), 10),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+                        ('TOPPADDING', (0, 0), (-1, -1), 7),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                    ]))
+                    elements.append(cs_table)
+                    elements.append(Spacer(1, 15))
+
+                # DC Deduction Revenue
+                dc_revenue = full_data.get('dc_deduction_revenue', '0')
+                interest_collected = summary.get('total_interest_collected', '0')
+                total_revenue = Decimal(dc_revenue) + Decimal(interest_collected)
+
+                rev_style = ParagraphStyle('RevSection', parent=styles['Heading2'], fontSize=13,
+                                            textColor=colors.HexColor('#1a1a2e'), spaceBefore=10, spaceAfter=8)
+                elements.append(Paragraph('Revenue Summary', rev_style))
+                rev_data = [
+                    ['Source', 'Amount'],
+                    ['DC Deduction (from new loans)', dc_revenue],
+                    ['Interest Collected', interest_collected],
+                    ['Total Revenue', str(total_revenue)],
+                ]
+                rev_table = Table(rev_data, colWidths=[3.5*inch, 2.5*inch])
+                rev_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('FONTSIZE', (0, 1), (-1, -1), 10),
+                    ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
+                    ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+                    ('TOPPADDING', (0, 0), (-1, -1), 7),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                    ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ]))
+                elements.append(rev_table)
+
+                # New Loans Given in the period
+                new_loans = full_data.get('new_loans', [])
+                if new_loans:
+                    elements.append(Spacer(1, 15))
+                    nl_style = ParagraphStyle('NLSection', parent=styles['Heading2'], fontSize=13,
+                                               textColor=colors.HexColor('#1a1a2e'), spaceBefore=10, spaceAfter=8)
+                    elements.append(Paragraph(f'New Loans Given ({len(new_loans)})', nl_style))
+                    nl_data = [['Date', 'Customer', 'Loan Type', 'Principal', 'DC Deduction']]
+                    total_principal = Decimal('0')
+                    for nl in new_loans:
+                        nl_data.append([nl['date'], nl['customer_name'], nl['loan_type'], nl['principal'], nl['dc_deduction']])
+                        total_principal += Decimal(nl['principal'])
+                    nl_data.append(['', 'Total', '', str(total_principal), ''])
+                    nl_table = Table(nl_data, colWidths=[0.9*inch, 1.8*inch, 1.2*inch, 1.2*inch, 1.0*inch])
+                    nl_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 9),
+                        ('FONTSIZE', (0, 1), (-1, -1), 9),
+                        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
+                        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+                        ('TOPPADDING', (0, 0), (-1, -1), 6),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                        ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
+                    ]))
+                    elements.append(nl_table)
 
         # Footer
         elements.append(Spacer(1, 30))
