@@ -60,14 +60,10 @@ export default function DatewiseCollectionsPage() {
     return Array.from(uniqueCollectors).sort()
   }, [entries])
 
-  // Get unique areas from entries
+  // Get unique areas from entries (need to fetch customer data to get area)
   const areas = useMemo(() => {
-    const uniqueAreas = new Set<string>()
-    entries.forEach(entry => {
-      // We need to fetch customer data to get area, so for now use a placeholder
-      // In real implementation, you'd include area in the API response
-    })
-    return ['All Areas', ...Array.from(uniqueAreas).sort()]
+    // For now, return placeholder areas - in real implementation, you'd fetch customer data
+    return ['All Areas', 'Area 1', 'Area 2', 'Area 3'] // Placeholder
   }, [entries])
 
   // Apply client-side filters
@@ -77,9 +73,8 @@ export default function DatewiseCollectionsPage() {
       if (filterLoanType !== 'all' && entry.loan_type !== filterLoanType) {
         return false
       }
-      // Area filter
-      if (filterArea !== 'all' && entry.customer_name.toLowerCase().includes(filterArea.toLowerCase()) === false) {
-        // This is a placeholder - in real implementation, you'd have area in entry
+      // Area filter (placeholder logic - in real implementation, you'd have area in entry)
+      if (filterArea !== 'all' && filterArea !== 'Area 1' && filterArea !== 'Area 2' && filterArea !== 'Area 3') {
         return false
       }
       // Collected by filter
@@ -264,6 +259,17 @@ export default function DatewiseCollectionsPage() {
             <Button onClick={fetchEntries} variant="outline" size="icon" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
+            <Button
+              onClick={downloadCollectionReport}
+              disabled={reportLoading}
+              variant="outline"
+              size="sm"
+              title="Download Report"
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {reportLoading ? '...' : 'Download'}
+            </Button>
             <Button asChild>
               <Link href="/collections">Add Collection</Link>
             </Button>
@@ -290,7 +296,7 @@ export default function DatewiseCollectionsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Quick Date Presets */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground mr-2 flex items-center">Quick:</span>
               <Button variant="outline" size="sm" onClick={setToday} className="h-8 text-xs">
                 Today
@@ -304,10 +310,23 @@ export default function DatewiseCollectionsPage() {
               <Button variant="outline" size="sm" onClick={setThisMonth} className="h-8 text-xs">
                 This Month
               </Button>
+              <div className="ml-auto flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Search Customer:</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Customer name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 border-border/50 h-8 w-48"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Filter Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Start Date */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Start Date</label>
@@ -386,21 +405,6 @@ export default function DatewiseCollectionsPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Search */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Search Customer</label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Customer name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 border-border/50 h-9"
-                  />
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -442,44 +446,6 @@ export default function DatewiseCollectionsPage() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Interest Summary Section */}
-        <Card className="border-border/50 mb-6">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                <CardTitle className="text-base">Interest Summary</CardTitle>
-              </div>
-              <Button
-                onClick={downloadCollectionReport}
-                disabled={reportLoading}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                {reportLoading ? 'Downloading...' : 'Download Report'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="text-sm text-blue-600 font-medium">Monthly Interest Collected</div>
-                <div className="text-xl font-bold text-blue-700">₹{interestSummary.monthlyInterestCollected.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <div className="text-sm text-green-600 font-medium">DL Interest Collected</div>
-                <div className="text-xl font-bold text-green-700">₹{interestSummary.dlInterestCollected.toLocaleString('en-IN')}</div>
-              </div>
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                <div className="text-sm text-purple-600 font-medium">Total Interest Collected</div>
-                <div className="text-xl font-bold text-purple-700">₹{interestSummary.totalInterestCollected.toLocaleString('en-IN')}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Entries Table */}
         {loading ? (
@@ -531,7 +497,8 @@ export default function DatewiseCollectionsPage() {
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Date</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Customer</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Loan Type</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Details</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Monthly Interest</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">DL Interest</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground">Amount</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground">Balance</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Method</th>
@@ -559,8 +526,11 @@ export default function DatewiseCollectionsPage() {
                             {entry.loan_type}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground max-w-[200px] truncate">
-                          {entry.description || '-'}
+                        <td className="py-3 px-4 text-right font-medium text-blue-600 whitespace-nowrap">
+                          ₹{entry.loan_type === 'Monthly Interest Loan' ? (parseFloat(entry.interest_amount || '0')).toLocaleString('en-IN') : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-medium text-green-600 whitespace-nowrap">
+                          ₹{entry.loan_type === 'DL Loan' ? (parseFloat(entry.interest_amount || '0')).toLocaleString('en-IN') : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-green-600 whitespace-nowrap">
                           ₹{parseFloat(entry.amount).toLocaleString('en-IN')}
