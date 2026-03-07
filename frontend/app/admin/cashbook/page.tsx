@@ -263,17 +263,12 @@ export default function CashBookPage() {
                             }} title="Export Cash Book Data" size="icon">
                                 <Download className="w-4 h-4" />
                             </Button>
-                            <Button asChild variant="outline">
-                                <Link href="/admin/dashboard">Dashboard</Link>
-                            </Button>
                         </div>
                     </div>
                     
                     {/* Date Navigation */}
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" onClick={goToPreviousDay}>
-                            <ChevronLeft className="w-4 h-4" />
-                        </Button>
+
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <input
@@ -284,19 +279,7 @@ export default function CashBookPage() {
                                 className="bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer"
                             />
                         </div>
-                        {selectedDate !== getToday() && (
-                            <Button variant="outline" size="sm" onClick={goToToday} className="text-xs h-7">
-                                Today
-                            </Button>
-                        )}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={goToNextDay}
-                            disabled={selectedDate >= getToday()}
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </Button>
+
                     </div>
                 </div>
             </header>
@@ -322,7 +305,7 @@ export default function CashBookPage() {
                             <CardContent className="py-4 px-5">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Iruppu (Opening Balance)</p>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Opening Balance</p>
                                         {editingBalance ? (
                                             <div className="flex items-center gap-2 mt-1.5">
                                                 <Input
