@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Download, User } from 'lucide-react'
-import { transactionsApi, loansApi, reportsApi } from '@/lib/api'
+import { transactionsApi, loansApi, reportsApi, customersApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -28,6 +28,7 @@ interface Transaction {
 
 export default function DatewiseCollectionsPage() {
   const [entries, setEntries] = useState<Transaction[]>([])
+  const [customers, setCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,11 +61,14 @@ export default function DatewiseCollectionsPage() {
     return Array.from(uniqueCollectors).sort()
   }, [entries])
 
-  // Get unique areas from entries (need to fetch customer data to get area)
+  // Get unique areas from customers data
   const areas = useMemo(() => {
-    // For now, return placeholder areas - in real implementation, you'd fetch customer data
-    return ['All Areas', 'Area 1', 'Area 2', 'Area 3'] // Placeholder
-  }, [entries])
+    const uniqueAreas = new Set<string>()
+    customers.forEach(customer => {
+      if (customer.area) uniqueAreas.add(customer.area)
+    })
+    return ['All Areas', ...Array.from(uniqueAreas).sort()]
+  }, [customers])
 
   // Apply client-side filters
   const filteredEntries = useMemo(() => {
@@ -73,9 +77,12 @@ export default function DatewiseCollectionsPage() {
       if (filterLoanType !== 'all' && entry.loan_type !== filterLoanType) {
         return false
       }
-      // Area filter (placeholder logic - in real implementation, you'd have area in entry)
-      if (filterArea !== 'all' && filterArea !== 'Area 1' && filterArea !== 'Area 2' && filterArea !== 'Area 3') {
-        return false
+      // Area filter - match customer area
+      if (filterArea !== 'all') {
+        const customer = customers.find(c => c.name === entry.customer_name)
+        if (!customer || customer.area !== filterArea) {
+          return false
+        }
       }
       // Collected by filter
       if (filterCollectedBy !== 'all' && entry.collected_by_name !== filterCollectedBy) {
@@ -120,6 +127,16 @@ export default function DatewiseCollectionsPage() {
   useEffect(() => {
     setInterestSummary(calculateInterestSummary)
   }, [filteredEntries])
+
+  // Fetch customers data
+  const fetchCustomers = async () => {
+    try {
+      const data = await customersApi.getAll()
+      setCustomers(data)
+    } catch (err: any) {
+      console.error('Error fetching customers:', err)
+    }
+  }
 
   // Fetch entries with filters
   const fetchEntries = async () => {
@@ -182,7 +199,7 @@ export default function DatewiseCollectionsPage() {
       await reportsApi.download({
         start_date: start,
         end_date: end,
-        report_type: 'area_wise',
+        report_type: 'transactions', // Changed from area_wise to transactions to get table data
         file_format: 'pdf',
         ...(filterArea !== 'all' && { area: filterArea }),
         ...(filterLoanType !== 'all' && { loan_type: filterLoanType })
@@ -194,9 +211,10 @@ export default function DatewiseCollectionsPage() {
     }
   }
 
-  // Fetch entries on component mount and when date filters change
+  // Fetch entries and customers on component mount and when date filters change
   useEffect(() => {
     fetchEntries()
+    fetchCustomers()
   }, [startDate, endDate])
 
   // Quick date presets
@@ -326,7 +344,7 @@ export default function DatewiseCollectionsPage() {
             </div>
 
             {/* Filter Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               {/* Start Date */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Start Date</label>
@@ -334,7 +352,7 @@ export default function DatewiseCollectionsPage() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="border-border/50 h-9"
+                  className="border-border/50 h-9 w-40"
                 />
               </div>
 
@@ -345,7 +363,7 @@ export default function DatewiseCollectionsPage() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="border-border/50 h-9"
+                  className="border-border/50 h-9 w-40"
                 />
               </div>
 
@@ -353,7 +371,7 @@ export default function DatewiseCollectionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Loan Type</label>
                 <Select value={filterLoanType} onValueChange={setFilterLoanType}>
-                  <SelectTrigger className="border-border/50 h-9">
+                  <SelectTrigger className="border-border/50 h-9 w-32">
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
@@ -374,7 +392,7 @@ export default function DatewiseCollectionsPage() {
                   Collected By
                 </label>
                 <Select value={filterCollectedBy} onValueChange={setFilterCollectedBy}>
-                  <SelectTrigger className="border-border/50 h-9">
+                  <SelectTrigger className="border-border/50 h-9 w-32">
                     <SelectValue placeholder="All Collectors" />
                   </SelectTrigger>
                   <SelectContent>
@@ -392,7 +410,7 @@ export default function DatewiseCollectionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Area</label>
                 <Select value={filterArea} onValueChange={setFilterArea}>
-                  <SelectTrigger className="border-border/50 h-9">
+                  <SelectTrigger className="border-border/50 h-9 w-32">
                     <SelectValue placeholder="All Areas" />
                   </SelectTrigger>
                   <SelectContent>
@@ -497,8 +515,7 @@ export default function DatewiseCollectionsPage() {
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Date</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Customer</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Loan Type</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Monthly Interest</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">DL Interest</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Interest</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground">Amount</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground">Balance</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Method</th>
@@ -527,10 +544,7 @@ export default function DatewiseCollectionsPage() {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right font-medium text-blue-600 whitespace-nowrap">
-                          ₹{entry.loan_type === 'Monthly Interest Loan' ? (parseFloat(entry.interest_amount || '0')).toLocaleString('en-IN') : '-'}
-                        </td>
-                        <td className="py-3 px-4 text-right font-medium text-green-600 whitespace-nowrap">
-                          ₹{entry.loan_type === 'DL Loan' ? (parseFloat(entry.interest_amount || '0')).toLocaleString('en-IN') : '-'}
+                          ₹{(entry.loan_type === 'Monthly Interest Loan' || entry.loan_type === 'DL Loan') ? (parseFloat(entry.interest_amount || '0')).toLocaleString('en-IN') : '-'}
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-green-600 whitespace-nowrap">
                           ₹{parseFloat(entry.amount).toLocaleString('en-IN')}
