@@ -356,6 +356,8 @@ export const reportsApi = {
     file_format: 'csv' | 'pdf';
     area?: string;
     loan_type?: string;
+    collected_by?: string;
+    search?: string;
   }) => {
     const token = getAuthToken();
     const queryParams = new URLSearchParams();
@@ -365,6 +367,8 @@ export const reportsApi = {
     queryParams.append('file_format', params.file_format);
     if (params.area) queryParams.append('area', params.area);
     if (params.loan_type) queryParams.append('loan_type', params.loan_type);
+    if (params.collected_by) queryParams.append('collected_by', params.collected_by);
+    if (params.search) queryParams.append('search', params.search);
 
     const response = await fetch(
       `${API_BASE_URL}/transactions/reports/download/?${queryParams.toString()}`,
@@ -446,17 +450,17 @@ export const customerReportApi = {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    
+
     // Use customer name in filename (sanitize for filesystem)
     const safeName = customerName.replace(' ', '_').replace('/', '-');
     const filename = loanId ? `${safeName}_loan_${loanId}_report.pdf` : `${safeName}_all_loans_report.pdf`;
     link.download = filename;
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    
+
     return true;
   },
 };

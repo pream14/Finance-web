@@ -39,14 +39,14 @@ export default function DatewiseCollectionsPage() {
   const [filterCollectedBy, setFilterCollectedBy] = useState('all')
   const [filterArea, setFilterArea] = useState('All Areas')
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Interest summary state
   const [interestSummary, setInterestSummary] = useState({
     monthlyInterestCollected: 0,
     dlInterestCollected: 0,
     totalInterestCollected: 0
   })
-  
+
   // Report loading state
   const [reportLoading, setReportLoading] = useState(false)
 
@@ -115,7 +115,7 @@ export default function DatewiseCollectionsPage() {
   const calculateInterestSummary = useMemo(() => {
     let monthlyInterest = 0
     let dlInterest = 0
-    
+
     filteredEntries.forEach((entry: Transaction) => {
       if (entry.loan_type === 'Monthly Interest Loan') {
         monthlyInterest += parseFloat(entry.interest_amount || '0')
@@ -123,9 +123,9 @@ export default function DatewiseCollectionsPage() {
         dlInterest += parseFloat(entry.interest_amount || '0')
       }
     })
-    
+
     const totalInterest = monthlyInterest + dlInterest
-    
+
     return {
       monthlyInterestCollected: monthlyInterest,
       dlInterestCollected: dlInterest,
@@ -205,14 +205,16 @@ export default function DatewiseCollectionsPage() {
       setReportLoading(true)
       const start = startDate || new Date().toISOString().split('T')[0]
       const end = endDate || new Date().toISOString().split('T')[0]
-      
+
       await reportsApi.download({
         start_date: start,
         end_date: end,
-        report_type: 'transactions', // Changed from area_wise to transactions to get table data
+        report_type: 'transactions',
         file_format: 'pdf',
         ...(filterArea !== 'All Areas' && { area: filterArea }),
-        ...(filterLoanType !== 'all' && { loan_type: filterLoanType })
+        ...(filterLoanType !== 'all' && { loan_type: filterLoanType }),
+        ...(filterCollectedBy !== 'all' && { collected_by: filterCollectedBy }),
+        ...(searchTerm && { search: searchTerm })
       })
     } catch (err: any) {
       alert(err.message || 'Failed to download report')
