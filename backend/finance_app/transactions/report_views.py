@@ -122,6 +122,35 @@ def _get_report_data(request):
                 'transactions': row['transaction_count'],
             })
 
+    elif report_type == 'transactions':
+        # Individual transaction data
+        transactions = transactions_qs.select(
+            'id',
+            'created_at',
+            'amount',
+            'asal_amount',
+            'interest_amount',
+            'payment_method',
+            'collected_by_name',
+            'loan__customer__name',
+            'loan__loan_type',
+            'loan__remaining_amount',
+        ).order_by('-created_at')
+        
+        for txn in transactions:
+            breakdown.append({
+                'id': txn.id,
+                'date': txn.created_at.strftime('%Y-%m-%d'),
+                'customer_name': txn.loan__customer__name,
+                'loan_type': txn.loan__loan_type,
+                'amount': str(txn.amount),
+                'asal_amount': str(txn.asal_amount or 0),
+                'interest_amount': str(txn.interest_amount or 0),
+                'payment_method': txn.payment_method,
+                'collected_by': txn.collected_by_name or 'Unknown',
+                'remaining_amount': str(txn.loan__remaining_amount or 0),
+            })
+
     # Get distinct areas for filter dropdown
     all_areas = list(
         Customer.objects.values_list('area', flat=True).distinct().order_by('area')
@@ -209,6 +238,15 @@ class ReportDownloadView(APIView):
                     row['loan_type'], row['loans'],
                     row['total_collected'], row['principal_collected'],
                     row['interest_collected'], row['transactions'],
+                ])
+        elif report_type == 'transactions' and breakdown:
+            writer.writerow(['=== TRANSACTION DETAILS ==='])
+            writer.writerow(['Date', 'Customer', 'Loan Type', 'Amount', 'Principal', 'Interest', 'Payment Method', 'Collected By', 'Remaining'])
+            for row in breakdown:
+                writer.writerow([
+                    row['date'], row['customer_name'], row['loan_type'],
+                    row['amount'], row['asal_amount'], row['interest_amount'],
+                    row['payment_method'], row['collected_by'], row['remaining_amount'],
                 ])
 
         return response
@@ -312,6 +350,17 @@ class ReportDownloadView(APIView):
                         row['interest_collected'], str(row['transactions']),
                     ])
                 col_widths = [1.5*inch, 0.8*inch, 1.2*inch, 1.1*inch, 1.1*inch, 0.8*inch]
+            elif report_type == 'transactions':
+                elements.append(Paragraph('Transaction Details', section_style))
+                bd_header = ['Date', 'Customer', 'Loan Type', 'Amount', 'Principal', 'Interest', 'Method', 'Collected By', 'Remaining']
+                bd_data = [bd_header]
+                for row in breakdown:
+                    bd_data.append([
+                        row['date'], row['customer_name'], row['loan_type'],
+                        row['amount'], row['asal_amount'], row['interest_amount'],
+                        row['payment_method'], row['collected_by'], row['remaining_amount'],
+                    ])
+                col_widths = [0.8*inch, 1.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.0*inch, 0.8*inch]
             else:
                 bd_data = []
                 col_widths = []

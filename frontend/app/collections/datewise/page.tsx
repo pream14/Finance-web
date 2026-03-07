@@ -37,7 +37,7 @@ export default function DatewiseCollectionsPage() {
   const [endDate, setEndDate] = useState('')
   const [filterLoanType, setFilterLoanType] = useState('all')
   const [filterCollectedBy, setFilterCollectedBy] = useState('all')
-  const [filterArea, setFilterArea] = useState('all')
+  const [filterArea, setFilterArea] = useState('All Areas')
   const [searchTerm, setSearchTerm] = useState('')
   
   // Interest summary state
@@ -78,7 +78,7 @@ export default function DatewiseCollectionsPage() {
         return false
       }
       // Area filter - match customer area
-      if (filterArea !== 'all') {
+      if (filterArea !== 'All Areas') {
         const customer = customers.find(c => c.name === entry.customer_name)
         if (!customer || customer.area !== filterArea) {
           return false
@@ -262,10 +262,11 @@ export default function DatewiseCollectionsPage() {
     setEndDate('')
     setFilterLoanType('all')
     setFilterCollectedBy('all')
+    setFilterArea('All Areas')
     setSearchTerm('')
   }
 
-  const hasActiveFilters = startDate || endDate || filterLoanType !== 'all' || filterCollectedBy !== 'all' || searchTerm
+  const hasActiveFilters = startDate || endDate || filterLoanType !== 'all' || filterCollectedBy !== 'all' || filterArea !== 'All Areas' || searchTerm
 
   return (
     <div className="min-h-screen bg-background">
@@ -580,18 +581,11 @@ export default function DatewiseCollectionsPage() {
 
               {/* Total at bottom */}
               <div className="mt-4 pt-4 border-t border-border/50">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <span className="text-sm text-muted-foreground">Total Entries</span>
-                    <div className="font-semibold text-foreground">{filteredEntries.length}</div>
-                  </div>
-                  <div className="text-center">
-                    <span className="text-sm text-muted-foreground">Total Amount</span>
-                    <div className="font-bold text-green-600 text-lg">₹{totalAmount.toLocaleString('en-IN')}</div>
-                  </div>
-                  <div className="text-center">
-                    <span className="text-sm text-muted-foreground">Total Interest</span>
-                    <div className="font-bold text-blue-600 text-lg">₹{totalInterest.toLocaleString('en-IN')}</div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-foreground">Total ({filteredEntries.length} entries)</span>
+                  <div className="text-right space-x-4">
+                    <span className="text-sm text-muted-foreground">Interest: ₹{totalInterest.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-green-600 text-lg">Total: ₹{totalAmount.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
