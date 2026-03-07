@@ -219,13 +219,15 @@ export default function CashBookPage() {
         <div className="min-h-screen bg-background">
             {/* Header with Date Navigation */}
             <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                            <BookOpen className="w-5 h-5 text-foreground" />
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                                <BookOpen className="w-6 h-6 text-primary" />
+                            </div>
                             <div>
-                                <h1 className="text-xl font-bold text-foreground">Daily Cash Book</h1>
-                                <p className="text-xs text-muted-foreground">Iruppu & Revenue Tracker</p>
+                                <h1 className="text-2xl font-bold text-foreground">Daily Cash Book</h1>
+                                <p className="text-sm text-muted-foreground mt-1">Iruppu & Revenue Tracker</p>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -299,7 +301,7 @@ export default function CashBookPage() {
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {loading ? (
                     <div className="py-16 text-center">
@@ -307,7 +309,7 @@ export default function CashBookPage() {
                         <p className="text-sm text-muted-foreground">Loading cash book...</p>
                     </div>
                 ) : error ? (
-                    <Card>
+                    <Card className="border-border/50">
                         <CardContent className="py-12 text-center">
                             <p className="text-muted-foreground mb-4">{error}</p>
                             <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline">Retry</Button>
@@ -316,7 +318,7 @@ export default function CashBookPage() {
                 ) : cashBookData && (
                     <>
                         {/* Opening Balance */}
-                        <Card>
+                        <Card className="border-border/50">
                             <CardContent className="py-4 px-5">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -327,7 +329,7 @@ export default function CashBookPage() {
                                                     type="number"
                                                     value={newOpeningBalance}
                                                     onChange={(e) => setNewOpeningBalance(e.target.value)}
-                                                    className="w-36 h-8"
+                                                    className="w-36 h-8 border-border/50"
                                                     autoFocus
                                                 />
                                                 <Button size="sm" onClick={saveOpeningBalance} disabled={savingBalance} className="h-8">
@@ -355,7 +357,7 @@ export default function CashBookPage() {
                         </Card>
 
                         {/* Cash Flow Calculation — single clean table */}
-                        <Card>
+                        <Card className="border-border/50">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Cash Flow</CardTitle>
                             </CardHeader>
@@ -389,7 +391,7 @@ export default function CashBookPage() {
 
                         {/* Online Transactions (if any) */}
                         {(p(cashBookData.online_collections) > 0 || p(cashBookData.online_loans_given) > 0) && (
-                            <Card>
+                            <Card className="border-border/50">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Online Transactions</CardTitle>
                                     <CardDescription className="text-xs">These don&apos;t affect cash in hand</CardDescription>
@@ -412,7 +414,7 @@ export default function CashBookPage() {
                         {/* Details: Loans & Expenses side by side */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {cashBookData.details.new_loans.length > 0 && (
-                                <Card>
+                                <Card className="border-border/50">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">New Loans Given</CardTitle>
                                         <CardDescription className="text-xs">{cashBookData.details.new_loans.length} loan{cashBookData.details.new_loans.length !== 1 ? 's' : ''}</CardDescription>
@@ -439,7 +441,7 @@ export default function CashBookPage() {
                             )}
 
                             {cashBookData.details.expenses.length > 0 && (
-                                <Card>
+                                <Card className="border-border/50">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Expenses</CardTitle>
                                         <CardDescription className="text-xs">{cashBookData.details.expenses.length} expense{cashBookData.details.expenses.length !== 1 ? 's' : ''}</CardDescription>
@@ -459,7 +461,7 @@ export default function CashBookPage() {
                         </div>
 
                         {/* Today's Revenue */}
-                        <Card>
+                        <Card className="border-border/50">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Today&apos;s Revenue</CardTitle>
                             </CardHeader>
@@ -488,7 +490,7 @@ export default function CashBookPage() {
                 )}
 
                 {/* Revenue Report Section */}
-                <Card>
+                <Card className="border-border/50">
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Revenue Report</CardTitle>
