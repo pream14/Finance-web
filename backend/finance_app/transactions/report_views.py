@@ -22,8 +22,6 @@ def _get_report_data(request):
     loan_type = request.query_params.get('loan_type')
     report_type = request.query_params.get('report_type', 'summary')
 
-    print(f"Report request: start_date={start_date}, end_date={end_date}, area={area}, loan_type={loan_type}, report_type={report_type}")
-
     if not start_date or not end_date:
         return None, {'error': 'start_date and end_date are required'}
 
@@ -125,32 +123,28 @@ def _get_report_data(request):
             })
 
     elif report_type == 'transactions':
-        # Individual transaction data matching frontend collection table
-        try:
-            transactions = transactions_qs.select_related('loan__customer').order_by('-created_at')
+        # Collection table data matching frontend exactly
+        transactions = transactions_qs.select_related('loan__customer').order_by('-created_at')
+        
+        for txn in transactions:
+            # Interest display logic: show interest only for ML and DL loans
+            interest_display = ''
+            if txn.loan and (txn.loan.loan_type == 'Monthly Interest Loan' or txn.loan.loan_type == 'DL Loan'):
+                interest_display = str(txn.interest_amount or 0)
+            else:
+                interest_display = '-'
             
-            for txn in transactions:
-                # Calculate interest display (only for ML and DL loans)
-                interest_display = ''
-                if txn.loan and (txn.loan.loan_type == 'Monthly Interest Loan' or txn.loan.loan_type == 'DL Loan'):
-                    interest_display = str(txn.interest_amount or 0)
-                else:
-                    interest_display = '-'
-                
-                breakdown.append({
-                    'id': txn.id,
-                    'date': txn.created_at.strftime('%d/%m/%Y') if txn.created_at else '',
-                    'customer_name': txn.loan.customer.name if txn.loan and txn.loan.customer else 'Unknown',
-                    'loan_type': txn.loan.loan_type if txn.loan else 'Unknown',
-                    'interest': interest_display,
-                    'amount': str(txn.amount),
-                    'balance': str(txn.loan.remaining_amount or 0) if txn.loan else '0',
-                    'method': txn.payment_method or 'cash',
-                    'collected_by': txn.collected_by_name or 'Unknown',
-                })
-        except Exception as e:
-            print(f"Error processing transactions: {e}")
-            breakdown = []
+            breakdown.append({
+                'id': txn.id,
+                'date': txn.created_at.strftime('%d/%m/%Y') if txn.created_at else '',
+                'customer_name': txn.loan.customer.name if txn.loan and txn.loan.customer else 'Unknown',
+                'loan_type': txn.loan.loan_type if txn.loan else 'Unknown',
+                'interest': interest_display,
+                'amount': str(txn.amount),
+                'balance': str(txn.loan.remaining_amount or 0) if txn.loan else '0',
+                'method': txn.payment_method or 'cash',
+                'collected_by': txn.collected_by_name or 'Unknown',
+            })
 
     # Get distinct areas for filter dropdown
     all_areas = list(
@@ -241,18 +235,14 @@ class ReportDownloadView(APIView):
                     row['interest_collected'], row['transactions'],
                 ])
         elif report_type == 'transactions' and breakdown:
-            try:
-                writer.writerow(['=== COLLECTION TABLE ==='])
-                writer.writerow(['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By'])
-                for row in breakdown:
-                    writer.writerow([
-                        row['date'], row['customer_name'], row['loan_type'],
-                        row['interest'], row['amount'], row['balance'],
-                        row['method'], row['collected_by'],
-                    ])
-            except Exception as e:
-                print(f"Error writing transactions CSV: {e}")
-                writer.writerow(['Error generating collection table report'])
+            writer.writerow(['=== COLLECTION TABLE ==='])
+            writer.writerow(['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By'])
+            for row in breakdown:
+                writer.writerow([
+                    row['date'], row['customer_name'], row['loan_type'],
+                    row['interest'], row['amount'], row['balance'],
+                    row['method'], row['collected_by'],
+                ])
 
         return response
 
@@ -280,7 +270,6 @@ class ReportDownloadView(APIView):
             'summary': 'Income Tax Summary Report',
             'area_wise': 'Area-Wise Detail Report',
             'loan_wise': 'Loan Type Report',
-            'transactions': 'Collection Table Report',
         }
         elements.append(Paragraph(report_titles.get(report_type, 'Financial Report'), title_style))
         elements.append(Paragraph(
@@ -357,21 +346,16 @@ class ReportDownloadView(APIView):
                     ])
                 col_widths = [1.5*inch, 0.8*inch, 1.2*inch, 1.1*inch, 1.1*inch, 0.8*inch]
             elif report_type == 'transactions':
-                try:
-                    elements.append(Paragraph('Collection Table', section_style))
-                    bd_header = ['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By']
-                    bd_data = [bd_header]
-                    for row in breakdown:
-                        bd_data.append([
+                elements.append(Paragraph('Collection Table', section_style))
+                bd_header = ['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By']
+                bd_data = [bd_header]
+                for row in breakdown:
+                    bd_data.append([
                             row['date'], row['customer_name'], row['loan_type'],
                             row['interest'], row['amount'], row['balance'],
                             row['method'], row['collected_by'],
                         ])
-                    col_widths = [0.8*inch, 1.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.0*inch]
-                except Exception as e:
-                    print(f"Error building collection table PDF: {e}")
-                    bd_data = []
-                    col_widths = []
+                col_widths = [0.8*inch, 1.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.0*inch]
             else:
                 bd_data = []
                 col_widths = []
