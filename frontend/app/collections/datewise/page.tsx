@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Download, User } from 'lucide-react'
-import { transactionsApi, loansApi } from '@/lib/api'
+import { transactionsApi, loansApi, reportsApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -16,6 +16,7 @@ interface Transaction {
   customer_name: string
   loan_type: string
   amount: string
+  interest_amount: string
   description: string
   payment_method: string
   created_at: string
@@ -35,7 +36,18 @@ export default function DatewiseCollectionsPage() {
   const [endDate, setEndDate] = useState('')
   const [filterLoanType, setFilterLoanType] = useState('all')
   const [filterCollectedBy, setFilterCollectedBy] = useState('all')
+  const [filterArea, setFilterArea] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // Interest summary state
+  const [interestSummary, setInterestSummary] = useState({
+    monthlyInterestCollected: 0,
+    dlInterestCollected: 0,
+    totalInterestCollected: 0
+  })
+  
+  // Report loading state
+  const [reportLoading, setReportLoading] = useState(false)
 
   // Get unique collectors from entries
   const collectors = useMemo(() => {
@@ -47,6 +59,72 @@ export default function DatewiseCollectionsPage() {
     })
     return Array.from(uniqueCollectors).sort()
   }, [entries])
+
+  // Get unique areas from entries
+  const areas = useMemo(() => {
+    const uniqueAreas = new Set<string>()
+    entries.forEach(entry => {
+      // We need to fetch customer data to get area, so for now use a placeholder
+      // In real implementation, you'd include area in the API response
+    })
+    return ['All Areas', ...Array.from(uniqueAreas).sort()]
+  }, [entries])
+
+  // Apply client-side filters
+  const filteredEntries = useMemo(() => {
+    return entries.filter(entry => {
+      // Loan type filter
+      if (filterLoanType !== 'all' && entry.loan_type !== filterLoanType) {
+        return false
+      }
+      // Area filter
+      if (filterArea !== 'all' && entry.customer_name.toLowerCase().includes(filterArea.toLowerCase()) === false) {
+        // This is a placeholder - in real implementation, you'd have area in entry
+        return false
+      }
+      // Collected by filter
+      if (filterCollectedBy !== 'all' && entry.collected_by_name !== filterCollectedBy) {
+        return false
+      }
+      // Search filter (customer name)
+      if (searchTerm && !entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false
+      }
+      return true
+    })
+  }, [entries, filterLoanType, filterArea, filterCollectedBy, searchTerm])
+
+  // Calculate total amount
+  const totalAmount = useMemo(() => {
+    return filteredEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0)
+  }, [filteredEntries])
+
+  // Calculate interest summary from filtered entries
+  const calculateInterestSummary = useMemo(() => {
+    let monthlyInterest = 0
+    let dlInterest = 0
+    
+    filteredEntries.forEach((entry: Transaction) => {
+      if (entry.loan_type === 'Monthly Interest Loan') {
+        monthlyInterest += parseFloat(entry.interest_amount || '0')
+      } else if (entry.loan_type === 'DL Loan') {
+        dlInterest += parseFloat(entry.interest_amount || '0')
+      }
+    })
+    
+    const totalInterest = monthlyInterest + dlInterest
+    
+    return {
+      monthlyInterestCollected: monthlyInterest,
+      dlInterestCollected: dlInterest,
+      totalInterestCollected: totalInterest
+    }
+  }, [filteredEntries])
+
+  // Update interest summary when filtered entries change
+  useEffect(() => {
+    setInterestSummary(calculateInterestSummary)
+  }, [filteredEntries])
 
   // Fetch entries with filters
   const fetchEntries = async () => {
@@ -99,32 +177,32 @@ export default function DatewiseCollectionsPage() {
     }
   }
 
+  // Download collection report as PDF
+  const downloadCollectionReport = async () => {
+    try {
+      setReportLoading(true)
+      const start = startDate || new Date().toISOString().split('T')[0]
+      const end = endDate || new Date().toISOString().split('T')[0]
+      
+      await reportsApi.download({
+        start_date: start,
+        end_date: end,
+        report_type: 'area_wise',
+        file_format: 'pdf',
+        ...(filterArea !== 'all' && { area: filterArea }),
+        ...(filterLoanType !== 'all' && { loan_type: filterLoanType })
+      })
+    } catch (err: any) {
+      alert(err.message || 'Failed to download report')
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
   // Fetch entries on component mount and when date filters change
   useEffect(() => {
     fetchEntries()
   }, [startDate, endDate])
-
-  // Apply client-side filters
-  const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
-      // Loan type filter
-      if (filterLoanType !== 'all' && entry.loan_type !== filterLoanType) {
-        return false
-      }
-      // Collected by filter
-      if (filterCollectedBy !== 'all' && entry.collected_by_name !== filterCollectedBy) {
-        return false
-      }
-      // Search filter (customer name)
-      if (searchTerm && !entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false
-      }
-      return true
-    })
-  }, [entries, filterLoanType, filterCollectedBy, searchTerm])
-
-  // Calculate total amount
-  const totalAmount = filteredEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0)
 
   // Quick date presets
   const setToday = () => {
@@ -291,6 +369,24 @@ export default function DatewiseCollectionsPage() {
                 </Select>
               </div>
 
+              {/* Area Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Area</label>
+                <Select value={filterArea} onValueChange={setFilterArea}>
+                  <SelectTrigger className="border-border/50 h-9">
+                    <SelectValue placeholder="All Areas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Areas</SelectItem>
+                    {areas.map((area) => (
+                      <SelectItem key={area} value={area}>
+                        {area}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Search */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Search Customer</label>
@@ -346,6 +442,44 @@ export default function DatewiseCollectionsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Interest Summary Section */}
+        <Card className="border-border/50 mb-6">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                <CardTitle className="text-base">Interest Summary</CardTitle>
+              </div>
+              <Button
+                onClick={downloadCollectionReport}
+                disabled={reportLoading}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                {reportLoading ? 'Downloading...' : 'Download Report'}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-sm text-blue-600 font-medium">Monthly Interest Collected</div>
+                <div className="text-xl font-bold text-blue-700">₹{interestSummary.monthlyInterestCollected.toLocaleString('en-IN')}</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="text-sm text-green-600 font-medium">DL Interest Collected</div>
+                <div className="text-xl font-bold text-green-700">₹{interestSummary.dlInterestCollected.toLocaleString('en-IN')}</div>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="text-sm text-purple-600 font-medium">Total Interest Collected</div>
+                <div className="text-xl font-bold text-purple-700">₹{interestSummary.totalInterestCollected.toLocaleString('en-IN')}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Entries Table */}
         {loading ? (
