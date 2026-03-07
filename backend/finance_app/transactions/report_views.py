@@ -228,8 +228,9 @@ def _get_report_data(request):
             new_loans_list.append({
                 'date': loan.created_at.strftime('%d/%m/%Y') if loan.created_at else '',
                 'customer_name': loan.customer.name if loan.customer else 'Unknown',
-                'loan_type': loan.loan_type,
+                'loan_type': 'ML' if loan.loan_type == 'ML Loan' else 'DC' if loan.loan_type == 'DC Loan' else 'DL' if loan.loan_type == 'DL Loan' else '-',
                 'principal': str(loan.principal_amount),
+                'payment_method': loan.payment_method or 'cash',
                 'dc_deduction': str(loan.dc_deduction_amount or 0) if loan.loan_type == 'DC Loan' else '-',
             })
         result['new_loans'] = new_loans_list
@@ -314,6 +315,17 @@ class ReportDownloadView(APIView):
                     row['date'], row['customer_name'], row['loan_type'],
                     row['interest'], row['amount'], row['balance'],
                     row['method'], row['collected_by'],
+                ])
+        
+        # New loans section (if available)
+        if full_data and 'new_loans' in full_data:
+            writer.writerow([])
+            writer.writerow(['=== NEW LOANS GIVEN ==='])
+            writer.writerow(['Date', 'Customer', 'Loan Type', 'Principal', 'Payment Method', 'DC Deduction'])
+            for loan in full_data['new_loans']:
+                writer.writerow([
+                    loan['date'], loan['customer_name'], loan['loan_type'],
+                    loan['principal'], loan['payment_method'], loan['dc_deduction'],
                 ])
 
         return response
@@ -519,13 +531,13 @@ class ReportDownloadView(APIView):
                 new_loans = full_data.get('new_loans', [])
                 if new_loans:
                     elements.append(Paragraph(f'New Loans Given ({len(new_loans)})', section_style))
-                    nl_data = [['Date', 'Customer', 'Loan Type', 'Principal', 'DC Deduction']]
+                    nl_data = [['Date', 'Customer', 'Loan Type', 'Principal', 'Payment Method', 'DC Deduction']]
                     total_principal = Decimal('0')
                     for nl in new_loans:
-                        nl_data.append([nl['date'], nl['customer_name'], nl['loan_type'], nl['principal'], nl['dc_deduction']])
+                        nl_data.append([nl['date'], nl['customer_name'], nl['loan_type'], nl['principal'], nl['payment_method'], nl['dc_deduction']])
                         total_principal += Decimal(nl['principal'])
-                    nl_data.append(['', 'Total', '', str(total_principal), ''])
-                    nl_table = Table(nl_data, colWidths=[0.9*inch, 1.8*inch, 1.2*inch, 1.2*inch, 1.0*inch])
+                    nl_data.append(['', 'Total', '', '', str(total_principal), ''])
+                    nl_table = Table(nl_data, colWidths=[0.8*inch, 1.6*inch, 1.1*inch, 1.0*inch, 1.0*inch, 1.0*inch])
                     nl_table.setStyle(TableStyle([
                         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
                         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

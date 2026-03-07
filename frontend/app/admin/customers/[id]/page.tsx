@@ -14,6 +14,7 @@ interface Loan {
     remaining_amount: number
     start_date: string
     status: 'active' | 'settled' | 'overdue'
+    payment_method: 'cash' | 'online'
     monthly_interest_rate?: number
     daily_interest_rate?: number
     daily_collection_amount?: number
@@ -87,6 +88,7 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                 remaining_amount: parseFloat(loan.remaining_amount || 0),
                 start_date: loan.start_date || '',
                 status: loan.status || 'active',
+                payment_method: loan.payment_method || 'cash',
                 monthly_interest_rate: loan.monthly_interest_rate ? parseFloat(loan.monthly_interest_rate) : undefined,
                 daily_interest_rate: loan.daily_interest_rate ? parseFloat(loan.daily_interest_rate) : undefined,
                 daily_collection_amount: loan.daily_collection_amount ? parseFloat(loan.daily_collection_amount) : undefined,
@@ -344,6 +346,12 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Principal</span>
                                                 <span className="font-medium text-foreground">₹{loan.principal_amount.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">Payment Method</span>
+                                                <span className={`font-medium ${loan.payment_method === 'cash' ? 'text-green-600' : 'text-blue-600'}`}>
+                                                    {loan.payment_method === 'cash' ? '💵 Cash' : '🏦 Online'}
+                                                </span>
                                             </div>
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Balance</span>
