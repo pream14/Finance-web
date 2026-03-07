@@ -10,7 +10,7 @@ import {
     BookOpen, Calendar, RefreshCw,
     ChevronLeft, ChevronRight, Save, Pencil, Download, Filter
 } from 'lucide-react'
-import { cashBookApi, revenueApi, reportsApi } from '@/lib/api'
+import { cashBookApi, revenueApi } from '@/lib/api'
 
 interface CashBookData {
     date: string
@@ -83,7 +83,6 @@ export default function CashBookPage() {
     const [revenueData, setRevenueData] = useState<RevenueData | null>(null)
     const [loading, setLoading] = useState(true)
     const [revenueLoading, setRevenueLoading] = useState(false)
-    const [pdfLoading, setPdfLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [editingBalance, setEditingBalance] = useState(false)
     const [newOpeningBalance, setNewOpeningBalance] = useState('')
@@ -185,22 +184,6 @@ export default function CashBookPage() {
         }
     }
 
-    const downloadCashBookPDF = async () => {
-        try {
-            setPdfLoading(true)
-            await reportsApi.download({
-                start_date: selectedDate,
-                end_date: selectedDate,
-                report_type: 'transactions',
-                file_format: 'pdf'
-            })
-        } catch (err: any) {
-            alert(err.message || 'Failed to download cash book PDF')
-        } finally {
-            setPdfLoading(false)
-        }
-    }
-
     const goToPreviousDay = () => {
         const d = new Date(selectedDate + 'T00:00:00')
         d.setDate(d.getDate() - 1)
@@ -250,9 +233,6 @@ export default function CashBookPage() {
                         <div className="flex gap-2">
                             <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
                                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            </Button>
-                            <Button variant="outline" onClick={downloadCashBookPDF} disabled={pdfLoading || !cashBookData} title="Download PDF">
-                                <Download className={`w-4 h-4 ${pdfLoading ? 'animate-spin' : ''}`} />
                             </Button>
                             <Button variant="outline" onClick={() => {
                                 const data = cashBookData ? {
