@@ -125,22 +125,28 @@ def _get_report_data(request):
             })
 
     elif report_type == 'transactions':
-        # Individual transaction data
+        # Individual transaction data matching frontend collection table
         try:
             transactions = transactions_qs.select_related('loan__customer').order_by('-created_at')
             
             for txn in transactions:
+                # Calculate interest display (only for ML and DL loans)
+                interest_display = ''
+                if txn.loan and (txn.loan.loan_type == 'Monthly Interest Loan' or txn.loan.loan_type == 'DL Loan'):
+                    interest_display = str(txn.interest_amount or 0)
+                else:
+                    interest_display = '-'
+                
                 breakdown.append({
                     'id': txn.id,
-                    'date': txn.created_at.strftime('%Y-%m-%d') if txn.created_at else '',
+                    'date': txn.created_at.strftime('%d/%m/%Y') if txn.created_at else '',
                     'customer_name': txn.loan.customer.name if txn.loan and txn.loan.customer else 'Unknown',
                     'loan_type': txn.loan.loan_type if txn.loan else 'Unknown',
+                    'interest': interest_display,
                     'amount': str(txn.amount),
-                    'asal_amount': str(txn.asal_amount or 0),
-                    'interest_amount': str(txn.interest_amount or 0),
-                    'payment_method': txn.payment_method or '',
+                    'balance': str(txn.loan.remaining_amount or 0) if txn.loan else '0',
+                    'method': txn.payment_method or 'cash',
                     'collected_by': txn.collected_by_name or 'Unknown',
-                    'remaining_amount': str(txn.loan.remaining_amount or 0) if txn.loan else '0',
                 })
         except Exception as e:
             print(f"Error processing transactions: {e}")
@@ -236,17 +242,17 @@ class ReportDownloadView(APIView):
                 ])
         elif report_type == 'transactions' and breakdown:
             try:
-                writer.writerow(['=== TRANSACTION DETAILS ==='])
-                writer.writerow(['Date', 'Customer', 'Loan Type', 'Amount', 'Principal', 'Interest', 'Payment Method', 'Collected By', 'Remaining'])
+                writer.writerow(['=== COLLECTION TABLE ==='])
+                writer.writerow(['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By'])
                 for row in breakdown:
                     writer.writerow([
                         row['date'], row['customer_name'], row['loan_type'],
-                        row['amount'], row['asal_amount'], row['interest_amount'],
-                        row['payment_method'], row['collected_by'], row['remaining_amount'],
+                        row['interest'], row['amount'], row['balance'],
+                        row['method'], row['collected_by'],
                     ])
             except Exception as e:
                 print(f"Error writing transactions CSV: {e}")
-                writer.writerow(['Error generating transactions report'])
+                writer.writerow(['Error generating collection table report'])
 
         return response
 
@@ -274,7 +280,7 @@ class ReportDownloadView(APIView):
             'summary': 'Income Tax Summary Report',
             'area_wise': 'Area-Wise Detail Report',
             'loan_wise': 'Loan Type Report',
-            'transactions': 'Transaction Details Report',
+            'transactions': 'Collection Table Report',
         }
         elements.append(Paragraph(report_titles.get(report_type, 'Financial Report'), title_style))
         elements.append(Paragraph(
@@ -352,18 +358,18 @@ class ReportDownloadView(APIView):
                 col_widths = [1.5*inch, 0.8*inch, 1.2*inch, 1.1*inch, 1.1*inch, 0.8*inch]
             elif report_type == 'transactions':
                 try:
-                    elements.append(Paragraph('Transaction Details', section_style))
-                    bd_header = ['Date', 'Customer', 'Loan Type', 'Amount', 'Principal', 'Interest', 'Method', 'Collected By', 'Remaining']
+                    elements.append(Paragraph('Collection Table', section_style))
+                    bd_header = ['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By']
                     bd_data = [bd_header]
                     for row in breakdown:
                         bd_data.append([
                             row['date'], row['customer_name'], row['loan_type'],
-                            row['amount'], row['asal_amount'], row['interest_amount'],
-                            row['payment_method'], row['collected_by'], row['remaining_amount'],
+                            row['interest'], row['amount'], row['balance'],
+                            row['method'], row['collected_by'],
                         ])
-                    col_widths = [0.8*inch, 1.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.0*inch, 0.8*inch]
+                    col_widths = [0.8*inch, 1.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.0*inch]
                 except Exception as e:
-                    print(f"Error building transactions PDF table: {e}")
+                    print(f"Error building collection table PDF: {e}")
                     bd_data = []
                     col_widths = []
             else:
