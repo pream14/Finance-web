@@ -56,6 +56,10 @@ def _get_report_data(request):
     # Aggregate totals
     total_disbursed = loans_qs.aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
     total_loans_count = loans_qs.count()
+    
+    # Separate cash and online totals
+    cash_loans = loans_qs.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+    online_loans = loans_qs.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
     txn_agg = transactions_qs.aggregate(
         total_collected=Sum('amount'),
@@ -67,6 +71,10 @@ def _get_report_data(request):
     total_principal_collected = txn_agg['total_principal_collected'] or Decimal('0')
     total_interest_collected = txn_agg['total_interest_collected'] or Decimal('0')
     total_transactions = txn_agg['total_transactions'] or 0
+    
+    # Separate cash and online collections
+    cash_collections = transactions_qs.filter(payment_method='cash').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    online_collections = transactions_qs.filter(payment_method='online').aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
     total_expenses = expenses_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
     net_income = total_interest_collected - total_expenses
@@ -81,6 +89,8 @@ def _get_report_data(request):
         'total_transactions': total_transactions,
         'total_expenses': str(total_expenses),
         'net_income': str(net_income),
+        'online_collections': str(online_collections),
+        'online_loans': str(online_loans),
     }
 
     # Build breakdown based on report type
@@ -228,7 +238,7 @@ def _get_report_data(request):
             new_loans_list.append({
                 'date': loan.created_at.strftime('%d/%m/%Y') if loan.created_at else '',
                 'customer_name': loan.customer.name if loan.customer else 'Unknown',
-                'loan_type': 'ML' if loan.loan_type == 'ML Loan' else 'DC' if loan.loan_type == 'DC Loan' else 'DL' if loan.loan_type == 'DL Loan' else '-',
+                'loan_type': 'ML' if txn.loan.loan_type == 'Monthly Interest Loan' else 'DL' if txn.loan.loan_type == 'DL Loan' else txn.loan.loan_type if txn.loan else 'Unknown',
                 'principal': str(loan.principal_amount),
                 'payment_method': loan.payment_method or 'cash',
                 'dc_deduction': str(loan.dc_deduction_amount or 0) if loan.loan_type == 'DC Loan' else '-',
@@ -264,7 +274,10 @@ class ReportDownloadView(APIView):
         breakdown = data['breakdown']
         start = data['filters']['start_date']
         end = data['filters']['end_date']
-        filename = f"report_{report_type}_{start}_to_{end}"
+        
+        # Check if this is a cashbook request (single day, transactions report)
+        is_cashbook = report_type == 'transactions' and start == end
+        filename = f"{'cashbook' if is_cashbook else 'report'}_{report_type}_{start}_to_{end}"
 
         if fmt == 'pdf':
             return self._generate_pdf(filename, report_type, summary, breakdown, data['filters'], data)
@@ -350,14 +363,18 @@ class ReportDownloadView(APIView):
         subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10,
                                         textColor=colors.HexColor('#666666'), alignment=TA_CENTER, spaceAfter=20)
 
+        # Check if this is a cashbook request (single day, transactions report)
+        is_cashbook = report_type == 'transactions' and start == end
+        
         report_titles = {
             'summary': 'Income Tax Summary Report',
             'area_wise': 'Area-Wise Detail Report',
             'loan_wise': 'Loan Type Report',
-            'transactions': 'Collection Report',
+            'transactions': 'Cash Book Report' if is_cashbook else 'Collection Report',
         }
         elements.append(Paragraph(report_titles.get(report_type, 'Financial Report'), title_style))
         elements.append(Paragraph(
+            f"Date: {summary['period']['start_date']}" if is_cashbook else 
             f"Period: {summary['period']['start_date']} to {summary['period']['end_date']}"
             + (f" | Area: {filters.get('area')}" if filters.get('area') else "")
             + (f" | Loan Type: {filters.get('loan_type')}" if filters.get('loan_type') else ""),
@@ -372,17 +389,45 @@ class ReportDownloadView(APIView):
                                       fontName='Helvetica-Bold', alignment=TA_RIGHT)
 
         # Summary table (skip for transactions report — detailed table is more useful)
-        if report_type != 'transactions':
-            summary_data = [
-                [Paragraph('Metric', header_style), Paragraph('Amount', header_style)],
-                [Paragraph('Total Disbursed', cell_style), Paragraph(summary['total_disbursed'], value_style)],
-                [Paragraph('Total Loans Issued', cell_style), Paragraph(str(summary['total_loans_count']), value_style)],
-                [Paragraph('Total Collected', cell_style), Paragraph(summary['total_collected'], value_style)],
-                [Paragraph('Principal Collected', cell_style), Paragraph(summary['total_principal_collected'], value_style)],
-                [Paragraph('Interest Earned (Income)', cell_style), Paragraph(summary['total_interest_collected'], value_style)],
-                [Paragraph('Total Expenses', cell_style), Paragraph(summary['total_expenses'], value_style)],
-                [Paragraph('Net Income', cell_style), Paragraph(summary['net_income'], value_style)],
-            ]
+        # But include for cashbook (single day transactions)
+        if report_type != 'transactions' or is_cashbook:
+            if is_cashbook:
+                # Cashbook specific summary with opening/closing balances
+                from .cashbook_views import DailyCashBook
+                from datetime import datetime
+                try:
+                    cashbook_date = datetime.strptime(start, '%Y-%m-%d').date()
+                    cashbook_entry = DailyCashBook.objects.filter(date=cashbook_date).first()
+                    opening_balance = str(cashbook_entry.opening_balance) if cashbook_entry else '0.00'
+                    closing_balance = str(cashbook_entry.closing_balance) if cashbook_entry else '0.00'
+                except:
+                    opening_balance = '0.00'
+                    closing_balance = '0.00'
+                
+                summary_data = [
+                    [Paragraph('Cash Book Summary', header_style), Paragraph('Amount', header_style)],
+                    [Paragraph('Opening Balance', cell_style), Paragraph(opening_balance, value_style)],
+                    [Paragraph('Total Collections', cell_style), Paragraph(summary['total_collected'], value_style)],
+                    [Paragraph('Cash Collections', cell_style), Paragraph(str(Decimal(summary['total_collected']) - Decimal(summary.get('online_collections', '0'))), value_style)],
+                    [Paragraph('Online Collections', cell_style), Paragraph(summary.get('online_collections', '0'), value_style)],
+                    [Paragraph('Total Loans Given', cell_style), Paragraph(summary['total_disbursed'], value_style)],
+                    [Paragraph('Cash Loans Given', cell_style), Paragraph(str(Decimal(summary['total_disbursed']) - Decimal(summary.get('online_loans', '0'))), value_style)],
+                    [Paragraph('Online Loans Given', cell_style), Paragraph(summary.get('online_loans', '0'), value_style)],
+                    [Paragraph('Total Expenses', cell_style), Paragraph(summary['total_expenses'], value_style)],
+                    [Paragraph('Interest Collected', cell_style), Paragraph(summary['total_interest_collected'], value_style)],
+                    [Paragraph('Closing Balance', cell_style), Paragraph(closing_balance, value_style)],
+                ]
+            else:
+                summary_data = [
+                    [Paragraph('Metric', header_style), Paragraph('Amount', header_style)],
+                    [Paragraph('Total Disbursed', cell_style), Paragraph(summary['total_disbursed'], value_style)],
+                    [Paragraph('Total Loans Issued', cell_style), Paragraph(str(summary['total_loans_count']), value_style)],
+                    [Paragraph('Total Collected', cell_style), Paragraph(summary['total_collected'], value_style)],
+                    [Paragraph('Principal Collected', cell_style), Paragraph(summary['total_principal_collected'], value_style)],
+                    [Paragraph('Interest Earned (Income)', cell_style), Paragraph(summary['total_interest_collected'], value_style)],
+                    [Paragraph('Total Expenses', cell_style), Paragraph(summary['total_expenses'], value_style)],
+                    [Paragraph('Net Income', cell_style), Paragraph(summary['net_income'], value_style)],
+                ]
 
             summary_table = Table(summary_data, colWidths=[3.5*inch, 2.5*inch])
             summary_table.setStyle(TableStyle([
@@ -557,57 +602,58 @@ class ReportDownloadView(APIView):
                     elements.append(nl_table)
                     elements.append(Spacer(1, 15))
 
-                # 4. Collection Table (last)
-                elements.append(Paragraph('Collection Table', section_style))
-                bd_header = ['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By']
-                bd_data = [bd_header]
-                for row in breakdown:
-                    bd_data.append([
-                        row['date'], row['customer_name'], row['loan_type'],
-                        row['interest'], row['amount'], row['balance'],
-                        row['method'], row['collected_by'],
-                    ])
-                col_widths = [0.75*inch, 1.1*inch, 0.95*inch, 0.7*inch, 0.75*inch, 0.75*inch, 0.7*inch, 0.95*inch]
+                # 4. Collection Table (last) - Skip for cashbook reports
+                if not is_cashbook:
+                    elements.append(Paragraph('Collection Table', section_style))
+                    bd_header = ['Date', 'Customer', 'Loan Type', 'Interest', 'Amount', 'Balance', 'Method', 'Collected By']
+                    bd_data = [bd_header]
+                    for row in breakdown:
+                        bd_data.append([
+                            row['date'], row['customer_name'], row['loan_type'],
+                            row['interest'], row['amount'], row['balance'],
+                            row['method'], row['collected_by'],
+                        ])
+                    col_widths = [0.75*inch, 1.1*inch, 0.95*inch, 0.7*inch, 0.75*inch, 0.75*inch, 0.7*inch, 0.95*inch]
 
-                bd_table = Table(bd_data, colWidths=col_widths)
-                bd_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                    ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-                ]))
-                elements.append(bd_table)
+                    bd_table = Table(bd_data, colWidths=col_widths)
+                    bd_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 9),
+                        ('FONTSIZE', (0, 1), (-1, -1), 9),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+                        ('TOPPADDING', (0, 0), (-1, -1), 6),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                    ]))
+                    elements.append(bd_table)
 
-                # Totals row
-                total_amount = sum(Decimal(row['amount']) for row in breakdown)
-                total_interest = sum(
-                    Decimal(row['interest']) for row in breakdown
-                    if row['interest'] != '-'
-                )
-                totals_data = [
-                    ['', '', '', f'Interest: {total_interest}', f'Total: {total_amount}', '', '', ''],
-                ]
-                totals_table = Table(totals_data, colWidths=col_widths)
-                totals_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8f5e9')),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                    ('ALIGN', (3, 0), (4, 0), 'RIGHT'),
-                ]))
-                elements.append(totals_table)
+                    # Totals row
+                    total_amount = sum(Decimal(row['amount']) for row in breakdown)
+                    total_interest = sum(
+                        Decimal(row['interest']) for row in breakdown
+                        if row['interest'] != '-'
+                    )
+                    totals_data = [
+                        ['', '', '', f'Interest: {total_interest}', f'Total: {total_amount}', '', '', ''],
+                    ]
+                    totals_table = Table(totals_data, colWidths=col_widths)
+                    totals_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8f5e9')),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 9),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                        ('TOPPADDING', (0, 0), (-1, -1), 6),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                        ('ALIGN', (3, 0), (4, 0), 'RIGHT'),
+                    ]))
+                    elements.append(totals_table)
 
         # Footer
         elements.append(Spacer(1, 30))
