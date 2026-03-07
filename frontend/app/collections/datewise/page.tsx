@@ -101,6 +101,16 @@ export default function DatewiseCollectionsPage() {
     return filteredEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0)
   }, [filteredEntries])
 
+  // Calculate total interest
+  const totalInterest = useMemo(() => {
+    return filteredEntries.reduce((sum, entry) => {
+      if (entry.loan_type === 'Monthly Interest Loan' || entry.loan_type === 'DL Loan') {
+        return sum + parseFloat(entry.interest_amount || '0')
+      }
+      return sum
+    }, 0)
+  }, [filteredEntries])
+
   // Calculate interest summary from filtered entries
   const calculateInterestSummary = useMemo(() => {
     let monthlyInterest = 0
@@ -414,7 +424,6 @@ export default function DatewiseCollectionsPage() {
                     <SelectValue placeholder="All Areas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Areas</SelectItem>
                     {areas.map((area) => (
                       <SelectItem key={area} value={area}>
                         {area}
@@ -571,11 +580,19 @@ export default function DatewiseCollectionsPage() {
 
               {/* Total at bottom */}
               <div className="mt-4 pt-4 border-t border-border/50">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-foreground">Total ({filteredEntries.length} entries)</span>
-                  <span className="font-bold text-green-600 text-xl">
-                    ₹{totalAmount.toLocaleString('en-IN')}
-                  </span>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <span className="text-sm text-muted-foreground">Total Entries</span>
+                    <div className="font-semibold text-foreground">{filteredEntries.length}</div>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-sm text-muted-foreground">Total Amount</span>
+                    <div className="font-bold text-green-600 text-lg">₹{totalAmount.toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-sm text-muted-foreground">Total Interest</span>
+                    <div className="font-bold text-blue-600 text-lg">₹{totalInterest.toLocaleString('en-IN')}</div>
+                  </div>
                 </div>
               </div>
             </CardContent>
