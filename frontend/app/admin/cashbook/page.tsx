@@ -217,86 +217,74 @@ export default function CashBookPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header */}
+            {/* Header with Date Navigation */}
             <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <BookOpen className="w-5 h-5 text-foreground" />
-                        <div>
-                            <h1 className="text-xl font-bold text-foreground">Daily Cash Book</h1>
-                            <p className="text-xs text-muted-foreground">Iruppu & Revenue Tracker</p>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                                <BookOpen className="w-6 h-6 text-primary" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-foreground">Daily Cash Book</h1>
+                                <p className="text-sm text-muted-foreground mt-1">Iruppu & Revenue Tracker</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
+                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                            </Button>
+                            <Button variant="outline" onClick={() => {
+                                const data = cashBookData ? {
+                                    date: selectedDate,
+                                    opening_balance: cashBookData.opening_balance,
+                                    cash_collections: cashBookData.cash_collections,
+                                    online_collections: cashBookData.online_collections,
+                                    total_collections: cashBookData.total_collections,
+                                    cash_loans_given: cashBookData.cash_loans_given,
+                                    online_loans_given: cashBookData.online_loans_given,
+                                    total_loans_given: cashBookData.total_loans_given,
+                                    expenses: cashBookData.expenses,
+                                    closing_balance: cashBookData.closing_balance,
+                                    revenue: cashBookData.revenue,
+                                    details: cashBookData.details
+                                } : null
+                                if (data) {
+                                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                                    const url = window.URL.createObjectURL(blob)
+                                    const link = document.createElement('a')
+                                    link.href = url
+                                    link.download = `cashbook_${selectedDate}.json`
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    document.body.removeChild(link)
+                                    window.URL.revokeObjectURL(url)
+                                }
+                            }} title="Export Cash Book Data" size="icon">
+                                <Download className="w-4 h-4" />
+                            </Button>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button variant="outline" onClick={() => {
-                            const data = cashBookData ? {
-                                date: selectedDate,
-                                opening_balance: cashBookData.opening_balance,
-                                cash_collections: cashBookData.cash_collections,
-                                online_collections: cashBookData.online_collections,
-                                total_collections: cashBookData.total_collections,
-                                cash_loans_given: cashBookData.cash_loans_given,
-                                online_loans_given: cashBookData.online_loans_given,
-                                total_loans_given: cashBookData.total_loans_given,
-                                expenses: cashBookData.expenses,
-                                closing_balance: cashBookData.closing_balance,
-                                revenue: cashBookData.revenue,
-                                details: cashBookData.details
-                            } : null
-                            if (data) {
-                                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-                                const url = window.URL.createObjectURL(blob)
-                                const link = document.createElement('a')
-                                link.href = url
-                                link.download = `cashbook_${selectedDate}.json`
-                                document.body.appendChild(link)
-                                link.click()
-                                document.body.removeChild(link)
-                                window.URL.revokeObjectURL(url)
-                            }
-                        }} title="Export Cash Book Data" size="icon">
-                            <Download className="w-4 h-4" />
-                        </Button>
-                        <Button asChild variant="outline">
-                            <Link href="/admin/dashboard">Dashboard</Link>
-                        </Button>
+                    
+                    {/* Date Navigation */}
+                    <div className="flex items-center gap-3">
+
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                max={getToday()}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer"
+                            />
+                        </div>
+
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                {/* Date Navigation */}
-                <div className="flex items-center justify-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={goToPreviousDay}>
-                        <ChevronLeft className="w-5 h-5" />
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            max={getToday()}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-transparent text-base font-semibold text-foreground border-none outline-none cursor-pointer"
-                        />
-                    </div>
-                    {selectedDate !== getToday() && (
-                        <Button variant="outline" size="sm" onClick={goToToday} className="text-xs h-7">
-                            Today
-                        </Button>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={goToNextDay}
-                        disabled={selectedDate >= getToday()}
-                    >
-                        <ChevronRight className="w-5 h-5" />
-                    </Button>
-                </div>
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {loading ? (
                     <div className="py-16 text-center">
@@ -304,7 +292,7 @@ export default function CashBookPage() {
                         <p className="text-sm text-muted-foreground">Loading cash book...</p>
                     </div>
                 ) : error ? (
-                    <Card>
+                    <Card className="border-border/50">
                         <CardContent className="py-12 text-center">
                             <p className="text-muted-foreground mb-4">{error}</p>
                             <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline">Retry</Button>
@@ -313,18 +301,18 @@ export default function CashBookPage() {
                 ) : cashBookData && (
                     <>
                         {/* Opening Balance */}
-                        <Card>
+                        <Card className="border-border/50">
                             <CardContent className="py-4 px-5">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Iruppu (Opening Balance)</p>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Opening Balance</p>
                                         {editingBalance ? (
                                             <div className="flex items-center gap-2 mt-1.5">
                                                 <Input
                                                     type="number"
                                                     value={newOpeningBalance}
                                                     onChange={(e) => setNewOpeningBalance(e.target.value)}
-                                                    className="w-36 h-8"
+                                                    className="w-36 h-8 border-border/50"
                                                     autoFocus
                                                 />
                                                 <Button size="sm" onClick={saveOpeningBalance} disabled={savingBalance} className="h-8">
@@ -352,7 +340,7 @@ export default function CashBookPage() {
                         </Card>
 
                         {/* Cash Flow Calculation — single clean table */}
-                        <Card>
+                        <Card className="border-border/50">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Cash Flow</CardTitle>
                             </CardHeader>
@@ -386,7 +374,7 @@ export default function CashBookPage() {
 
                         {/* Online Transactions (if any) */}
                         {(p(cashBookData.online_collections) > 0 || p(cashBookData.online_loans_given) > 0) && (
-                            <Card>
+                            <Card className="border-border/50">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Online Transactions</CardTitle>
                                     <CardDescription className="text-xs">These don&apos;t affect cash in hand</CardDescription>
@@ -409,7 +397,7 @@ export default function CashBookPage() {
                         {/* Details: Loans & Expenses side by side */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {cashBookData.details.new_loans.length > 0 && (
-                                <Card>
+                                <Card className="border-border/50">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">New Loans Given</CardTitle>
                                         <CardDescription className="text-xs">{cashBookData.details.new_loans.length} loan{cashBookData.details.new_loans.length !== 1 ? 's' : ''}</CardDescription>
@@ -436,7 +424,7 @@ export default function CashBookPage() {
                             )}
 
                             {cashBookData.details.expenses.length > 0 && (
-                                <Card>
+                                <Card className="border-border/50">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Expenses</CardTitle>
                                         <CardDescription className="text-xs">{cashBookData.details.expenses.length} expense{cashBookData.details.expenses.length !== 1 ? 's' : ''}</CardDescription>
@@ -456,7 +444,7 @@ export default function CashBookPage() {
                         </div>
 
                         {/* Today's Revenue */}
-                        <Card>
+                        <Card className="border-border/50">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Today&apos;s Revenue</CardTitle>
                             </CardHeader>
@@ -485,11 +473,12 @@ export default function CashBookPage() {
                 )}
 
                 {/* Revenue Report Section */}
-                <Card>
+                <Card className="border-border/50">
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Revenue Report</CardTitle>
                             <div className="flex items-center gap-2">
+                                <label className="text-xs font-medium text-muted-foreground">Period</label>
                                 <Select value={revenueRange} onValueChange={(value) => {
                                     if (value !== 'custom') {
                                         setQuickRevenueRange(value)
@@ -497,7 +486,7 @@ export default function CashBookPage() {
                                         setShowCustomDateRange(true)
                                     }
                                 }}>
-                                    <SelectTrigger className="w-36 h-8 text-xs">
+                                    <SelectTrigger className="w-32 border-border/50 h-8 text-xs">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -505,18 +494,9 @@ export default function CashBookPage() {
                                         <SelectItem value="week">This Week</SelectItem>
                                         <SelectItem value="month">This Month</SelectItem>
                                         <SelectItem value="last_month">Last Month</SelectItem>
-                                        <SelectItem value="custom">Custom Range</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setShowCustomDateRange(!showCustomDateRange)}
-                                    title="Custom Date Range"
-                                    className="h-8 w-8"
-                                >
-                                    <Filter className="w-3.5 h-3.5" />
-                                </Button>
                             </div>
                         </div>
                     </CardHeader>
@@ -525,28 +505,28 @@ export default function CashBookPage() {
                     {showCustomDateRange && (
                         <div className="px-6 pb-4 border-b border-border">
                             <div className="flex flex-wrap items-end gap-3">
-                                <div>
-                                    <label className="text-xs text-muted-foreground mb-1 block">Start</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-muted-foreground">Start Date</label>
                                     <Input
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
-                                        className="h-8 w-36 text-xs"
+                                        className="h-9 w-36 text-xs border-border/50"
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-xs text-muted-foreground mb-1 block">End</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-muted-foreground">End Date</label>
                                     <Input
                                         type="date"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
-                                        className="h-8 w-36 text-xs"
+                                        className="h-9 w-36 text-xs border-border/50"
                                     />
                                 </div>
-                                <Button size="sm" onClick={applyCustomDateRange} disabled={!startDate || !endDate || revenueLoading} className="h-8">
+                                <Button size="sm" onClick={applyCustomDateRange} disabled={!startDate || !endDate || revenueLoading} className="h-9">
                                     Apply
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setShowCustomDateRange(false)} className="h-8">
+                                <Button size="sm" variant="ghost" onClick={() => setShowCustomDateRange(false)} className="h-9">
                                     Cancel
                                 </Button>
                             </div>
