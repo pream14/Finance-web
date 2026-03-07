@@ -22,6 +22,8 @@ def _get_report_data(request):
     loan_type = request.query_params.get('loan_type')
     report_type = request.query_params.get('report_type', 'summary')
 
+    print(f"Report request: start_date={start_date}, end_date={end_date}, area={area}, loan_type={loan_type}, report_type={report_type}")
+
     if not start_date or not end_date:
         return None, {'error': 'start_date and end_date are required'}
 
@@ -30,6 +32,10 @@ def _get_report_data(request):
     transactions_qs = Transaction.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
     expenses_qs = Expense.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
 
+    # Additional filters
+    collected_by = request.query_params.get('collected_by')
+    search = request.query_params.get('search')
+
     # Apply optional filters
     if area:
         loans_qs = loans_qs.filter(customer__area__iexact=area)
@@ -37,6 +43,15 @@ def _get_report_data(request):
     if loan_type:
         loans_qs = loans_qs.filter(loan_type=loan_type)
         transactions_qs = transactions_qs.filter(loan__loan_type=loan_type)
+    if collected_by:
+        from django.db.models import Q as QFilter
+        transactions_qs = transactions_qs.filter(
+            QFilter(created_by__first_name__icontains=collected_by) |
+            QFilter(created_by__last_name__icontains=collected_by) |
+            QFilter(created_by__username__icontains=collected_by)
+        )
+    if search:
+        transactions_qs = transactions_qs.filter(loan__customer__name__icontains=search)
 
     # Aggregate totals
     total_disbursed = loans_qs.aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
@@ -124,7 +139,7 @@ def _get_report_data(request):
 
     elif report_type == 'transactions':
         # Collection table data matching frontend exactly
-        transactions = transactions_qs.select_related('loan__customer').order_by('-created_at')
+        transactions = transactions_qs.select_related('loan__customer', 'created_by').order_by('-created_at')
         
         for txn in transactions:
             # Interest display logic: show interest only for ML and DL loans
@@ -133,6 +148,12 @@ def _get_report_data(request):
                 interest_display = str(txn.interest_amount or 0)
             else:
                 interest_display = '-'
+            
+            # Get collector name from created_by user
+            collector_name = 'Unknown'
+            if txn.created_by:
+                full_name = txn.created_by.get_full_name()
+                collector_name = full_name if full_name else txn.created_by.username
             
             breakdown.append({
                 'id': txn.id,
@@ -143,7 +164,7 @@ def _get_report_data(request):
                 'amount': str(txn.amount),
                 'balance': str(txn.loan.remaining_amount or 0) if txn.loan else '0',
                 'method': txn.payment_method or 'cash',
-                'collected_by': txn.collected_by_name or 'Unknown',
+                'collected_by': collector_name,
             })
 
     # Get distinct areas for filter dropdown
@@ -270,6 +291,7 @@ class ReportDownloadView(APIView):
             'summary': 'Income Tax Summary Report',
             'area_wise': 'Area-Wise Detail Report',
             'loan_wise': 'Loan Type Report',
+            'transactions': 'Collection Report',
         }
         elements.append(Paragraph(report_titles.get(report_type, 'Financial Report'), title_style))
         elements.append(Paragraph(
@@ -355,7 +377,7 @@ class ReportDownloadView(APIView):
                             row['interest'], row['amount'], row['balance'],
                             row['method'], row['collected_by'],
                         ])
-                col_widths = [0.8*inch, 1.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 1.0*inch]
+                col_widths = [0.75*inch, 1.1*inch, 0.95*inch, 0.7*inch, 0.75*inch, 0.75*inch, 0.7*inch, 0.95*inch]
             else:
                 bd_data = []
                 col_widths = []
