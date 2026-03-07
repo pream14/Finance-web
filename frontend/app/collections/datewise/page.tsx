@@ -211,7 +211,7 @@ export default function DatewiseCollectionsPage() {
         end_date: end,
         report_type: 'transactions', // Changed from area_wise to transactions to get table data
         file_format: 'pdf',
-        ...(filterArea !== 'all' && { area: filterArea }),
+        ...(filterArea !== 'All Areas' && { area: filterArea }),
         ...(filterLoanType !== 'all' && { loan_type: filterLoanType })
       })
     } catch (err: any) {
