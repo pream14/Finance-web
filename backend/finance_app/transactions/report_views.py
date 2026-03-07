@@ -264,6 +264,7 @@ class ReportDownloadView(APIView):
             'summary': 'Income Tax Summary Report',
             'area_wise': 'Area-Wise Detail Report',
             'loan_wise': 'Loan Type Report',
+            'transactions': 'Transaction Details Report',
         }
         elements.append(Paragraph(report_titles.get(report_type, 'Financial Report'), title_style))
         elements.append(Paragraph(
