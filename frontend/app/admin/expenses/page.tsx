@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, Plus, TrendingDown } from 'lucide-react'
 import { expensesApi } from '@/lib/api'
 
@@ -13,6 +14,7 @@ interface Expense {
   id: number
   description: string
   amount: number
+  payment_method: string
   date: string
   created_by_name: string
 }
@@ -20,7 +22,7 @@ interface Expense {
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({ description: '', amount: '' })
+  const [formData, setFormData] = useState({ description: '', amount: '', payment_method: 'cash' })
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [error, setError] = useState('')
@@ -39,6 +41,7 @@ export default function ExpensesPage() {
         id: e.id,
         description: e.description,
         amount: parseFloat(e.amount),
+        payment_method: e.payment_method || 'cash',
         date: e.created_at ? e.created_at.split('T')[0] : '',
         created_by_name: e.created_by_name || '—',
       })) : [])
@@ -77,15 +80,17 @@ export default function ExpensesPage() {
       const created = await expensesApi.create({
         description: formData.description.trim(),
         amount,
+        payment_method: formData.payment_method,
       })
       setExpenses((prev) => [{
         id: created.id,
         description: created.description,
         amount: parseFloat(created.amount),
+        payment_method: created.payment_method || 'cash',
         date: created.created_at ? created.created_at.split('T')[0] : '',
         created_by_name: created.created_by_name || '—',
       }, ...prev])
-      setFormData({ description: '', amount: '' })
+      setFormData({ description: '', amount: '', payment_method: 'cash' })
       setShowForm(false)
     } catch (err: any) {
       setError(err.message || 'Failed to add expense')
@@ -160,6 +165,18 @@ export default function ExpensesPage() {
                         onChange={(e) => setFormData((p) => ({ ...p, amount: e.target.value }))}
                         required
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Payment Method</label>
+                      <Select value={formData.payment_method} onValueChange={(value) => setFormData((p) => ({ ...p, payment_method: value }))}>
+                        <SelectTrigger className="border-border/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="online">Online</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
@@ -259,6 +276,7 @@ export default function ExpensesPage() {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Description</th>
                       <th className="text-right py-3 px-4 font-medium text-muted-foreground">Amount</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Method</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">By</th>
                       <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
                     </tr>
@@ -270,6 +288,12 @@ export default function ExpensesPage() {
                         <td className="py-3 px-4 font-medium text-foreground">{expense.description}</td>
                         <td className="py-3 px-4 text-right font-bold text-destructive">
                           ₹{expense.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${expense.payment_method === 'cash' ? 'bg-amber-500/20 text-amber-600' : 'bg-purple-500/20 text-purple-600'
+                            }`}>
+                            {expense.payment_method}
+                          </span>
                         </td>
                         <td className="py-3 px-4 text-muted-foreground">{expense.created_by_name}</td>
                         <td className="py-3 px-4 text-center">

@@ -188,7 +188,7 @@ export const expensesApi = {
     const query = queryParams.toString();
     return apiRequest<any[]>(`/expenses/${query ? `?${query}` : ''}`);
   },
-  create: (data: { description: string; amount: number }) =>
+  create: (data: { description: string; amount: number; payment_method?: string }) =>
     apiRequest<any>('/expenses/', {
       method: 'POST',
       body: JSON.stringify(data),
