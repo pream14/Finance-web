@@ -21,6 +21,8 @@ interface CashBookData {
     online_loans_given: string
     total_loans_given: string
     expenses: string
+    cash_expenses: string
+    online_expenses: string
     closing_balance: string
     revenue: {
         dc_deduction: string
@@ -31,7 +33,7 @@ interface CashBookData {
         total: string
     }
     details: {
-        expenses: Array<{ id: number; description: string; amount: string }>
+        expenses: Array<{ id: number; description: string; amount: string; payment_method: string }>
         new_loans: Array<{
             id: number
             customer__name: string
@@ -358,7 +360,8 @@ export default function CashBookPage() {
                                         ₹{p(cashBookData.closing_balance).toLocaleString('en-IN')}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                                        Expenses: ₹{p(cashBookData.expenses).toLocaleString('en-IN')}
+                                        Cash Exp: ₹{p(cashBookData.cash_expenses).toLocaleString('en-IN')}
+                                        {p(cashBookData.online_expenses) > 0 && ` · Online Exp: ₹${p(cashBookData.online_expenses).toLocaleString('en-IN')}`}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -398,9 +401,15 @@ export default function CashBookPage() {
                                                 <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')}</td>
                                             </tr>
                                             <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
-                                                <td className="py-3 px-4 text-foreground">− Expenses</td>
-                                                <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.expenses).toLocaleString('en-IN')}</td>
+                                                <td className="py-3 px-4 text-foreground">− Cash Expenses</td>
+                                                <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.cash_expenses).toLocaleString('en-IN')}</td>
                                             </tr>
+                                            {p(cashBookData.online_expenses) > 0 && (
+                                                <tr className="hover:bg-muted/30 transition-colors">
+                                                    <td className="py-3 px-4 text-foreground text-muted-foreground italic">Online Expenses (not in cash)</td>
+                                                    <td className="py-3 px-4 text-right font-medium text-muted-foreground">₹{p(cashBookData.online_expenses).toLocaleString('en-IN')}</td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -495,6 +504,7 @@ export default function CashBookPage() {
                                                     <tr className="bg-muted/50">
                                                         <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Description</th>
                                                         <th className="text-right py-2.5 px-3 font-semibold text-foreground text-xs">Amount</th>
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Method</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-border/30">
@@ -502,6 +512,12 @@ export default function CashBookPage() {
                                                         <tr key={expense.id} className={`hover:bg-muted/30 transition-colors ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
                                                             <td className="py-2.5 px-3 text-foreground">{expense.description}</td>
                                                             <td className="py-2.5 px-3 text-right font-bold text-red-600 whitespace-nowrap">₹{p(expense.amount).toLocaleString('en-IN')}</td>
+                                                            <td className="py-2.5 px-3">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${expense.payment_method === 'cash' ? 'bg-amber-500/20 text-amber-600' : 'bg-purple-500/20 text-purple-600'
+                                                                    }`}>
+                                                                    {expense.payment_method}
+                                                                </span>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

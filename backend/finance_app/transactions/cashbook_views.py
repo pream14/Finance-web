@@ -71,10 +71,18 @@ class DailyCashBookView(APIView):
             payment_method='online'
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
-        # Today's expenses
-        expenses_total = Expense.objects.filter(
-            created_at__date=target_date
+        # Today's expenses split by payment method
+        cash_expenses = Expense.objects.filter(
+            created_at__date=target_date,
+            payment_method='cash'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        online_expenses = Expense.objects.filter(
+            created_at__date=target_date,
+            payment_method='online'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        expenses_total = cash_expenses + online_expenses
 
         # DC deduction revenue (advance interest from new DC loans today)
         dc_deduction_revenue = Loan.objects.filter(
@@ -105,8 +113,8 @@ class DailyCashBookView(APIView):
         total_interest_collected = monthly_interest + dl_interest + dc_interest
 
         # Calculate closing balance
-        # Closing = Opening + Cash Collections - Cash Loans Given - Expenses
-        closing_balance = opening_balance + cash_collections - cash_loans_given - expenses_total
+        # Closing = Opening + Cash Collections - Cash Loans Given - Cash Expenses only
+        closing_balance = opening_balance + cash_collections - cash_loans_given - cash_expenses
 
         # Save closing balance
         cashbook_entry.closing_balance = closing_balance
@@ -118,7 +126,7 @@ class DailyCashBookView(APIView):
         # Get expense details
         expense_list = list(Expense.objects.filter(
             created_at__date=target_date
-        ).values('id', 'description', 'amount'))
+        ).values('id', 'description', 'amount', 'payment_method'))
 
         # Get new loans given today
         new_loans_list = list(Loan.objects.filter(
@@ -138,6 +146,8 @@ class DailyCashBookView(APIView):
             'online_loans_given': str(online_loans_given),
             'total_loans_given': str(cash_loans_given + online_loans_given),
             'expenses': str(expenses_total),
+            'cash_expenses': str(cash_expenses),
+            'online_expenses': str(online_expenses),
             'closing_balance': str(closing_balance),
             'revenue': {
                 'dc_deduction': str(dc_deduction_revenue),
@@ -355,11 +365,17 @@ class CashBookPDFDownloadView(APIView):
             created_at__date=target_date, payment_method='online'
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
-        expenses_total = Expense.objects.filter(
-            created_at__date=target_date
+        cash_expenses = Expense.objects.filter(
+            created_at__date=target_date, payment_method='cash'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        closing_balance = opening_balance + cash_collections - cash_loans_given - expenses_total
+        online_expenses = Expense.objects.filter(
+            created_at__date=target_date, payment_method='online'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        expenses_total = cash_expenses + online_expenses
+
+        closing_balance = opening_balance + cash_collections - cash_loans_given - cash_expenses
 
         # Revenue
         dc_deduction = Loan.objects.filter(
@@ -383,7 +399,7 @@ class CashBookPDFDownloadView(APIView):
         # Details
         expense_list = list(Expense.objects.filter(
             created_at__date=target_date
-        ).values('id', 'description', 'amount'))
+        ).values('id', 'description', 'amount', 'payment_method'))
 
         new_loans = list(Loan.objects.filter(
             created_at__date=target_date
@@ -432,8 +448,8 @@ class CashBookPDFDownloadView(APIView):
             ['Item', 'Amount'],
             ['Opening Balance', fmt(opening_balance)],
             ['+ Cash Collections', f'+{fmt(cash_collections)}'],
-            ['− Cash Loans Given', f'-{fmt(cash_loans_given)}'],
-            ['− Expenses', f'-{fmt(expenses_total)}'],
+            ['\u2212 Cash Loans Given', f'-{fmt(cash_loans_given)}'],
+            ['\u2212 Cash Expenses', f'-{fmt(cash_expenses)}'],
             ['= Closing Cash in Hand', fmt(closing_balance)],
         ]
         flow_table = Table(flow_data, colWidths=[3.5*inch, 2.5*inch])
