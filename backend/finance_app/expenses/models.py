@@ -2,8 +2,14 @@ from django.db import models
 from django.conf import settings
 
 class Expense(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('online', 'Online'),
+    ]
+
     description = models.TextField()
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=10, choices=PAYMENT_METHOD_CHOICES, default='cash')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
