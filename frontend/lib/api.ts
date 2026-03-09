@@ -407,6 +407,33 @@ export const cashBookApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  downloadPdf: async (date: string) => {
+    const token = getAuthToken();
+    const queryParams = new URLSearchParams();
+    if (date) queryParams.append('date', date);
+
+    const response = await fetch(
+      `${API_BASE_URL}/transactions/daily-cashbook/download/?${queryParams.toString()}`,
+      {
+        headers: {
+          ...(token ? { Authorization: `Token ${token}` } : {}),
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error('Download failed');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cashbook_${date}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
 };
 
 // Revenue Report API
