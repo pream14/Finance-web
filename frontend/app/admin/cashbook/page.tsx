@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
     BookOpen, Calendar, RefreshCw,
-    ChevronLeft, ChevronRight, Save, Pencil, Download, Filter
+    Save, Pencil, Download, TrendingUp, TrendingDown, Wallet, Banknote
 } from 'lucide-react'
 import { cashBookApi, revenueApi } from '@/lib/api'
 
@@ -196,25 +195,13 @@ export default function CashBookPage() {
         }
     }
 
-    const goToPreviousDay = () => {
-        const d = new Date(selectedDate + 'T00:00:00')
+    // Quick date presets for cashbook
+    const setToday = () => setSelectedDate(getToday())
+
+    const setYesterday = () => {
+        const d = new Date()
         d.setDate(d.getDate() - 1)
-        const newDate = d.toISOString().split('T')[0]
-        setSelectedDate(newDate)
-    }
-
-    const goToNextDay = () => {
-        const d = new Date(selectedDate + 'T00:00:00')
-        d.setDate(d.getDate() + 1)
-        const today = getToday()
-        const newDate = d.toISOString().split('T')[0]
-        if (newDate <= today) {
-            setSelectedDate(newDate)
-        }
-    }
-
-    const goToToday = () => {
-        setSelectedDate(getToday())
+        setSelectedDate(d.toISOString().split('T')[0])
     }
 
     useEffect(() => {
@@ -229,134 +216,198 @@ export default function CashBookPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header with Date Navigation */}
+            {/* Header */}
             <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-lg">
-                                <BookOpen className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold text-foreground">Daily Cash Book</h1>
-                                <p className="text-sm text-muted-foreground mt-1">Iruppu & Revenue Tracker</p>
-                            </div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                            <BookOpen className="w-6 h-6 text-primary" />
                         </div>
-                        <div className="flex gap-2">
-                            <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
-                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            </Button>
-                            <Button
-                                onClick={downloadCashBookPdf}
-                                disabled={pdfLoading}
-                                variant="outline"
-                                size="icon"
-                                title="Download Cash Book PDF"
-                            >
-                                <Download className={`w-4 h-4 ${pdfLoading ? 'animate-spin' : ''}`} />
-                            </Button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-foreground">Daily Cash Book</h1>
+                            <p className="text-sm text-muted-foreground">Iruppu & Revenue Tracker</p>
                         </div>
                     </div>
-
-                    {/* Date Navigation */}
-                    <div className="flex items-center gap-3">
-
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                max={getToday()}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer"
-                            />
-                        </div>
-
+                    <div className="flex gap-2">
+                        <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
+                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button
+                            onClick={downloadCashBookPdf}
+                            disabled={pdfLoading}
+                            variant="outline"
+                            size="icon"
+                            title="Download Cash Book PDF"
+                        >
+                            <Download className={`w-4 h-4 ${pdfLoading ? 'animate-spin' : ''}`} />
+                        </Button>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+                {/* Date Picker Card */}
+                <Card className="border-border/50 mb-6">
+                    <CardContent className="py-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm text-muted-foreground mr-1 flex items-center gap-1.5">
+                                <Calendar className="w-4 h-4" /> Quick:
+                            </span>
+                            <Button variant="outline" size="sm" onClick={setToday} className="h-8 text-xs">
+                                Today
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={setYesterday} className="h-8 text-xs">
+                                Yesterday
+                            </Button>
+                            <div className="ml-auto flex items-center gap-2">
+                                <label className="text-xs font-medium text-muted-foreground">Date</label>
+                                <Input
+                                    type="date"
+                                    value={selectedDate}
+                                    max={getToday()}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="border-border/50 h-9 w-40 text-sm"
+                                />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {loading ? (
-                    <div className="py-16 text-center">
-                        <RefreshCw className="w-6 h-6 text-muted-foreground mx-auto mb-3 animate-spin" />
-                        <p className="text-sm text-muted-foreground">Loading cash book...</p>
-                    </div>
+                    <Card className="border-border/50">
+                        <CardContent className="py-12 text-center">
+                            <RefreshCw className="w-8 h-8 text-primary mx-auto mb-3 animate-spin" />
+                            <p className="text-muted-foreground">Loading cash book...</p>
+                        </CardContent>
+                    </Card>
                 ) : error ? (
                     <Card className="border-border/50">
                         <CardContent className="py-12 text-center">
+                            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
                             <p className="text-muted-foreground mb-4">{error}</p>
                             <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline">Retry</Button>
                         </CardContent>
                     </Card>
                 ) : cashBookData && (
                     <>
-                        {/* Opening Balance */}
-                        <Card className="border-border/50">
-                            <CardContent className="py-4 px-5">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Opening Balance</p>
-                                        {editingBalance ? (
-                                            <div className="flex items-center gap-2 mt-1.5">
-                                                <Input
-                                                    type="number"
-                                                    value={newOpeningBalance}
-                                                    onChange={(e) => setNewOpeningBalance(e.target.value)}
-                                                    className="w-36 h-8 border-border/50"
-                                                    autoFocus
-                                                />
-                                                <Button size="sm" onClick={saveOpeningBalance} disabled={savingBalance} className="h-8">
-                                                    <Save className="w-3 h-3 mr-1" />
-                                                    {savingBalance ? '...' : 'Save'}
-                                                </Button>
-                                                <Button size="sm" variant="ghost" onClick={() => { setEditingBalance(false); setNewOpeningBalance(cashBookData.opening_balance) }} className="h-8">
-                                                    Cancel
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <p className="text-2xl font-bold text-foreground mt-0.5">
-                                                ₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}
-                                            </p>
+                        {/* Summary Stat Cards */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <Card className="border-border/50 bg-gradient-to-br from-blue-500/5 to-blue-500/10">
+                                <CardContent className="py-4 px-4">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <p className="text-xs text-muted-foreground">Opening Balance</p>
+                                        {!editingBalance && (
+                                            <button onClick={() => setEditingBalance(true)} className="text-muted-foreground hover:text-foreground">
+                                                <Pencil className="w-3 h-3" />
+                                            </button>
                                         )}
                                     </div>
-                                    {!editingBalance && (
-                                        <Button variant="ghost" size="sm" onClick={() => setEditingBalance(true)} className="text-muted-foreground">
-                                            <Pencil className="w-3 h-3 mr-1" />
-                                            Edit
-                                        </Button>
+                                    {editingBalance ? (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                            <Input
+                                                type="number"
+                                                value={newOpeningBalance}
+                                                onChange={(e) => setNewOpeningBalance(e.target.value)}
+                                                className="w-24 h-7 text-xs border-border/50"
+                                                autoFocus
+                                            />
+                                            <Button size="sm" onClick={saveOpeningBalance} disabled={savingBalance} className="h-7 px-2 text-xs">
+                                                <Save className="w-3 h-3" />
+                                            </Button>
+                                            <Button size="sm" variant="ghost" onClick={() => { setEditingBalance(false); setNewOpeningBalance(cashBookData.opening_balance) }} className="h-7 px-2 text-xs">
+                                                ✕
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-2xl font-bold text-foreground">₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}</p>
                                     )}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-border/50 bg-gradient-to-br from-green-500/5 to-green-500/10">
+                                <CardContent className="py-4 px-4">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <TrendingUp className="w-3 h-3 text-green-600" />
+                                        <p className="text-xs text-muted-foreground">Collections</p>
+                                    </div>
+                                    <p className="text-2xl font-bold text-green-600">₹{p(cashBookData.total_collections).toLocaleString('en-IN')}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        Cash: ₹{p(cashBookData.cash_collections).toLocaleString('en-IN')} · Online: ₹{p(cashBookData.online_collections).toLocaleString('en-IN')}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-border/50 bg-gradient-to-br from-red-500/5 to-red-500/10">
+                                <CardContent className="py-4 px-4">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <TrendingDown className="w-3 h-3 text-red-600" />
+                                        <p className="text-xs text-muted-foreground">Loans Given</p>
+                                    </div>
+                                    <p className="text-2xl font-bold text-red-600">₹{p(cashBookData.total_loans_given).toLocaleString('en-IN')}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        Cash: ₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')} · Online: ₹{p(cashBookData.online_loans_given).toLocaleString('en-IN')}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-border/50 bg-gradient-to-br from-amber-500/5 to-amber-500/10">
+                                <CardContent className="py-4 px-4">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <Wallet className="w-3 h-3 text-amber-600" />
+                                        <p className="text-xs text-muted-foreground">Closing Balance</p>
+                                    </div>
+                                    <p className={`text-2xl font-bold ${p(cashBookData.closing_balance) >= 0 ? 'text-foreground' : 'text-red-600'}`}>
+                                        ₹{p(cashBookData.closing_balance).toLocaleString('en-IN')}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        Expenses: ₹{p(cashBookData.expenses).toLocaleString('en-IN')}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
 
-                        {/* Cash Flow Calculation — single clean table */}
-                        <Card className="border-border/50">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Cash Flow</CardTitle>
+                        {/* Cash Flow Table */}
+                        <Card className="border-border/50 mb-6">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <Banknote className="w-5 h-5 text-primary" />
+                                    Cash Flow
+                                </CardTitle>
+                                <CardDescription className="text-xs">
+                                    {formatDate(selectedDate)}
+                                </CardDescription>
                             </CardHeader>
-                            <CardContent className="pt-0">
-                                <div className="divide-y divide-border">
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">Opening Balance</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">+ Cash Collections</span>
-                                        <span className="text-sm font-medium text-green-600">+₹{p(cashBookData.cash_collections).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">− Cash Loans Given</span>
-                                        <span className="text-sm font-medium text-red-600">-₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">− Expenses</span>
-                                        <span className="text-sm font-medium text-red-600">-₹{p(cashBookData.expenses).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm font-bold text-foreground">= Closing Cash in Hand</span>
-                                        <span className={`text-lg font-bold ${p(cashBookData.closing_balance) >= 0 ? 'text-foreground' : 'text-red-600'}`}>
+                            <CardContent>
+                                <div className="overflow-x-auto rounded-lg border border-border/50">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/50">
+                                                <th className="text-left py-3 px-4 font-semibold text-foreground">Item</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-foreground">Amount (₹)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/30">
+                                            <tr className="hover:bg-muted/30 transition-colors">
+                                                <td className="py-3 px-4 text-foreground">Opening Balance</td>
+                                                <td className="py-3 px-4 text-right font-medium text-foreground">₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                                                <td className="py-3 px-4 text-foreground">+ Cash Collections</td>
+                                                <td className="py-3 px-4 text-right font-medium text-green-600">+₹{p(cashBookData.cash_collections).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors">
+                                                <td className="py-3 px-4 text-foreground">− Cash Loans Given</td>
+                                                <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                                                <td className="py-3 px-4 text-foreground">− Expenses</td>
+                                                <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.expenses).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-border/50">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-foreground">= Closing Cash in Hand</span>
+                                        <span className={`font-bold text-xl ${p(cashBookData.closing_balance) >= 0 ? 'text-foreground' : 'text-red-600'}`}>
                                             ₹{p(cashBookData.closing_balance).toLocaleString('en-IN')}
                                         </span>
                                     </div>
@@ -364,71 +415,101 @@ export default function CashBookPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Online Transactions (if any) */}
-                        {(p(cashBookData.online_collections) > 0 || p(cashBookData.online_loans_given) > 0) && (
-                            <Card className="border-border/50">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Online Transactions</CardTitle>
-                                    <CardDescription className="text-xs">These don&apos;t affect cash in hand</CardDescription>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <div className="divide-y divide-border">
-                                        <div className="flex justify-between items-center py-3">
-                                            <span className="text-sm text-foreground">Online Collections</span>
-                                            <span className="text-sm font-medium text-foreground">₹{p(cashBookData.online_collections).toLocaleString('en-IN')}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-3">
-                                            <span className="text-sm text-foreground">Online Loans Given</span>
-                                            <span className="text-sm font-medium text-foreground">₹{p(cashBookData.online_loans_given).toLocaleString('en-IN')}</span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
                         {/* Details: Loans & Expenses side by side */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            {/* New Loans Given */}
                             {cashBookData.details.new_loans.length > 0 && (
                                 <Card className="border-border/50">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">New Loans Given</CardTitle>
-                                        <CardDescription className="text-xs">{cashBookData.details.new_loans.length} loan{cashBookData.details.new_loans.length !== 1 ? 's' : ''}</CardDescription>
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <CardTitle className="text-base">New Loans Given</CardTitle>
+                                                <CardDescription className="text-xs">
+                                                    {cashBookData.details.new_loans.length} loan{cashBookData.details.new_loans.length !== 1 ? 's' : ''} today
+                                                </CardDescription>
+                                            </div>
+                                        </div>
                                     </CardHeader>
-                                    <CardContent className="pt-0">
-                                        <div className="divide-y divide-border">
-                                            {cashBookData.details.new_loans.map((loan) => (
-                                                <div key={loan.id} className="flex justify-between items-center py-2.5">
-                                                    <div>
-                                                        <p className="text-sm font-medium text-foreground">{loan.customer__name}</p>
-                                                        <p className="text-xs text-muted-foreground">{loan.loan_type} • {loan.payment_method}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-sm font-semibold text-foreground">₹{p(loan.principal_amount).toLocaleString('en-IN')}</p>
-                                                        {loan.loan_type === 'DC Loan' && p(loan.dc_deduction_amount) > 0 && (
-                                                            <p className="text-xs text-muted-foreground">-₹{p(loan.dc_deduction_amount).toLocaleString('en-IN')} deduction</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                    <CardContent>
+                                        <div className="overflow-x-auto rounded-lg border border-border/50">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-muted/50">
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Customer</th>
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Type</th>
+                                                        <th className="text-right py-2.5 px-3 font-semibold text-foreground text-xs">Amount</th>
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Method</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border/30">
+                                                    {cashBookData.details.new_loans.map((loan, i) => (
+                                                        <tr key={loan.id} className={`hover:bg-muted/30 transition-colors ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
+                                                            <td className="py-2.5 px-3 font-medium text-foreground">{loan.customer__name}</td>
+                                                            <td className="py-2.5 px-3">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${loan.loan_type === 'DC Loan'
+                                                                    ? 'bg-blue-500/20 text-blue-600'
+                                                                    : loan.loan_type === 'Monthly Interest Loan'
+                                                                        ? 'bg-green-500/20 text-green-600'
+                                                                        : 'bg-purple-500/20 text-purple-600'
+                                                                    }`}>
+                                                                    {loan.loan_type}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-2.5 px-3 text-right font-bold text-foreground whitespace-nowrap">
+                                                                ₹{p(loan.principal_amount).toLocaleString('en-IN')}
+                                                                {loan.loan_type === 'DC Loan' && p(loan.dc_deduction_amount) > 0 && (
+                                                                    <span className="block text-[10px] text-muted-foreground font-normal">-₹{p(loan.dc_deduction_amount).toLocaleString('en-IN')} ded.</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-2.5 px-3">
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary/20 text-secondary-foreground capitalize">
+                                                                    {loan.payment_method}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </CardContent>
                                 </Card>
                             )}
 
+                            {/* Expenses */}
                             {cashBookData.details.expenses.length > 0 && (
                                 <Card className="border-border/50">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Expenses</CardTitle>
-                                        <CardDescription className="text-xs">{cashBookData.details.expenses.length} expense{cashBookData.details.expenses.length !== 1 ? 's' : ''}</CardDescription>
+                                    <CardHeader className="pb-3">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <CardTitle className="text-base">Expenses</CardTitle>
+                                                <CardDescription className="text-xs">
+                                                    {cashBookData.details.expenses.length} expense{cashBookData.details.expenses.length !== 1 ? 's' : ''} today
+                                                </CardDescription>
+                                            </div>
+                                        </div>
                                     </CardHeader>
-                                    <CardContent className="pt-0">
-                                        <div className="divide-y divide-border">
-                                            {cashBookData.details.expenses.map((expense) => (
-                                                <div key={expense.id} className="flex justify-between items-center py-2.5">
-                                                    <p className="text-sm text-foreground">{expense.description}</p>
-                                                    <p className="text-sm font-semibold text-foreground">₹{p(expense.amount).toLocaleString('en-IN')}</p>
-                                                </div>
-                                            ))}
+                                    <CardContent>
+                                        <div className="overflow-x-auto rounded-lg border border-border/50">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-muted/50">
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Description</th>
+                                                        <th className="text-right py-2.5 px-3 font-semibold text-foreground text-xs">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border/30">
+                                                    {cashBookData.details.expenses.map((expense, i) => (
+                                                        <tr key={expense.id} className={`hover:bg-muted/30 transition-colors ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
+                                                            <td className="py-2.5 px-3 text-foreground">{expense.description}</td>
+                                                            <td className="py-2.5 px-3 text-right font-bold text-red-600 whitespace-nowrap">₹{p(expense.amount).toLocaleString('en-IN')}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-border/50 flex justify-between items-center">
+                                            <span className="text-sm font-semibold text-foreground">Total</span>
+                                            <span className="text-sm font-bold text-red-600">₹{p(cashBookData.expenses).toLocaleString('en-IN')}</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -436,27 +517,42 @@ export default function CashBookPage() {
                         </div>
 
                         {/* Today's Revenue */}
-                        <Card className="border-border/50">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Today&apos;s Revenue</CardTitle>
+                        <Card className="border-border/50 mb-6">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <TrendingUp className="w-5 h-5 text-green-600" />
+                                    Today&apos;s Revenue
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-0">
-                                <div className="divide-y divide-border">
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">DC Deduction</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(cashBookData.revenue.dc_deduction).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">Monthly Interest</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(cashBookData.revenue.monthly_interest).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm text-foreground">DL Interest</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(cashBookData.revenue.dl_interest).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm font-bold text-foreground">Total Revenue</span>
-                                        <span className="text-lg font-bold text-green-600">₹{p(cashBookData.revenue.total).toLocaleString('en-IN')}</span>
+                            <CardContent>
+                                <div className="overflow-x-auto rounded-lg border border-border/50">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/50">
+                                                <th className="text-left py-3 px-4 font-semibold text-foreground">Source</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-foreground">Amount (₹)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/30">
+                                            <tr className="hover:bg-muted/30 transition-colors">
+                                                <td className="py-3 px-4 text-foreground">DC Deduction</td>
+                                                <td className="py-3 px-4 text-right font-medium text-foreground">₹{p(cashBookData.revenue.dc_deduction).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                                                <td className="py-3 px-4 text-foreground">Monthly Interest</td>
+                                                <td className="py-3 px-4 text-right font-medium text-foreground">₹{p(cashBookData.revenue.monthly_interest).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors">
+                                                <td className="py-3 px-4 text-foreground">DL Interest</td>
+                                                <td className="py-3 px-4 text-right font-medium text-foreground">₹{p(cashBookData.revenue.dl_interest).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-border/50">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-foreground">Total Revenue</span>
+                                        <span className="font-bold text-xl text-green-600">₹{p(cashBookData.revenue.total).toLocaleString('en-IN')}</span>
                                     </div>
                                 </div>
                             </CardContent>
@@ -468,7 +564,10 @@ export default function CashBookPage() {
                 <Card className="border-border/50">
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Revenue Report</CardTitle>
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-primary" />
+                                Revenue Report
+                            </CardTitle>
                             <div className="flex items-center gap-2">
                                 <label className="text-xs font-medium text-muted-foreground">Period</label>
                                 <Select value={revenueRange} onValueChange={(value) => {
@@ -539,23 +638,33 @@ export default function CashBookPage() {
                                 </p>
 
                                 {/* Revenue Breakdown */}
-                                <div className="divide-y divide-border">
-                                    <div className="flex justify-between items-center py-2.5">
-                                        <span className="text-sm text-foreground">DC Deduction</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(revenueData.revenue.dc_deduction).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-2.5">
-                                        <span className="text-sm text-foreground">Monthly Interest</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(revenueData.revenue.monthly_interest).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-2.5">
-                                        <span className="text-sm text-foreground">DL Interest</span>
-                                        <span className="text-sm font-medium text-foreground">₹{p(revenueData.revenue.dl_interest).toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3">
-                                        <span className="text-sm font-bold text-foreground">Total Revenue</span>
-                                        <span className="text-base font-bold text-green-600">₹{p(revenueData.revenue.total).toLocaleString('en-IN')}</span>
-                                    </div>
+                                <div className="overflow-x-auto rounded-lg border border-border/50">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/50">
+                                                <th className="text-left py-2.5 px-4 font-semibold text-foreground text-xs">Source</th>
+                                                <th className="text-right py-2.5 px-4 font-semibold text-foreground text-xs">Amount (₹)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/30">
+                                            <tr className="hover:bg-muted/30 transition-colors">
+                                                <td className="py-2.5 px-4 text-foreground">DC Deduction</td>
+                                                <td className="py-2.5 px-4 text-right font-medium text-foreground">₹{p(revenueData.revenue.dc_deduction).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                                                <td className="py-2.5 px-4 text-foreground">Monthly Interest</td>
+                                                <td className="py-2.5 px-4 text-right font-medium text-foreground">₹{p(revenueData.revenue.monthly_interest).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr className="hover:bg-muted/30 transition-colors">
+                                                <td className="py-2.5 px-4 text-foreground">DL Interest</td>
+                                                <td className="py-2.5 px-4 text-right font-medium text-foreground">₹{p(revenueData.revenue.dl_interest).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="flex justify-between items-center pt-1">
+                                    <span className="text-sm font-semibold text-foreground">Total Revenue</span>
+                                    <span className="text-base font-bold text-green-600">₹{p(revenueData.revenue.total).toLocaleString('en-IN')}</span>
                                 </div>
 
                                 {/* Period Summary */}

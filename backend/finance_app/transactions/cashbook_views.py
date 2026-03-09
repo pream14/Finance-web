@@ -429,7 +429,7 @@ class CashBookPDFDownloadView(APIView):
         # ---- Cash Flow Table ----
         elements.append(Paragraph('Cash Flow', section_style))
         flow_data = [
-            ['Item', 'Amount (₹)'],
+            ['Item', 'Amount'],
             ['Opening Balance', fmt(opening_balance)],
             ['+ Cash Collections', f'+{fmt(cash_collections)}'],
             ['− Cash Loans Given', f'-{fmt(cash_loans_given)}'],
@@ -471,7 +471,7 @@ class CashBookPDFDownloadView(APIView):
         if online_collections > 0 or online_loans_given > 0:
             elements.append(Paragraph('Online Transactions', section_style))
             online_data = [
-                ['Item', 'Amount (₹)'],
+                ['Item', 'Amount'],
                 ['Online Collections', fmt(online_collections)],
                 ['Online Loans Given', fmt(online_loans_given)],
             ]
@@ -496,7 +496,7 @@ class CashBookPDFDownloadView(APIView):
         # ---- New Loans Given ----
         if new_loans:
             elements.append(Paragraph(f'New Loans Given ({len(new_loans)})', section_style))
-            nl_data = [['Customer', 'Loan Type', 'Amount (₹)', 'Method', 'DC Deduction']]
+            nl_data = [['Customer', 'Loan Type', 'Amount', 'Method', 'DC Deduction']]
             total_principal = Decimal('0')
             for loan in new_loans:
                 dc_ded = loan.get('dc_deduction_amount') or 0
@@ -533,7 +533,7 @@ class CashBookPDFDownloadView(APIView):
         # ---- Expenses ----
         if expense_list:
             elements.append(Paragraph(f'Expenses ({len(expense_list)})', section_style))
-            exp_data = [['Description', 'Amount (₹)']]
+            exp_data = [['Description', 'Amount']]
             for exp in expense_list:
                 exp_data.append([exp['description'], fmt(exp['amount'])])
             exp_data.append(['Total', fmt(expenses_total)])
@@ -560,7 +560,7 @@ class CashBookPDFDownloadView(APIView):
         # ---- Revenue Table ----
         elements.append(Paragraph("Today's Revenue", section_style))
         rev_data = [
-            ['Source', 'Amount (₹)'],
+            ['Source', 'Amount'],
             ['DC Deduction', fmt(dc_deduction)],
             ['Monthly Interest', fmt(monthly_interest)],
             ['DL Interest', fmt(dl_interest)],
