@@ -90,7 +90,19 @@ export default function CashBookPage() {
     const [revenueRange, setRevenueRange] = useState('today')
     const [startDate, setStartDate] = useState('')
     const [endDate, setEndDate] = useState('')
+    const [pdfLoading, setPdfLoading] = useState(false)
     const [showCustomDateRange, setShowCustomDateRange] = useState(false)
+
+    const downloadCashBookPdf = async () => {
+        try {
+            setPdfLoading(true)
+            await cashBookApi.downloadPdf(selectedDate)
+        } catch (err: any) {
+            alert(err.message || 'Failed to download PDF')
+        } finally {
+            setPdfLoading(false)
+        }
+    }
 
     const fetchCashBookData = async (date: string) => {
         try {
@@ -234,38 +246,18 @@ export default function CashBookPage() {
                             <Button onClick={() => fetchCashBookData(selectedDate)} variant="outline" size="icon" title="Refresh">
                                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                             </Button>
-                            <Button variant="outline" onClick={() => {
-                                const data = cashBookData ? {
-                                    date: selectedDate,
-                                    opening_balance: cashBookData.opening_balance,
-                                    cash_collections: cashBookData.cash_collections,
-                                    online_collections: cashBookData.online_collections,
-                                    total_collections: cashBookData.total_collections,
-                                    cash_loans_given: cashBookData.cash_loans_given,
-                                    online_loans_given: cashBookData.online_loans_given,
-                                    total_loans_given: cashBookData.total_loans_given,
-                                    expenses: cashBookData.expenses,
-                                    closing_balance: cashBookData.closing_balance,
-                                    revenue: cashBookData.revenue,
-                                    details: cashBookData.details
-                                } : null
-                                if (data) {
-                                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-                                    const url = window.URL.createObjectURL(blob)
-                                    const link = document.createElement('a')
-                                    link.href = url
-                                    link.download = `cashbook_${selectedDate}.json`
-                                    document.body.appendChild(link)
-                                    link.click()
-                                    document.body.removeChild(link)
-                                    window.URL.revokeObjectURL(url)
-                                }
-                            }} title="Export Cash Book Data" size="icon">
-                                <Download className="w-4 h-4" />
+                            <Button
+                                onClick={downloadCashBookPdf}
+                                disabled={pdfLoading}
+                                variant="outline"
+                                size="icon"
+                                title="Download Cash Book PDF"
+                            >
+                                <Download className={`w-4 h-4 ${pdfLoading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
                     </div>
-                    
+
                     {/* Date Navigation */}
                     <div className="flex items-center gap-3">
 
