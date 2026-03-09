@@ -72,17 +72,25 @@ class DailyCashBookView(APIView):
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         # Today's expenses split by payment method
-        cash_expenses = Expense.objects.filter(
-            created_at__date=target_date,
-            payment_method='cash'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        try:
+            cash_expenses = Expense.objects.filter(
+                created_at__date=target_date,
+                payment_method='cash'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        online_expenses = Expense.objects.filter(
-            created_at__date=target_date,
-            payment_method='online'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            online_expenses = Expense.objects.filter(
+                created_at__date=target_date,
+                payment_method='online'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        expenses_total = cash_expenses + online_expenses
+            expenses_total = cash_expenses + online_expenses
+        except Exception:
+            # Fallback if payment_method column doesn't exist yet
+            expenses_total = Expense.objects.filter(
+                created_at__date=target_date
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            cash_expenses = expenses_total
+            online_expenses = Decimal('0')
 
         # DC deduction revenue (advance interest from new DC loans today)
         dc_deduction_revenue = Loan.objects.filter(
@@ -124,9 +132,16 @@ class DailyCashBookView(APIView):
         total_revenue = dc_deduction_revenue + total_interest_collected
 
         # Get expense details
-        expense_list = list(Expense.objects.filter(
-            created_at__date=target_date
-        ).values('id', 'description', 'amount', 'payment_method'))
+        try:
+            expense_list = list(Expense.objects.filter(
+                created_at__date=target_date
+            ).values('id', 'description', 'amount', 'payment_method'))
+        except Exception:
+            expense_list = list(Expense.objects.filter(
+                created_at__date=target_date
+            ).values('id', 'description', 'amount'))
+            for exp in expense_list:
+                exp['payment_method'] = 'cash'
 
         # Get new loans given today
         new_loans_list = list(Loan.objects.filter(
@@ -365,15 +380,22 @@ class CashBookPDFDownloadView(APIView):
             created_at__date=target_date, payment_method='online'
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
-        cash_expenses = Expense.objects.filter(
-            created_at__date=target_date, payment_method='cash'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        try:
+            cash_expenses = Expense.objects.filter(
+                created_at__date=target_date, payment_method='cash'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        online_expenses = Expense.objects.filter(
-            created_at__date=target_date, payment_method='online'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            online_expenses = Expense.objects.filter(
+                created_at__date=target_date, payment_method='online'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        expenses_total = cash_expenses + online_expenses
+            expenses_total = cash_expenses + online_expenses
+        except Exception:
+            expenses_total = Expense.objects.filter(
+                created_at__date=target_date
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            cash_expenses = expenses_total
+            online_expenses = Decimal('0')
 
         closing_balance = opening_balance + cash_collections - cash_loans_given - cash_expenses
 
@@ -397,9 +419,16 @@ class CashBookPDFDownloadView(APIView):
         total_revenue = dc_deduction + monthly_interest + dl_interest + dc_interest
 
         # Details
-        expense_list = list(Expense.objects.filter(
-            created_at__date=target_date
-        ).values('id', 'description', 'amount', 'payment_method'))
+        try:
+            expense_list = list(Expense.objects.filter(
+                created_at__date=target_date
+            ).values('id', 'description', 'amount', 'payment_method'))
+        except Exception:
+            expense_list = list(Expense.objects.filter(
+                created_at__date=target_date
+            ).values('id', 'description', 'amount'))
+            for exp in expense_list:
+                exp['payment_method'] = 'cash'
 
         new_loans = list(Loan.objects.filter(
             created_at__date=target_date
