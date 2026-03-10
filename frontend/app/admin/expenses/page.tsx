@@ -114,12 +114,7 @@ export default function ExpensesPage() {
               <h1 className="text-2xl font-bold text-foreground">Manage Expenses</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Track and manage your expenses</p>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/admin/dashboard">Dashboard</Link>
-            </Button>
-          </div>
+          </div>      
         </div>
       </header>
 

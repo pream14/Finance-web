@@ -634,11 +634,7 @@ export default function CustomersPage() {
               <p className="text-xs text-muted-foreground mt-0.5">{filteredCustomers.length} customers</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/admin/dashboard">Dashboard</Link>
-            </Button>
-          </div>
+
         </div>
       </header>
 
@@ -1013,7 +1009,7 @@ export default function CustomersPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Full Name</label>
                     <Input
-                      placeholder="pream kumar"
+                      placeholder="Enter name"
                       value={addFormData.name}
                       onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
                       className="border-border/50"
@@ -1023,7 +1019,7 @@ export default function CustomersPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Phone</label>
                     <Input
-                      placeholder="1234567890"
+                      placeholder="Enter mobile number"
                       value={addFormData.phone}
                       onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
                       className="border-border/50"
@@ -1061,7 +1057,7 @@ export default function CustomersPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Address</label>
                   <Input
-                    placeholder="anna nagar"
+                    placeholder="Enter address"
                     value={addFormData.address}
                     onChange={(e) => setAddFormData({ ...addFormData, address: e.target.value })}
                     className="border-border/50"

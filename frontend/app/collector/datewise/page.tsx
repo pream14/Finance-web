@@ -163,12 +163,6 @@ export default function CollectorDatewiseCollectionsPage() {
             <Button onClick={fetchEntries} variant="outline" size="icon" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/auth/change-password">Change Password</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/collector/dashboard">Add Collection</Link>
-            </Button>
           </div>
         </div>
       </header>
