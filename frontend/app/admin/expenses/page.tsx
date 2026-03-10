@@ -272,7 +272,6 @@ export default function ExpensesPage() {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Description</th>
                       <th className="text-right py-3 px-4 font-medium text-muted-foreground">Amount</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Method</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">By</th>
                       <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
                     </tr>
                   </thead>
@@ -290,7 +289,6 @@ export default function ExpensesPage() {
                             {expense.payment_method}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-muted-foreground">{expense.created_by_name}</td>
                         <td className="py-3 px-4 text-center">
                           <Button
                             variant="ghost"
