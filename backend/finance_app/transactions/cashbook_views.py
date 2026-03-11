@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import permissions, status
 
 from .models import Loan, Transaction, DailyCashBook
-from expenses.models import Expense
+from expenses.models import Expense, Income
 
 
 class DailyCashBookView(APIView):
@@ -30,13 +30,11 @@ class DailyCashBookView(APIView):
             target_date = date.today()
 
         # Get or calculate opening balance (iruppu)
-        # First check if there's a saved record for this date
         cashbook_entry, _ = DailyCashBook.objects.get_or_create(
             date=target_date,
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
 
-        # If opening balance is 0 and no manual override, try to get previous day's closing balance
         if cashbook_entry.opening_balance == 0:
             previous_entry = DailyCashBook.objects.filter(
                 date__lt=target_date
@@ -85,12 +83,24 @@ class DailyCashBookView(APIView):
 
             expenses_total = cash_expenses + online_expenses
         except Exception:
-            # Fallback if payment_method column doesn't exist yet
             expenses_total = Expense.objects.filter(
                 created_at__date=target_date
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             cash_expenses = expenses_total
             online_expenses = Decimal('0')
+
+        # Other income (rent, etc.) split by payment method
+        cash_income = Income.objects.filter(
+            created_at__date=target_date,
+            payment_method='cash'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        online_income = Income.objects.filter(
+            created_at__date=target_date,
+            payment_method='online'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        other_income_total = cash_income + online_income
 
         # DC deduction revenue (advance interest from new DC loans today)
         dc_deduction_revenue = Loan.objects.filter(
@@ -121,15 +131,15 @@ class DailyCashBookView(APIView):
         total_interest_collected = monthly_interest + dl_interest + dc_interest
 
         # Calculate closing balance
-        # Closing = Opening + Cash Collections - Cash Loans Given - Cash Expenses only
-        closing_balance = opening_balance + cash_collections - cash_loans_given - cash_expenses
+        # Closing = Opening + Cash Collections + Cash Income - Cash Loans Given - Cash Expenses
+        closing_balance = opening_balance + cash_collections + cash_income - cash_loans_given - cash_expenses
 
         # Save closing balance
         cashbook_entry.closing_balance = closing_balance
         cashbook_entry.save()
 
-        # Total revenue = DC deductions + all interest collected
-        total_revenue = dc_deduction_revenue + total_interest_collected
+        # Total revenue = DC deductions + all interest collected + other income
+        total_revenue = dc_deduction_revenue + total_interest_collected + other_income_total
 
         # Get expense details
         try:
@@ -142,6 +152,11 @@ class DailyCashBookView(APIView):
             ).values('id', 'description', 'amount'))
             for exp in expense_list:
                 exp['payment_method'] = 'cash'
+
+        # Get income details
+        income_list = list(Income.objects.filter(
+            created_at__date=target_date
+        ).values('id', 'description', 'source', 'amount', 'payment_method'))
 
         # Get new loans given today
         new_loans_list = list(Loan.objects.filter(
@@ -163,6 +178,9 @@ class DailyCashBookView(APIView):
             'expenses': str(expenses_total),
             'cash_expenses': str(cash_expenses),
             'online_expenses': str(online_expenses),
+            'other_income': str(other_income_total),
+            'cash_income': str(cash_income),
+            'online_income': str(online_income),
             'closing_balance': str(closing_balance),
             'revenue': {
                 'dc_deduction': str(dc_deduction_revenue),
@@ -170,11 +188,13 @@ class DailyCashBookView(APIView):
                 'dl_interest': str(dl_interest),
                 'dc_interest': str(dc_interest),
                 'total_interest_collected': str(total_interest_collected),
+                'other_income': str(other_income_total),
                 'total': str(total_revenue),
             },
             'details': {
                 'expenses': expense_list,
                 'new_loans': new_loans_list,
+                'incomes': income_list,
             },
             'notes': cashbook_entry.notes or '',
         })
@@ -296,6 +316,12 @@ class RevenueReportView(APIView):
             interest_amount__gt=0
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
+        # Other income
+        other_income = Income.objects.filter(
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
         # Total collections
         total_collections = Transaction.objects.filter(
             created_at__date__gte=start_date,
@@ -314,7 +340,7 @@ class RevenueReportView(APIView):
             created_at__date__lte=end_date
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        total_revenue = dc_deduction_revenue + interest_collected
+        total_revenue = dc_deduction_revenue + interest_collected + other_income
 
         return Response({
             'range': range_type,
@@ -326,12 +352,14 @@ class RevenueReportView(APIView):
                 'monthly_interest': str(monthly_interest),
                 'dl_interest': str(dl_interest),
                 'total_interest_collected': str(interest_collected),
+                'other_income': str(other_income),
                 'total': str(total_revenue),
             },
             'summary': {
                 'total_collections': str(total_collections),
                 'total_loans_given': str(total_loans_given),
                 'total_expenses': str(total_expenses),
+                'other_income': str(other_income),
             }
         })
 
@@ -397,7 +425,19 @@ class CashBookPDFDownloadView(APIView):
             cash_expenses = expenses_total
             online_expenses = Decimal('0')
 
-        closing_balance = opening_balance + cash_collections - cash_loans_given - cash_expenses
+        # Other income
+        cash_income = Income.objects.filter(
+            created_at__date=target_date, payment_method='cash'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        online_income = Income.objects.filter(
+            created_at__date=target_date, payment_method='online'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        other_income_total = cash_income + online_income
+
+        # Closing balance now includes cash income
+        closing_balance = opening_balance + cash_collections + cash_income - cash_loans_given - cash_expenses
 
         # Revenue
         dc_deduction = Loan.objects.filter(
@@ -416,7 +456,7 @@ class CashBookPDFDownloadView(APIView):
             created_at__date=target_date, loan__loan_type='DC Loan', interest_amount__gt=0
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
-        total_revenue = dc_deduction + monthly_interest + dl_interest + dc_interest
+        total_revenue = dc_deduction + monthly_interest + dl_interest + dc_interest + other_income_total
 
         # Details
         try:
@@ -429,6 +469,10 @@ class CashBookPDFDownloadView(APIView):
             ).values('id', 'description', 'amount'))
             for exp in expense_list:
                 exp['payment_method'] = 'cash'
+
+        income_list = list(Income.objects.filter(
+            created_at__date=target_date
+        ).values('id', 'description', 'source', 'amount', 'payment_method'))
 
         new_loans = list(Loan.objects.filter(
             created_at__date=target_date
@@ -477,22 +521,25 @@ class CashBookPDFDownloadView(APIView):
             ['Item', 'Amount'],
             ['Opening Balance', fmt(opening_balance)],
             ['+ Cash Collections', f'+{fmt(cash_collections)}'],
+        ]
+        if cash_income > 0:
+            flow_data.append(['+ Cash Income (Other)', f'+{fmt(cash_income)}'])
+        flow_data.extend([
             ['\u2212 Cash Loans Given', f'-{fmt(cash_loans_given)}'],
             ['\u2212 Cash Expenses', f'-{fmt(cash_expenses)}'],
             ['= Closing Cash in Hand', fmt(closing_balance)],
-        ]
+        ])
         flow_table = Table(flow_data, colWidths=[3.5*inch, 2.5*inch])
-        flow_table.setStyle(TableStyle([
+        
+        # Build style list dynamically based on number of rows
+        num_rows = len(flow_data)
+        flow_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
             ('TOPPADDING', (0, 0), (-1, 0), 10),
-            # Collections row green
-            ('TEXTCOLOR', (1, 2), (1, 2), colors.HexColor('#16a34a')),
-            # Loans & expenses rows red
-            ('TEXTCOLOR', (1, 3), (1, 4), colors.HexColor('#dc2626')),
             # Closing row highlight
             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e9')),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
@@ -504,7 +551,19 @@ class CashBookPDFDownloadView(APIView):
             ('LEFTPADDING', (0, 0), (-1, -1), 10),
             ('RIGHTPADDING', (0, 0), (-1, -1), 10),
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ]))
+        ]
+        # Color the collections row green (row 2)
+        flow_styles.append(('TEXTCOLOR', (1, 2), (1, 2), colors.HexColor('#16a34a')))
+        # Color income row green if present
+        if cash_income > 0:
+            flow_styles.append(('TEXTCOLOR', (1, 3), (1, 3), colors.HexColor('#16a34a')))
+            # Loans & expenses rows are at -3 and -2
+            flow_styles.append(('TEXTCOLOR', (1, -3), (1, -2), colors.HexColor('#dc2626')))
+        else:
+            # Loans & expenses rows red
+            flow_styles.append(('TEXTCOLOR', (1, 3), (1, 4), colors.HexColor('#dc2626')))
+        
+        flow_table.setStyle(TableStyle(flow_styles))
         if closing_balance < 0:
             flow_table.setStyle(TableStyle([
                 ('TEXTCOLOR', (1, -1), (1, -1), colors.HexColor('#dc2626')),
@@ -513,13 +572,15 @@ class CashBookPDFDownloadView(APIView):
         elements.append(Spacer(1, 15))
 
         # ---- Online Transactions (if any) ----
-        if online_collections > 0 or online_loans_given > 0:
+        if online_collections > 0 or online_loans_given > 0 or online_income > 0:
             elements.append(Paragraph('Online Transactions', section_style))
             online_data = [
                 ['Item', 'Amount'],
                 ['Online Collections', fmt(online_collections)],
                 ['Online Loans Given', fmt(online_loans_given)],
             ]
+            if online_income > 0:
+                online_data.append(['Online Income (Other)', fmt(online_income)])
             online_table = Table(online_data, colWidths=[3.5*inch, 2.5*inch])
             online_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
@@ -602,6 +663,34 @@ class CashBookPDFDownloadView(APIView):
             elements.append(exp_table)
             elements.append(Spacer(1, 15))
 
+        # ---- Other Income ----
+        if income_list:
+            elements.append(Paragraph(f'Other Income ({len(income_list)})', section_style))
+            inc_data = [['Source', 'Description', 'Amount']]
+            for inc in income_list:
+                inc_data.append([inc['source'], inc['description'], fmt(inc['amount'])])
+            inc_data.append(['Total', '', fmt(other_income_total)])
+            inc_table = Table(inc_data, colWidths=[2.5*inch, 2.5*inch, 1.5*inch])
+            inc_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#065f46')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#d1fae5')),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('TEXTCOLOR', (2, -1), (2, -1), colors.HexColor('#065f46')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f0fdf4')]),
+                ('TOPPADDING', (0, 0), (-1, -1), 7),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ]))
+            elements.append(inc_table)
+            elements.append(Spacer(1, 15))
+
         # ---- Revenue Table ----
         elements.append(Paragraph("Today's Revenue", section_style))
         rev_data = [
@@ -610,8 +699,10 @@ class CashBookPDFDownloadView(APIView):
             ['Monthly Interest', fmt(monthly_interest)],
             ['DL Interest', fmt(dl_interest)],
             ['DC Interest', fmt(dc_interest)],
-            ['Total Revenue', fmt(total_revenue)],
         ]
+        if other_income_total > 0:
+            rev_data.append(['Other Income', fmt(other_income_total)])
+        rev_data.append(['Total Revenue', fmt(total_revenue)])
         rev_table = Table(rev_data, colWidths=[3.5*inch, 2.5*inch])
         rev_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
