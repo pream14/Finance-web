@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, FolderPlus } from 'lucide-react'
+import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings } from 'lucide-react'
 import { expensesApi, incomeApi, expenseCategoriesApi } from '@/lib/api'
 
 interface Expense {
@@ -35,7 +35,7 @@ interface Category {
   name: string
 }
 
-type ActiveTab = 'expenses' | 'income' | 'categories'
+type ActiveTab = 'expenses' | 'income'
 
 export default function MoneyManagerPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('expenses')
@@ -52,6 +52,7 @@ export default function MoneyManagerPage() {
 
   // Categories state
   const [categories, setCategories] = useState<Category[]>([])
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
 
   // Filters
@@ -162,7 +163,7 @@ export default function MoneyManagerPage() {
         description: expenseForm.description.trim(),
         amount,
         payment_method: expenseForm.payment_method,
-        category: expenseForm.category ? parseInt(expenseForm.category) : null,
+        category: expenseForm.category && expenseForm.category !== 'none' ? parseInt(expenseForm.category) : null,
       })
       setExpenses((prev) => [{
         id: created.id,
@@ -257,7 +258,6 @@ export default function MoneyManagerPage() {
   const tabs = [
     { key: 'expenses' as ActiveTab, label: 'Expenses', icon: TrendingDown, color: 'text-red-500' },
     { key: 'income' as ActiveTab, label: 'Income', icon: TrendingUp, color: 'text-green-500' },
-    { key: 'categories' as ActiveTab, label: 'Categories', icon: Tag, color: 'text-blue-500' },
   ]
 
   return (
@@ -274,7 +274,16 @@ export default function MoneyManagerPage() {
               <p className="text-xs text-muted-foreground mt-0.5">Track expenses & income</p>
             </div>
           </div>
-          {activeTab !== 'categories' && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCategoryManager(true)}
+              className="text-muted-foreground"
+            >
+              <Settings className="w-4 h-4 mr-1.5" />
+              Categories
+            </Button>
             <Button
               onClick={() => activeTab === 'expenses' ? setShowExpenseForm(true) : setShowIncomeForm(true)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -282,11 +291,76 @@ export default function MoneyManagerPage() {
               <Plus className="w-4 h-4 mr-2" />
               Add {activeTab === 'expenses' ? 'Expense' : 'Income'}
             </Button>
-          )}
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Category Manager Modal */}
+        {showCategoryManager && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCategoryManager(false)}>
+            <Card className="w-full max-w-md border-border/50 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle className="text-lg">Manage Categories</CardTitle>
+                  <CardDescription>Create or delete expense categories</CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setShowCategoryManager(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Add category */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="New category name..."
+                    className="border-border/50 flex-1"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    autoFocus
+                  />
+                  <Button
+                    onClick={handleAddCategory}
+                    disabled={isSubmitting || !newCategoryName.trim()}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {/* Category list */}
+                {categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No categories yet. Create one above.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {categories.map((cat) => (
+                      <div
+                        key={cat.id}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="text-sm font-medium text-foreground">{cat.name}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Add Expense Modal */}
         {showExpenseForm && (
@@ -521,40 +595,38 @@ export default function MoneyManagerPage() {
           })}
         </div>
 
-        {/* Filters (for expenses & income tabs) */}
-        {activeTab !== 'categories' && (
-          <div className="flex gap-4 flex-col sm:flex-row mb-6 items-start sm:items-center">
-            <div className="flex gap-2 flex-wrap items-center">
-              <Input
-                type="date"
-                placeholder="Start date"
-                className="w-40 border-border/50"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-              <Input
-                type="date"
-                placeholder="End date"
-                className="w-40 border-border/50"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-              {activeTab === 'expenses' && categories.length > 0 && (
-                <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value === 'all' ? '' : value)}>
-                  <SelectTrigger className="w-44 border-border/50">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+        {/* Filters */}
+        <div className="flex gap-4 flex-col sm:flex-row mb-6 items-start sm:items-center">
+          <div className="flex gap-2 flex-wrap items-center">
+            <Input
+              type="date"
+              placeholder="Start date"
+              className="w-40 border-border/50"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <Input
+              type="date"
+              placeholder="End date"
+              className="w-40 border-border/50"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+            {activeTab === 'expenses' && categories.length > 0 && (
+              <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value === 'all' ? '' : value)}>
+                <SelectTrigger className="w-44 border-border/50">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Expenses Tab */}
         {activeTab === 'expenses' && (
@@ -712,82 +784,6 @@ export default function MoneyManagerPage() {
               </Card>
             )}
           </>
-        )}
-
-        {/* Categories Tab */}
-        {activeTab === 'categories' && (
-          <div className="space-y-6">
-            {/* Add Category */}
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderPlus className="w-5 h-5 text-primary" />
-                  Create Category
-                </CardTitle>
-                <CardDescription>Categories help organize your expenses (e.g., Shop, House, Office)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="Enter category name..."
-                    className="border-border/50 flex-1"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                  />
-                  <Button
-                    onClick={handleAddCategory}
-                    disabled={isSubmitting || !newCategoryName.trim()}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {isSubmitting ? 'Adding...' : 'Add'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Category List */}
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle>All Categories</CardTitle>
-                <CardDescription>{categories.length} categor{categories.length !== 1 ? 'ies' : 'y'}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {categories.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <Tag className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                    <p className="text-muted-foreground">No categories created yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">Create categories above to organize your expenses</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {categories.map((cat) => (
-                      <div
-                        key={cat.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-border/30"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                            <Tag className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <span className="font-medium text-foreground">{cat.name}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCategory(cat.id)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         )}
       </main>
     </div>

@@ -687,7 +687,7 @@ export default function CashBookPage() {
 
                                         {/* Period Summary */}
                                         <div className="pt-3 border-t border-border">
-                                            <div className="grid grid-cols-3 gap-4 text-center">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                                 <div>
                                                     <p className="text-xs text-muted-foreground">Collections</p>
                                                     <p className="text-sm font-semibold text-green-600">₹{p(revenueData.summary.total_collections).toLocaleString('en-IN')}</p>
@@ -700,12 +700,10 @@ export default function CashBookPage() {
                                                     <p className="text-xs text-muted-foreground">Expenses</p>
                                                     <p className="text-sm font-semibold text-red-600">₹{p(revenueData.summary.total_expenses).toLocaleString('en-IN')}</p>
                                                 </div>
-                                                {p(revenueData.summary.other_income) > 0 && (
-                                                    <div>
-                                                        <p className="text-xs text-muted-foreground">Other Income</p>
-                                                        <p className="text-sm font-semibold text-green-600">₹{p(revenueData.summary.other_income).toLocaleString('en-IN')}</p>
-                                                    </div>
-                                                )}
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">Other Income</p>
+                                                    <p className="text-sm font-semibold text-green-600">₹{p(revenueData.summary.other_income).toLocaleString('en-IN')}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -434,7 +434,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Monthly Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {/* Monthly Revenue */}
           <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
@@ -472,6 +472,26 @@ export default function AdminDashboard() {
                 {loading ? '—' : `₹${metrics.totalExpenses.toLocaleString('en-IN')}`}
               </p>
               <p className="text-xs text-muted-foreground mt-2">This month</p>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Other Income */}
+          <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Other Income
+                </CardTitle>
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <Wallet className="w-4 h-4 text-emerald-600" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-emerald-600">
+                {loading ? '—' : `₹${metrics.totalOtherIncome.toLocaleString('en-IN')}`}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">Rent & other sources</p>
             </CardContent>
           </Card>
 
