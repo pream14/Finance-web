@@ -777,14 +777,14 @@ export default function CollectionsPage() {
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Loan</th>
                   {selectedLoanType === 'Monthly Interest Loan' && (
                     <>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Asal</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Principal</th>
                       <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Interest</th>
                     </>
                   )}
                   {selectedLoanType === 'DL Loan' && (
                     <>
                       <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Interest</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Asal</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Principal</th>
                     </>
                   )}
                   {selectedLoanType === 'DC Loan' && (

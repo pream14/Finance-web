@@ -849,7 +849,7 @@ export default function CustomersPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      DC: daily principal. Monthly: interest/principal per month. DL: interest + asal per installment.
+                      DC: daily principal. Monthly: interest/principal per month. DL: interest + principal per installment.
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -1095,7 +1095,7 @@ export default function CustomersPage() {
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground">
-                            DC: principal collection. Monthly: interest/principal per month. DL: interest + asal per installment.
+                            DC: principal collection. Monthly: interest/principal per month. DL: interest + principal per installment.
                           </p>
                         </div>
                         <div className="space-y-2">
