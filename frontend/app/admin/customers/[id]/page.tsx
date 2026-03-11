@@ -350,7 +350,7 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Payment Method</span>
                                                 <span className={`font-medium ${loan.payment_method === 'cash' ? 'text-green-600' : 'text-blue-600'}`}>
-                                                    {loan.payment_method === 'cash' ? '💵 Cash' : '🏦 Online'}
+                                                    {loan.payment_method === 'cash' ? 'Cash' : 'Online'}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between text-sm">
