@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key } from 'lucide-react'
-import { transactionsApi, expensesApi, authApi, dashboardApi } from '@/lib/api'
+import { transactionsApi, expensesApi, incomeApi, authApi, dashboardApi } from '@/lib/api'
 
 function getMonthRange(ym: string) {
   const [y, m] = ym.split('-').map(Number)
@@ -96,6 +96,7 @@ export default function AdminDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0]?.value ?? '2024-02')
   const [transactions, setTransactions] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
+  const [otherIncome, setOtherIncome] = useState<any[]>([])
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -120,19 +121,22 @@ export default function AdminDashboard() {
       setLoading(true)
       setError(null)
       try {
-        const [txs, exp] = await Promise.all([
+        const [txs, exp, inc] = await Promise.all([
           transactionsApi.getAll({ start_date: start, end_date: end }),
           expensesApi.getAll({ start_date: start, end_date: end }),
+          incomeApi.getAll({ start_date: start, end_date: end }),
         ])
         if (!cancelled) {
           setTransactions(Array.isArray(txs) ? txs : [])
           setExpenses(Array.isArray(exp) ? exp : [])
+          setOtherIncome(Array.isArray(inc) ? inc : [])
         }
       } catch (err: any) {
         if (!cancelled) {
           setError(err.message || 'Failed to load dashboard data')
           setTransactions([])
           setExpenses([])
+          setOtherIncome([])
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -181,7 +185,8 @@ export default function AdminDashboard() {
     const totalCollections = transactions.length
     const totalRevenue = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
     const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
-    const netRevenue = totalRevenue - totalExpenses
+    const totalOtherIncome = otherIncome.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0)
+    const netRevenue = totalRevenue + totalOtherIncome - totalExpenses
 
     return {
       todayCollections,
@@ -189,9 +194,10 @@ export default function AdminDashboard() {
       totalCollections,
       totalRevenue,
       totalExpenses,
+      totalOtherIncome,
       netRevenue
     }
-  }, [transactions, expenses])
+  }, [transactions, expenses, otherIncome])
 
   const formatTimeAgo = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -228,7 +234,7 @@ export default function AdminDashboard() {
               <Link href="/admin/customers">Customers</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/admin/expenses">Expenses</Link>
+              <Link href="/admin/expenses">Money Manager</Link>
             </Button>
             <Button variant="outline" asChild className="border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
               <Link href="/admin/cashbook">Cash Book</Link>
@@ -485,7 +491,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-primary">
                 {loading ? '—' : `₹${metrics.netRevenue.toLocaleString('en-IN')}`}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">Revenue - Expenses</p>
+              <p className="text-xs text-muted-foreground mt-2">Collections + Income - Expenses</p>
             </CardContent>
           </Card>
         </div>

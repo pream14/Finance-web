@@ -179,22 +179,53 @@ export const transactionsApi = {
   }),
 };
 
+// Expense Categories API
+export const expenseCategoriesApi = {
+  getAll: () => apiRequest<any[]>('/expense-categories/'),
+  create: (data: { name: string }) =>
+    apiRequest<any>('/expense-categories/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: number) =>
+    apiRequest<void>(`/expense-categories/${id}/`, { method: 'DELETE' }),
+};
+
 // Expenses API
 export const expensesApi = {
-  getAll: (params?: { start_date?: string; end_date?: string }) => {
+  getAll: (params?: { start_date?: string; end_date?: string; category?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.category) queryParams.append('category', params.category);
     const query = queryParams.toString();
     return apiRequest<any[]>(`/expenses/${query ? `?${query}` : ''}`);
   },
-  create: (data: { description: string; amount: number; payment_method?: string }) =>
+  create: (data: { description: string; amount: number; payment_method?: string; category?: number | null }) =>
     apiRequest<any>('/expenses/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   delete: (id: number) =>
     apiRequest<void>(`/expenses/${id}/`, { method: 'DELETE' }),
+};
+
+// Income API
+export const incomeApi = {
+  getAll: (params?: { start_date?: string; end_date?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    const query = queryParams.toString();
+    return apiRequest<any[]>(`/incomes/${query ? `?${query}` : ''}`);
+  },
+  create: (data: { description: string; amount: number; source: string; payment_method?: string }) =>
+    apiRequest<any>('/incomes/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: number) =>
+    apiRequest<void>(`/incomes/${id}/`, { method: 'DELETE' }),
 };
 
 // Auth API (Django: api-auth/token/ uses username + password)

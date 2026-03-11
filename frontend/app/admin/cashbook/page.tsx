@@ -22,6 +22,9 @@ interface CashBookData {
     expenses: string
     cash_expenses: string
     online_expenses: string
+    other_income: string
+    cash_income: string
+    online_income: string
     closing_balance: string
     revenue: {
         dc_deduction: string
@@ -29,6 +32,7 @@ interface CashBookData {
         dl_interest: string
         dc_interest: string
         total_interest_collected: string
+        other_income: string
         total: string
     }
     details: {
@@ -41,6 +45,7 @@ interface CashBookData {
             payment_method: string
             dc_deduction_amount: string
         }>
+        incomes: Array<{ id: number; description: string; source: string; amount: string; payment_method: string }>
     }
     notes: string
 }
@@ -54,12 +59,14 @@ interface RevenueData {
         monthly_interest: string
         dl_interest: string
         total_interest_collected: string
+        other_income: string
         total: string
     }
     summary: {
         total_collections: string
         total_loans_given: string
         total_expenses: string
+        other_income: string
     }
 }
 
@@ -439,6 +446,12 @@ export default function CashBookPage() {
                                                 <td className="py-3 px-4 text-foreground">+ Cash Collections</td>
                                                 <td className="py-3 px-4 text-right font-medium text-green-600">+₹{p(cashBookData.cash_collections).toLocaleString('en-IN')}</td>
                                             </tr>
+                                            {p(cashBookData.cash_income) > 0 && (
+                                                <tr className="hover:bg-muted/30 transition-colors">
+                                                    <td className="py-3 px-4 text-foreground">+ Cash Income (Other)</td>
+                                                    <td className="py-3 px-4 text-right font-medium text-green-600">+₹{p(cashBookData.cash_income).toLocaleString('en-IN')}</td>
+                                                </tr>
+                                            )}
                                             <tr className="hover:bg-muted/30 transition-colors">
                                                 <td className="py-3 px-4 text-foreground">− Cash Loans Given</td>
                                                 <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')}</td>
@@ -569,6 +582,52 @@ export default function CashBookPage() {
                                     </CardContent>
                                 </Card>
                             )}
+
+                            {/* Other Income */}
+                            {cashBookData.details.incomes && cashBookData.details.incomes.length > 0 && (
+                                <Card className="border-border/50">
+                                    <CardHeader className="pb-3">
+                                        <div>
+                                            <CardTitle className="text-base">Other Income</CardTitle>
+                                            <CardDescription className="text-xs">
+                                                {cashBookData.details.incomes.length} entr{cashBookData.details.incomes.length !== 1 ? 'ies' : 'y'}
+                                            </CardDescription>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="overflow-x-auto rounded-lg border border-border/50">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-muted/50">
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Source</th>
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Description</th>
+                                                        <th className="text-right py-2.5 px-3 font-semibold text-foreground text-xs">Amount</th>
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Method</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border/30">
+                                                    {cashBookData.details.incomes.map((inc, i) => (
+                                                        <tr key={inc.id} className={`hover:bg-muted/30 transition-colors ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
+                                                            <td className="py-2.5 px-3 font-medium text-foreground">{inc.source}</td>
+                                                            <td className="py-2.5 px-3 text-foreground">{inc.description || '—'}</td>
+                                                            <td className="py-2.5 px-3 text-right font-bold text-green-600 whitespace-nowrap">+₹{p(inc.amount).toLocaleString('en-IN')}</td>
+                                                            <td className="py-2.5 px-3">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${inc.payment_method === 'cash' ? 'bg-amber-500/20 text-amber-600' : 'bg-purple-500/20 text-purple-600'}`}>
+                                                                    {inc.payment_method}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-border/50 flex justify-between items-center">
+                                            <span className="text-sm font-semibold text-foreground">Total</span>
+                                            <span className="text-sm font-bold text-green-600">+₹{p(cashBookData.other_income).toLocaleString('en-IN')}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
 
                         {/* Revenue Section — uses same filter range */}
@@ -612,6 +671,12 @@ export default function CashBookPage() {
                                                         <td className="py-3 px-4 text-foreground">DL Interest</td>
                                                         <td className="py-3 px-4 text-right font-medium text-foreground">₹{p(revenueData.revenue.dl_interest).toLocaleString('en-IN')}</td>
                                                     </tr>
+                                                    {p(revenueData.revenue.other_income) > 0 && (
+                                                        <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                                                            <td className="py-3 px-4 text-foreground">Other Income</td>
+                                                            <td className="py-3 px-4 text-right font-medium text-green-600">₹{p(revenueData.revenue.other_income).toLocaleString('en-IN')}</td>
+                                                        </tr>
+                                                    )}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -635,6 +700,12 @@ export default function CashBookPage() {
                                                     <p className="text-xs text-muted-foreground">Expenses</p>
                                                     <p className="text-sm font-semibold text-red-600">₹{p(revenueData.summary.total_expenses).toLocaleString('en-IN')}</p>
                                                 </div>
+                                                {p(revenueData.summary.other_income) > 0 && (
+                                                    <div>
+                                                        <p className="text-xs text-muted-foreground">Other Income</p>
+                                                        <p className="text-sm font-semibold text-green-600">₹{p(revenueData.summary.other_income).toLocaleString('en-IN')}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
