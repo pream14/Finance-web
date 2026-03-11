@@ -475,7 +475,7 @@ export default function MoneyManagerPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Description (optional)</label>
+                      <label className="text-sm font-medium text-foreground">Description</label>
                       <Input
                         name="description"
                         placeholder="Additional details..."
