@@ -6,6 +6,11 @@ export async function GET(request: NextRequest) {
     // Get session token from cookies
     const sessionToken = request.cookies.get('session')?.value
     
+    console.log('Session check - token found:', !!sessionToken);
+    if (sessionToken) {
+      console.log('Session token (first 10 chars):', sessionToken.substring(0, 10) + '...');
+    }
+    
     if (!sessionToken) {
       return NextResponse.json(
         { error: 'No session token found' },
@@ -15,6 +20,10 @@ export async function GET(request: NextRequest) {
 
     // Get session from token
     const session = getSession(sessionToken)
+    console.log('Session retrieved:', !!session);
+    if (session) {
+      console.log('Session user:', { id: session.userId, email: session.email, role: session.role });
+    }
     
     if (!session) {
       return NextResponse.json(
@@ -24,13 +33,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Return user info (without sensitive data)
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: {
         id: session.userId,
         email: session.email,
         role: session.role
       }
     })
+    
+    console.log('Session check successful for user:', session.email);
+    return response
 
   } catch (error) {
     console.error('Session check error:', error)
