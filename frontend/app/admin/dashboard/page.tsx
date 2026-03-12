@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key } from 'lucide-react'
 import { transactionsApi, expensesApi, incomeApi, authApi, dashboardApi } from '@/lib/api'
-import { AdminAuthWrapper } from '@/components/auth/admin-auth-wrapper'
 
 function getMonthRange(ym: string) {
   const [y, m] = ym.split('-').map(Number)
@@ -93,15 +92,7 @@ interface DashboardStats {
   }>
 }
 
-export default function AdminDashboardPage() {
-  return (
-    <AdminAuthWrapper>
-      <DashboardContent />
-    </AdminAuthWrapper>
-  )
-}
-
-function DashboardContent() {
+export default function AdminDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0]?.value ?? '2024-02')
   const [transactions, setTransactions] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])

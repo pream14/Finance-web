@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings } from 'lucide-react'
 import { expensesApi, incomeApi, expenseCategoriesApi } from '@/lib/api'
-import { AdminAuthWrapper } from '@/components/auth/admin-auth-wrapper'
 
 interface Expense {
   id: number
@@ -39,14 +38,6 @@ interface Category {
 type ActiveTab = 'expenses' | 'income'
 
 export default function MoneyManagerPage() {
-  return (
-    <AdminAuthWrapper>
-      <MoneyManagerContent />
-    </AdminAuthWrapper>
-  )
-}
-
-function MoneyManagerContent() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('expenses')
 
   // Expenses state

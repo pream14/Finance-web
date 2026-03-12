@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Users, Plus, Trash2, Edit3, Wallet, Eye, X, Filter, ChevronDown, ChevronUp } from 'lucide-react'
 import { customersApi, loansApi, transactionsApi } from '@/lib/api'
-import { AdminAuthWrapper } from '@/components/auth/admin-auth-wrapper'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -82,14 +81,6 @@ function normalizeCustomer(apiCustomer: any): Customer {
 }
 
 export default function CustomersPage() {
-  return (
-    <AdminAuthWrapper>
-      <CustomersContent />
-    </AdminAuthWrapper>
-  )
-}
-
-function CustomersContent() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
