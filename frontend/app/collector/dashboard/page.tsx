@@ -114,8 +114,8 @@ export default function CollectorDashboard() {
   const avgAmount = todayCount > 0 ? todayTotal / todayCount : 0
 
 
-  const handleLogout = () => {
-    authApi.logout()
+  const handleLogout = async () => {
+    await authApi.logout()
     window.location.href = '/auth/login'
   }
 

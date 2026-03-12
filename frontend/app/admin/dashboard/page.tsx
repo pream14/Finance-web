@@ -147,8 +147,8 @@ export default function AdminDashboard() {
     return () => { cancelled = true }
   }, [start, end])
 
-  const handleLogout = () => {
-    authApi.logout()
+  const handleLogout = async () => {
+    await authApi.logout()
     window.location.href = '/auth/login'
   }
 

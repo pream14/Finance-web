@@ -32,6 +32,15 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
+    // Set a non-httpOnly role cookie so Next.js middleware can enforce route access
+    cookieStore.set('user_role', user.role, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60, // 24 hours
+      path: '/',
+    });
+
     return NextResponse.json({
       user: {
         id: user.id,
