@@ -771,29 +771,29 @@ export default function CollectionsPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b-2 border-border">
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Name</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Area</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Phone</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Loan</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Name</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Area</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Phone</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Loan</th>
                   {selectedLoanType === 'Monthly Interest Loan' && (
                     <>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Principal</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Interest</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Principal</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Interest</th>
                     </>
                   )}
                   {selectedLoanType === 'DL Loan' && (
                     <>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Interest</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Principal</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Interest</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Principal</th>
                     </>
                   )}
                   {selectedLoanType === 'DC Loan' && (
-                    <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Amount</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Amount</th>
                   )}
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Total</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Method</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Action</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70">Balance</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Total</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Method</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Action</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
