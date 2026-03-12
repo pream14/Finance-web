@@ -753,7 +753,7 @@ export default function MoneyManagerPage() {
                             </td>
                             <td className="py-3 px-4 text-foreground">{income.description || '—'}</td>
                             <td className="py-3 px-4 text-right font-bold text-green-600">
-                              +₹{income.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ₹{income.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${income.payment_method === 'cash' ? 'bg-amber-500/20 text-amber-600' : 'bg-purple-500/20 text-purple-600'
@@ -778,7 +778,7 @@ export default function MoneyManagerPage() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
                     <span className="font-semibold text-foreground">Total</span>
-                    <span className="font-bold text-lg text-green-600">+₹{totalIncome.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-lg text-green-600">₹{totalIncome.toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>

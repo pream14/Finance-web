@@ -728,7 +728,7 @@ export default function CollectionsPage() {
           <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4 w-full lg:w-auto">
             <div className="flex flex-row items-center gap-4 w-full sm:w-auto">
               <div className="flex items-center gap-2 flex-1">
-                <label className="text-sm font-medium text-muted-foreground hidden sm:block">Area:</label>
+                <label className="text-sm font-medium text-muted-foreground shrink-0">Area:</label>
                 <Select value={areaFilter} onValueChange={setAreaFilter}>
                   <SelectTrigger className="w-full sm:w-40 border-border/50">
                     <SelectValue placeholder="All Areas" />
@@ -742,7 +742,7 @@ export default function CollectionsPage() {
                 </Select>
               </div>
               <div className="flex items-center gap-2 flex-1">
-                <label className="text-sm font-medium text-muted-foreground hidden sm:block">Status:</label>
+                <label className="text-sm font-medium text-muted-foreground shrink-0">Status:</label>
                 <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
                   <SelectTrigger className="w-full sm:w-32 border-border/50">
                     <SelectValue placeholder="All" />

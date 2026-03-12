@@ -346,7 +346,7 @@ export default function DatewiseCollectionsPage() {
                 This Month
               </Button>
               <div className="ml-auto w-full sm:w-auto flex items-center gap-2">
-                <label className="text-sm text-muted-foreground shrink-0 hidden sm:block">Search:</label>
+                <label className="text-sm text-muted-foreground shrink-0">Search:</label>
                 <div className="relative w-full sm:w-48">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
