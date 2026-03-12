@@ -42,7 +42,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-primary/10 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary mb-4">
@@ -52,12 +52,12 @@ export default function LoginPage() {
           <p className="text-muted-foreground mt-2">Smart Collection Management</p>
         </div>
 
-        <Card className="border-border/50 shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Sign In</CardTitle>
-            <CardDescription>Sign in with your Django account</CardDescription>
+        <Card className="border-border/40 shadow-2xl backdrop-blur-xl bg-card/95">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-2xl tracking-tight">Welcome Back</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
@@ -95,10 +95,15 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-10"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 rounded-lg transition-all active:scale-[0.98]"
                 disabled={loading}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    Signing in...
+                  </div>
+                ) : 'Sign In'}
               </Button>
             </form>
           </CardContent>

@@ -729,7 +729,10 @@ export default function AdminDashboard() {
               <Activity className="w-5 h-5 text-muted-foreground" />
               <div>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Last 10 collections</CardDescription>
+                <CardDescription>
+                  <span className="hidden sm:inline">Last 10 collections</span>
+                  <span className="sm:hidden">Last 5 collections</span>
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
