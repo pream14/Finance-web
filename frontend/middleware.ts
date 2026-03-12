@@ -25,9 +25,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Admin routes: only allow admin role
+  // Admin routes: only allow admin/owner role
   if (pathname.startsWith('/admin')) {
-    if (userRole !== 'admin') {
+    if (userRole !== 'admin' && userRole !== 'owner') {
       const collectorUrl = new URL('/collector/dashboard', request.url);
       return NextResponse.redirect(collectorUrl);
     }

@@ -25,7 +25,11 @@ export default function LoginPage() {
     try {
       await authApi.login(username.trim(), password)
       const user = await authApi.getCurrentUser()
-      if (user && String(user.role || '').toLowerCase() === 'owner') {
+      const role = String(user?.role || '').toLowerCase()
+      // Set user_role cookie so Next.js middleware can enforce route access
+      const isAdmin = role === 'owner' || role === 'admin'
+      document.cookie = `user_role=${isAdmin ? 'admin' : 'collector'}; path=/; max-age=86400; samesite=lax`
+      if (isAdmin) {
         router.push('/admin/dashboard')
       } else {
         router.push('/collector/dashboard')
