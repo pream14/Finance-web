@@ -9,6 +9,7 @@ import {
     Save, Pencil, Download, TrendingUp, TrendingDown, Wallet, Banknote
 } from 'lucide-react'
 import { cashBookApi, revenueApi } from '@/lib/api'
+import { AdminAuthWrapper } from '@/components/auth/admin-auth-wrapper'
 
 interface CashBookData {
     date: string
@@ -85,6 +86,14 @@ function getToday() {
 }
 
 export default function CashBookPage() {
+    return (
+        <AdminAuthWrapper>
+            <CashBookContent />
+        </AdminAuthWrapper>
+    )
+}
+
+function CashBookContent() {
     const today = getToday()
 
     // Unified filter state
