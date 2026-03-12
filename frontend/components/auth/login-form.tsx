@@ -35,6 +35,10 @@ export default function LoginForm() {
 
       const data = await response.json();
       
+      // Store user info in localStorage as backup
+      localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('Login successful, user role:', data.user.role);
+      
       // Redirect based on role
       if (data.user.role === 'admin') {
         router.push('/admin/dashboard');

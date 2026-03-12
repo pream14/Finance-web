@@ -14,43 +14,78 @@ interface AdminAuthWrapperProps {
 export function AdminAuthWrapper({ children, fallback }: AdminAuthWrapperProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if user is logged in
-        const sessionToken = document.cookie
+        // First check if we have a session cookie
+        const sessionCookie = document.cookie
           .split('; ')
           .find(row => row.startsWith('session='))
           ?.split('=')[1]
 
-        if (!sessionToken) {
+        if (!sessionCookie) {
+          console.log('No session cookie found')
           router.push('/auth/login')
           return
         }
 
-        // Get user session
-        const response = await fetch('/api/auth/session', {
-          headers: {
-            'Cookie': `session=${sessionToken}`
+        // Try to get user info from session API
+        try {
+          const response = await fetch('/api/auth/session', {
+            method: 'GET',
+            credentials: 'include', // Important for cookies
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (!response.ok) {
+            console.log('Session API response not ok:', response.status)
+            // Try to get user info from localStorage as fallback
+            const userInfo = localStorage.getItem('user')
+            if (userInfo) {
+              const user = JSON.parse(userInfo)
+              if (user.role === 'admin') {
+                setIsAuthorized(true)
+                setUserRole(user.role)
+                return
+              }
+            }
+            router.push('/auth/login')
+            return
           }
-        })
 
-        if (!response.ok) {
+          const data = await response.json()
+          console.log('Session API response:', data)
+          
+          if (data.user?.role === 'admin') {
+            setIsAuthorized(true)
+            setUserRole(data.user.role)
+            // Store user info in localStorage as backup
+            localStorage.setItem('user', JSON.stringify(data.user))
+          } else {
+            console.log('User is not admin, role:', data.user?.role)
+            setIsAuthorized(false)
+            setUserRole(data.user?.role || 'unknown')
+          }
+        } catch (apiError) {
+          console.error('Session API error:', apiError)
+          // Fallback to localStorage
+          const userInfo = localStorage.getItem('user')
+          if (userInfo) {
+            const user = JSON.parse(userInfo)
+            console.log('Fallback to localStorage, user role:', user.role)
+            if (user.role === 'admin') {
+              setIsAuthorized(true)
+              setUserRole(user.role)
+              return
+            }
+          }
           router.push('/auth/login')
-          return
         }
-
-        const data = await response.json()
-        
-        // Check if user is admin
-        if (data.user?.role !== 'admin') {
-          setIsAuthorized(false)
-          return
-        }
-
-        setIsAuthorized(true)
       } catch (error) {
         console.error('Auth check failed:', error)
         router.push('/auth/login')
@@ -97,6 +132,11 @@ export function AdminAuthWrapper({ children, fallback }: AdminAuthWrapperProps) 
           <CardContent className="space-y-4">
             <div className="text-center text-sm text-muted-foreground">
               This area is restricted to administrators only.
+              {userRole && (
+                <div className="mt-2">
+                  Your role: <span className="font-medium">{userRole}</span>
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <Button 
