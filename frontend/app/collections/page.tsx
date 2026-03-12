@@ -726,32 +726,34 @@ export default function CollectionsPage() {
             ))}
           </div>
           <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4 w-full lg:w-auto">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Area:</label>
-              <Select value={areaFilter} onValueChange={setAreaFilter}>
-                <SelectTrigger className="w-40 border-border/50">
-                  <SelectValue placeholder="All Areas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Areas</SelectItem>
-                  {getUniqueAreas().map((area) => (
-                    <SelectItem key={area} value={area}>{area}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Status:</label>
-              <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-                <SelectTrigger className="w-32 border-border/50">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-row items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-sm font-medium text-muted-foreground hidden sm:block">Area:</label>
+                <Select value={areaFilter} onValueChange={setAreaFilter}>
+                  <SelectTrigger className="w-full sm:w-40 border-border/50">
+                    <SelectValue placeholder="All Areas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Areas</SelectItem>
+                    {getUniqueAreas().map((area) => (
+                      <SelectItem key={area} value={area}>{area}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-sm font-medium text-muted-foreground hidden sm:block">Status:</label>
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-32 border-border/50">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 lg:ml-auto">
               <label className="text-sm font-medium text-muted-foreground shrink-0 hidden sm:block">Search:</label>

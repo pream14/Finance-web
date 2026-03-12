@@ -264,7 +264,7 @@ export default function MoneyManagerPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Wallet className="w-6 h-6 text-primary" />
@@ -274,19 +274,19 @@ export default function MoneyManagerPage() {
               <p className="text-xs text-muted-foreground mt-0.5">Track expenses & income</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowCategoryManager(true)}
-              className="text-muted-foreground"
+              className="text-muted-foreground whitespace-nowrap"
             >
               <Settings className="w-4 h-4 mr-1.5" />
               Categories
             </Button>
             <Button
               onClick={() => activeTab === 'expenses' ? setShowExpenseForm(true) : setShowIncomeForm(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add {activeTab === 'expenses' ? 'Expense' : 'Income'}
@@ -653,12 +653,12 @@ export default function MoneyManagerPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Description</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Category</th>
-                          <th className="text-right py-3 px-4 font-medium text-muted-foreground">Amount</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Method</th>
-                          <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Category</th>
+                          <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Method</th>
+                          <th className="text-center py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
@@ -734,12 +734,12 @@ export default function MoneyManagerPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Source</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Description</th>
-                          <th className="text-right py-3 px-4 font-medium text-muted-foreground">Amount</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Method</th>
-                          <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Source</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
+                          <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Method</th>
+                          <th className="text-center py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
