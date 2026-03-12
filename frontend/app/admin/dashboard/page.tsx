@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key, Menu } from 'lucide-react'
 import { transactionsApi, expensesApi, incomeApi, authApi, dashboardApi } from '@/lib/api'
 
 function getMonthRange(ym: string) {
@@ -220,10 +221,75 @@ export default function AdminDashboard() {
       <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate max-w-[200px] sm:max-w-none">Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground mt-1">Welcome back, Admin</p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          
+          {/* Mobile Navigation */}
+          <div className="flex md:hidden items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                <SheetHeader className="mb-6">
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4">
+                  <SheetClose asChild>
+                    <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/collections">Add Collection</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/collections/datewise">Collections</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/customers">Customers</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/expenses">Money Manager</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+                      <Link href="/admin/cashbook">Cash Book</Link>
+                    </Button>
+                  </SheetClose>
+                  
+                  <div className="h-px bg-border my-2" />
+                  
+                  <SheetClose asChild>
+                    <Button variant="ghost" asChild className="w-full justify-start">
+                      <Link href="/admin/users/add" className="flex items-center gap-2">
+                        <UserPlus className="h-4 w-4" /> Add Staff
+                      </Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="ghost" asChild className="w-full justify-start">
+                      <Link href="/auth/change-password" className="flex items-center gap-2">
+                        <Key className="h-4 w-4" /> Change Password
+                      </Link>
+                    </Button>
+                  </SheetClose>
+                  <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50">
+                    <LogOut className="h-4 w-4 mr-2" /> Logout
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex gap-2 flex-wrap">
             <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Link href="/collections">Add Collection</Link>
             </Button>

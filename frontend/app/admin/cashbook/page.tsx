@@ -368,7 +368,7 @@ export default function CashBookPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-2xl font-bold text-foreground">₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-foreground truncate" title={`₹${p(cashBookData.opening_balance).toLocaleString('en-IN')}`}>₹{p(cashBookData.opening_balance).toLocaleString('en-IN')}</p>
                                     )}
                                     <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(endDate)}</p>
                                 </CardContent>
@@ -380,7 +380,7 @@ export default function CashBookPage() {
                                         <TrendingUp className="w-3 h-3 text-green-600" />
                                         <p className="text-xs text-muted-foreground">Collections</p>
                                     </div>
-                                    <p className="text-2xl font-bold text-green-600">₹{p(cashBookData.total_collections).toLocaleString('en-IN')}</p>
+                                    <p className="text-xl sm:text-2xl font-bold text-green-600 truncate" title={`₹${p(cashBookData.total_collections).toLocaleString('en-IN')}`}>₹{p(cashBookData.total_collections).toLocaleString('en-IN')}</p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5">
                                         Cash: ₹{p(cashBookData.cash_collections).toLocaleString('en-IN')} · Online: ₹{p(cashBookData.online_collections).toLocaleString('en-IN')}
                                     </p>
@@ -393,7 +393,7 @@ export default function CashBookPage() {
                                         <TrendingDown className="w-3 h-3 text-red-600" />
                                         <p className="text-xs text-muted-foreground">Loans Given</p>
                                     </div>
-                                    <p className="text-2xl font-bold text-red-600">₹{p(cashBookData.total_loans_given).toLocaleString('en-IN')}</p>
+                                    <p className="text-xl sm:text-2xl font-bold text-red-600 truncate" title={`₹${p(cashBookData.total_loans_given).toLocaleString('en-IN')}`}>₹{p(cashBookData.total_loans_given).toLocaleString('en-IN')}</p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5">
                                         Cash: ₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')} · Online: ₹{p(cashBookData.online_loans_given).toLocaleString('en-IN')}
                                     </p>
@@ -406,7 +406,7 @@ export default function CashBookPage() {
                                         <Wallet className="w-3 h-3 text-amber-600" />
                                         <p className="text-xs text-muted-foreground">Closing Balance</p>
                                     </div>
-                                    <p className={`text-2xl font-bold ${p(cashBookData.closing_balance) >= 0 ? 'text-foreground' : 'text-red-600'}`}>
+                                    <p className={`text-xl sm:text-2xl font-bold truncate ${p(cashBookData.closing_balance) >= 0 ? 'text-foreground' : 'text-red-600'}`} title={`₹${p(cashBookData.closing_balance).toLocaleString('en-IN')}`}>
                                         ₹{p(cashBookData.closing_balance).toLocaleString('en-IN')}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5">

@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Link from 'next/link'
-import { Wallet, TrendingUp, Clock, User } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Wallet, TrendingUp, Clock, User, Menu, LogOut, Key, Shield } from 'lucide-react'
 import { authApi, customersApi, loansApi, transactionsApi } from '@/lib/api'
 
 interface CollectionEntry {
@@ -125,10 +126,63 @@ export default function CollectorDashboard() {
       <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Collector Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate max-w-[200px] sm:max-w-none">Collector Dashboard</h1>
             <p className="text-sm text-muted-foreground mt-1">Welcome, {currentUser?.full_name || 'Collector'}</p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          
+          {/* Mobile Navigation */}
+          <div className="flex md:hidden items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                <SheetHeader className="mb-6">
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4">
+                  <SheetClose asChild>
+                    <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/collections">Add Collection</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/collector/datewise">My Collections</Link>
+                    </Button>
+                  </SheetClose>
+                  
+                  {currentUser?.role === 'owner' && (
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start border-blue-500/50 text-blue-600 hover:bg-blue-500/10">
+                        <Link href="/admin/dashboard" className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" /> Admin Dashboard
+                        </Link>
+                      </Button>
+                    </SheetClose>
+                  )}
+                  
+                  <div className="h-px bg-border my-2" />
+                  
+                  <SheetClose asChild>
+                    <Button variant="ghost" asChild className="w-full justify-start">
+                      <Link href="/auth/change-password" className="flex items-center gap-2">
+                        <Key className="h-4 w-4" /> Change Password
+                      </Link>
+                    </Button>
+                  </SheetClose>
+                  <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50">
+                    <LogOut className="h-4 w-4 mr-2" /> Logout
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex gap-2 flex-wrap">
             <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Link href="/collections">Add Collection</Link>
             </Button>
