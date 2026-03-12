@@ -1317,14 +1317,14 @@ export default function CustomersPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
-                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted">Customer Name</th>
-                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted">Phone</th>
-                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted">Email</th>
-                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted">City</th>
-                      <th className="border border-border px-4 py-3 text-center text-xs font-medium text-muted-foreground bg-muted">Active Loans</th>
-                      <th className="border border-border px-4 py-3 text-right text-xs font-medium text-muted-foreground bg-muted">Total Loan</th>
-                      <th className="border border-border px-4 py-3 text-right text-xs font-medium text-muted-foreground bg-muted">Balance</th>
-                      <th className="border border-border px-4 py-3 text-center text-xs font-medium text-muted-foreground bg-muted">Actions</th>
+                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Customer Name</th>
+                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Phone</th>
+                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Email</th>
+                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">City</th>
+                      <th className="border border-border px-4 py-3 text-center text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Active Loans</th>
+                      <th className="border border-border px-4 py-3 text-right text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Total Loan</th>
+                      <th className="border border-border px-4 py-3 text-right text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Balance</th>
+                      <th className="border border-border px-4 py-3 text-center text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1433,12 +1433,12 @@ export default function CustomersPage() {
                                   <table className="w-full text-sm">
                                     <thead>
                                       <tr className="text-xs text-muted-foreground">
-                                        <th className="text-left py-1 px-2">Type</th>
-                                        <th className="text-right py-1 px-2">Principal</th>
-                                        <th className="text-right py-1 px-2">Remaining</th>
-                                        <th className="text-center py-1 px-2">Status</th>
-                                        <th className="text-left py-1 px-2">Start Date</th>
-                                        <th className="text-center py-1 px-2">Actions</th>
+                                        <th className="text-left py-1 px-2 whitespace-nowrap">Type</th>
+                                        <th className="text-right py-1 px-2 whitespace-nowrap">Principal</th>
+                                        <th className="text-right py-1 px-2 whitespace-nowrap">Remaining</th>
+                                        <th className="text-center py-1 px-2 whitespace-nowrap">Status</th>
+                                        <th className="text-left py-1 px-2 whitespace-nowrap">Start Date</th>
+                                        <th className="text-center py-1 px-2 whitespace-nowrap">Actions</th>
                                       </tr>
                                     </thead>
                                     <tbody>

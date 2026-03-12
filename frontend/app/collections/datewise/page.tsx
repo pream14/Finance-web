@@ -286,9 +286,10 @@ export default function DatewiseCollectionsPage() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={fetchEntries} variant="outline" size="icon" title="Refresh">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <div className="flex gap-2 items-center">
+            <Button onClick={fetchEntries} variant="outline" size="sm" title="Refresh" className="w-9 h-9 p-0 md:w-auto md:px-3">
+              <RefreshCw className={`w-4 h-4 md:mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline">Refresh</span>
             </Button>
             <Button
               onClick={downloadCollectionReport}
@@ -296,13 +297,16 @@ export default function DatewiseCollectionsPage() {
               variant="outline"
               size="sm"
               title="Download Report"
-              className="flex items-center gap-2"
+              className="w-9 h-9 p-0 md:w-auto md:px-3"
             >
-              <Download className="w-4 h-4" />
-              {reportLoading ? '...' : 'Download'}
+              <Download className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">{reportLoading ? '...' : 'Download'}</span>
             </Button>
-            <Button asChild>
-              <Link href="/collections">Add Collection</Link>
+            <Button asChild size="sm">
+              <Link href="/collections">
+                <span className="hidden sm:inline">Add Collection</span>
+                <span className="sm:hidden">Add</span>
+              </Link>
             </Button>
           </div>
         </div>
@@ -313,13 +317,13 @@ export default function DatewiseCollectionsPage() {
         {/* Filters Card */}
         <Card className="border-border/50 mb-6">
           <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Filter className="w-5 h-5 text-primary" />
                 <CardTitle className="text-base">Filters</CardTitle>
               </div>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground hover:text-foreground">
+                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground hover:text-foreground self-start sm:self-auto">
                   Clear All
                 </Button>
               )}
@@ -341,50 +345,50 @@ export default function DatewiseCollectionsPage() {
               <Button variant="outline" size="sm" onClick={setThisMonth} className="h-8 text-xs">
                 This Month
               </Button>
-              <div className="ml-auto flex items-center gap-2">
-                <label className="text-sm text-muted-foreground">Search Customer:</label>
-                <div className="relative">
+              <div className="ml-auto w-full sm:w-auto flex items-center gap-2">
+                <label className="text-sm text-muted-foreground shrink-0 hidden sm:block">Search:</label>
+                <div className="relative w-full sm:w-48">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="text"
                     placeholder="Customer name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 border-border/50 h-8 w-48"
+                    className="pl-8 border-border/50 w-full h-8"
                   />
                 </div>
               </div>
             </div>
 
             {/* Filter Grid */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {/* Start Date */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full">
                 <label className="text-xs font-medium text-muted-foreground">Start Date</label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="border-border/50 h-9 w-40"
+                  className="border-border/50 h-9 w-full"
                 />
               </div>
 
               {/* End Date */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full">
                 <label className="text-xs font-medium text-muted-foreground">End Date</label>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="border-border/50 h-9 w-40"
+                  className="border-border/50 h-9 w-full"
                 />
               </div>
 
               {/* Loan Type Filter */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full">
                 <label className="text-xs font-medium text-muted-foreground">Loan Type</label>
                 <Select value={filterLoanType} onValueChange={setFilterLoanType}>
-                  <SelectTrigger className="border-border/50 h-9 w-32">
+                  <SelectTrigger className="border-border/50 h-9 w-full">
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
@@ -399,13 +403,13 @@ export default function DatewiseCollectionsPage() {
               </div>
 
               {/* Collected By Filter */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full">
                 <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                   <User className="w-3 h-3" />
                   Collected By
                 </label>
                 <Select value={filterCollectedBy} onValueChange={setFilterCollectedBy}>
-                  <SelectTrigger className="border-border/50 h-9 w-32">
+                  <SelectTrigger className="border-border/50 h-9 w-full">
                     <SelectValue placeholder="All Collectors" />
                   </SelectTrigger>
                   <SelectContent>
@@ -420,10 +424,10 @@ export default function DatewiseCollectionsPage() {
               </div>
 
               {/* Area Filter */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full">
                 <label className="text-xs font-medium text-muted-foreground">Area</label>
                 <Select value={filterArea} onValueChange={setFilterArea}>
-                  <SelectTrigger className="border-border/50 h-9 w-32">
+                  <SelectTrigger className="border-border/50 h-9 w-full">
                     <SelectValue placeholder="All Areas" />
                   </SelectTrigger>
                   <SelectContent>
@@ -524,14 +528,14 @@ export default function DatewiseCollectionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50">
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Date</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Customer</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Loan Type</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Interest</th>
-                      <th className="text-right py-3 px-4 font-semibold text-foreground">Amount</th>
-                      <th className="text-right py-3 px-4 font-semibold text-foreground">Balance</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Method</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Collected By</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Date</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Customer</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Loan Type</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Interest</th>
+                      <th className="text-right py-3 px-4 font-semibold text-foreground whitespace-nowrap">Amount</th>
+                      <th className="text-right py-3 px-4 font-semibold text-foreground whitespace-nowrap">Balance</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Method</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Collected By</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">

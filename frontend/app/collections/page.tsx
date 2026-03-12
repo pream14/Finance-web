@@ -710,8 +710,8 @@ export default function CollectionsPage() {
       {/* Main Content */}
       <main className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Loan Type Flicker Buttons and Search */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-2">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-wrap gap-2">
             {LOAN_TYPES.map((type) => (
               <Button
                 key={type}
@@ -719,13 +719,13 @@ export default function CollectionsPage() {
                   setSelectedLoanType(type)
                 }}
                 variant={selectedLoanType === type ? 'default' : 'outline'}
-                className="px-6 py-2"
+                className="px-4 sm:px-6 py-2"
               >
                 {type}
               </Button>
             ))}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4 w-full lg:w-auto">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-muted-foreground">Area:</label>
               <Select value={areaFilter} onValueChange={setAreaFilter}>
@@ -753,13 +753,13 @@ export default function CollectionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground">Search:</label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 lg:ml-auto">
+              <label className="text-sm font-medium text-muted-foreground shrink-0 hidden sm:block">Search:</label>
               <Input
                 placeholder="Customer name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64 border-border/50"
+                className="w-full sm:w-64 border-border/50"
               />
             </div>
           </div>
