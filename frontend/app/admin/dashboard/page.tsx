@@ -738,8 +738,8 @@ export default function AdminDashboard() {
               <p className="text-center text-muted-foreground py-4">No recent activity</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {dashboardStats?.recent_activity.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                {dashboardStats?.recent_activity.map((activity, index) => (
+                  <div key={activity.id} className={`flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors ${index >= 5 ? 'hidden sm:flex' : ''}`}>
                     <div className="flex-1 min-w-0">
                       <Link
                         href={`/admin/customers/${activity.customer_id}`}
