@@ -596,25 +596,34 @@ export default function MoneyManagerPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 flex-col sm:flex-row mb-6 items-start sm:items-center">
-          <div className="flex gap-2 flex-wrap items-center">
-            <Input
-              type="date"
-              placeholder="Start date"
-              className="w-40 border-border/50"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <Input
-              type="date"
-              placeholder="End date"
-              className="w-40 border-border/50"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-            {activeTab === 'expenses' && categories.length > 0 && (
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-6 items-start sm:items-center w-full">
+          <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+            <div className="flex flex-row items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-sm font-medium text-muted-foreground shrink-0">Start Date:</label>
+                <Input
+                  type="date"
+                  className="w-full sm:w-40 border-border/50"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-sm font-medium text-muted-foreground shrink-0">End Date:</label>
+                <Input
+                  type="date"
+                  className="w-full sm:w-40 border-border/50"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          {activeTab === 'expenses' && categories.length > 0 && (
+            <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 lg:ml-auto">
+              <label className="text-sm font-medium text-muted-foreground shrink-0 hidden sm:block">Category:</label>
               <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value === 'all' ? '' : value)}>
-                <SelectTrigger className="w-44 border-border/50">
+                <SelectTrigger className="w-full sm:w-44 border-border/50">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -624,8 +633,8 @@ export default function MoneyManagerPage() {
                   ))}
                 </SelectContent>
               </Select>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Expenses Tab */}
