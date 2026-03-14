@@ -61,7 +61,30 @@ class Command(BaseCommand):
 
             self.stdout.write(self.style.SUCCESS(f'Backup created: {backup_file}'))
 
-            # Rotate old backups — keep only the most recent MAX_BACKUPS
+            # (Optional) Off-site backup via rclone to Google Drive
+            # Requires rclone to be configured with the remote name 'gdrive'
+            drive_folder = os.getenv('RCLONE_DRIVE_FOLDER', 'finance_backups')
+            rclone_remote = os.getenv('RCLONE_REMOTE_NAME', 'gdrive')
+            
+            # Check if rclone is installed
+            try:
+                subprocess.run(['rclone', 'version'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                rclone_installed = True
+            except FileNotFoundError:
+                rclone_installed = False
+
+            if rclone_installed and os.getenv('ENABLE_GDRIVE_BACKUP', 'False') == 'True':
+                self.stdout.write(f'Uploading backup to Google Drive ({rclone_remote}:{drive_folder}) ...')
+                try:
+                    subprocess.run(
+                        ['rclone', 'copy', backup_file, f'{rclone_remote}:{drive_folder}'],
+                        check=True
+                    )
+                    self.stdout.write(self.style.SUCCESS('Successfully uploaded to Google Drive!'))
+                except subprocess.CalledProcessError as e:
+                    self.stdout.write(self.style.ERROR(f'Failed to upload to Google Drive: {e}'))
+
+            # Rotate old backups — keep only the most recent MAX_BACKUPS locally
             backups = sorted(glob.glob(os.path.join(BACKUP_DIR, 'finance_db_*.sql.gz')))
             for old in backups[:-MAX_BACKUPS]:
                 os.remove(old)

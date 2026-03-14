@@ -1,5 +1,6 @@
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.90.129.233:8000/api';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// In production, when accessed from the browser, we want to route to the relative /api path 
+// which Nginx will proxy to Django. When NEXT_PUBLIC_API_URL is undefined, we default to /api. 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // Get auth token from localStorage or cookies
 function getAuthToken(): string | null {
@@ -231,7 +232,9 @@ export const incomeApi = {
 // Auth API (Django: api-auth/token/ uses username + password)
 export const authApi = {
   login: async (username: string, password: string) => {
-    const base = API_BASE_URL.replace('/api', '');
+    // If using a relative path like /api, we map it to /api-auth/token.
+    // Otherwise, we gracefully replace the /api suffix of an absolute domain.
+    const base = API_BASE_URL === '/api' ? '' : API_BASE_URL.replace(/\/api$/, '');
     const response = await fetch(`${base}/api-auth/token/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -3,7 +3,7 @@
 # initial-setup.sh — First-time VPS setup (run ONCE on a fresh VPS)
 # =============================================================================
 # Tested on: Ubuntu 22.04 / 24.04
-# Usage:     sudo bash initial-setup.sh
+# Usage:     sudo bash initial-setup.sh <domain>
 # =============================================================================
 set -euo pipefail
 
@@ -12,6 +12,14 @@ APP_DIR="/opt/finance"
 DB_NAME="finance_db"
 DB_USER="finance_user"
 DB_PASS="${2:-$(openssl rand -hex 16)}"  # Auto-generate if not provided
+
+# Prompt for admin credentials (never hardcoded in the script)
+echo ""
+read -p "Enter admin username: " ADMIN_USERNAME
+read -sp "Enter admin password: " ADMIN_PASSWORD
+echo ""
+read -p "Enter admin email: " ADMIN_EMAIL
+echo ""
 
 echo "========================================"
 echo " Finance App — Initial VPS Setup"
@@ -27,7 +35,7 @@ apt install -y \
     python3 python3-venv python3-pip \
     postgresql postgresql-contrib \
     nginx certbot python3-certbot-nginx \
-    git curl gzip
+    git curl gzip rclone
 
 # Install Node.js 20 LTS
 if ! command -v node &>/dev/null; then
@@ -88,11 +96,14 @@ ALLOWED_HOSTS=$DOMAIN,$(hostname -I | awk '{print $1}')
 CSRF_TRUSTED_ORIGINS=https://$DOMAIN
 CORS_ALLOWED_ORIGINS=https://$DOMAIN
 DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=$(openssl rand -hex 8)
-ADMIN_EMAIL=admin@$DOMAIN
+ADMIN_USERNAME=$ADMIN_USERNAME
+ADMIN_PASSWORD=$ADMIN_PASSWORD
+ADMIN_EMAIL=$ADMIN_EMAIL
 BACKUP_DIR=/var/backups/finance_app
 MAX_BACKUPS=30
+ENABLE_GDRIVE_BACKUP=False
+RCLONE_REMOTE_NAME=gdrive
+RCLONE_DRIVE_FOLDER=finance_backups
 EOF
     echo "  → Backend .env created. REVIEW IT: $APP_DIR/backend/finance_app/.env"
 fi

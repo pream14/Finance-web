@@ -45,11 +45,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-primary/10 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary mb-4">
-            <span className="text-xl font-bold text-primary-foreground">FC</span>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="Sri Sendhur Sri Lakshmi Finance" className="w-24 h-24 rounded-xl object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">FinanceCollect</h1>
-          <p className="text-muted-foreground mt-2">Smart Collection Management</p>
+          <h1 className="text-3xl font-bold text-foreground">Sri Sendhur | Sri Lakshmi</h1>
+          <p className="text-muted-foreground mt-2">Finance Collection Management</p>
         </div>
 
         <Card className="border-border/40 shadow-2xl backdrop-blur-xl bg-card/95">
@@ -110,7 +110,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          © 2024 FinanceCollect. All rights reserved.
+          © 2024 Sri Sendhur | Sri Lakshmi Finance. All rights reserved.
         </p>
       </div>
     </div>

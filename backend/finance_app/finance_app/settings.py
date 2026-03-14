@@ -12,7 +12,7 @@ load_dotenv()
 # Basic settings  
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 SECRET_KEY = os.getenv('SECRET_KEY', 'your-dev-secret-key')  # Use a proper key in production
-ALLOWED_HOSTS = ['*']  # Allow all hosts for now, secure in production later
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 # Security settings for Railway/Production
 CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:8000,https://finance-web-production-0681.up.railway.app').split(',')
@@ -85,11 +85,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'finance_app.wsgi.application'  # Adjust if your project name is different
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS =True  # Set to False in production
-CORS_ALLOWED_ORIGINS = [
-    "http://192.168.173.233:8081",  # Add your React Native app domain in production
-]
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 
 # Database settings
 # Database settings
