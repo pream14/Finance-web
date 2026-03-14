@@ -16,8 +16,21 @@ DB_PASS="${2:-$(openssl rand -hex 16)}"  # Auto-generate if not provided
 # Prompt for admin credentials (never hardcoded in the script)
 echo ""
 read -p "Enter admin username: " ADMIN_USERNAME
-read -sp "Enter admin password: " ADMIN_PASSWORD
-echo ""
+
+# Ask password twice and confirm match
+while true; do
+    read -sp "Enter admin password: " ADMIN_PASSWORD
+    echo ""
+    read -sp "Confirm admin password: " ADMIN_PASSWORD_CONFIRM
+    echo ""
+    if [ "$ADMIN_PASSWORD" = "$ADMIN_PASSWORD_CONFIRM" ]; then
+        break
+    else
+        echo "❌ Passwords do not match. Please try again."
+        echo ""
+    fi
+done
+
 read -p "Enter admin email: " ADMIN_EMAIL
 echo ""
 
