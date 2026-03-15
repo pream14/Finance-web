@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { authApi } from '@/lib/api'
 
@@ -46,7 +47,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center mb-4">
-            <img src="/logo.png" alt="Sri Sendhur Sri Lakshmi Finance" className="w-24 h-24 rounded-xl object-contain" />
+            <Image src="/logo.png" alt="Sri Sendhur Sri Lakshmi Finance" width={96} height={96} priority unoptimized className="rounded-xl object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Sri Sendhur | Sri Lakshmi</h1>
           <p className="text-muted-foreground mt-2">Finance Collection Management</p>
