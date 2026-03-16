@@ -273,36 +273,30 @@ export default function CollectionsPage() {
       setError(null)
       const data = await customersApi.getAll({ all: true })
 
-      // Fetch loans for each customer
-      const customersWithLoans = await Promise.all(
-        data.map(async (customer: any) => {
-          try {
-            const loans = await loansApi.getAll({ customer_id: customer.id, status: 'active' })
-            return {
-              ...customer,
-              loans: loans.map((loan: any) => ({
-                id: loan.id,
-                loan_type: loan.loan_type,
-                principal_amount: parseFloat(loan.principal_amount),
-                remaining_amount: parseFloat(loan.remaining_amount),
-                start_date: loan.start_date,
-                status: loan.status,
-                // Interest calculation fields
-                expected_interest: loan.expected_interest,
-                total_pending_interest: loan.total_pending_interest,
-                days_since_start: loan.days_since_start,
-                pending_interest: loan.pending_interest ? parseFloat(loan.pending_interest) : 0,
-                // Rate fields
-                monthly_interest_rate: loan.monthly_interest_rate ? parseFloat(loan.monthly_interest_rate) : null,
-                daily_interest_rate: loan.daily_interest_rate ? parseFloat(loan.daily_interest_rate) : null,
-                daily_collection_amount: loan.daily_collection_amount ? parseFloat(loan.daily_collection_amount) : null,
-              })),
-            }
-          } catch (err) {
-            return { ...customer, loans: [] }
-          }
-        })
-      )
+      // Use loans already embedded in customer data from Django's CustomerSerializer
+      // This avoids making N separate API calls that overwhelm the server with 503 errors
+      const customersWithLoans = data.map((customer: any) => ({
+        ...customer,
+        loans: (customer.loans || [])
+          .filter((loan: any) => loan.status === 'active')
+          .map((loan: any) => ({
+            id: loan.id,
+            loan_type: loan.loan_type,
+            principal_amount: parseFloat(loan.principal_amount),
+            remaining_amount: parseFloat(loan.remaining_amount),
+            start_date: loan.start_date,
+            status: loan.status,
+            // Interest calculation fields
+            expected_interest: loan.expected_interest,
+            total_pending_interest: loan.total_pending_interest,
+            days_since_start: loan.days_since_start,
+            pending_interest: loan.pending_interest ? parseFloat(loan.pending_interest) : 0,
+            // Rate fields
+            monthly_interest_rate: loan.monthly_interest_rate ? parseFloat(loan.monthly_interest_rate) : null,
+            daily_interest_rate: loan.daily_interest_rate ? parseFloat(loan.daily_interest_rate) : null,
+            daily_collection_amount: loan.daily_collection_amount ? parseFloat(loan.daily_collection_amount) : null,
+          })),
+      }))
       setCustomers(customersWithLoans)
 
       // Initialize payment balances for each loan (keyed by loanId)
