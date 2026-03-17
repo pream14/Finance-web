@@ -21,6 +21,7 @@ interface Loan {
   start_date: string
   status: 'active' | 'settled' | 'overdue'
   has_transactions?: boolean
+
 }
 
 interface Customer {
@@ -28,6 +29,7 @@ interface Customer {
   name: string
   email?: string
   phone: string
+  alternate_phone?: string
   city: string
   address: string
   loans: Loan[]
@@ -64,6 +66,7 @@ function normalizeCustomer(apiCustomer: any): Customer {
     name: apiCustomer.name,
     email: apiCustomer.email || '',
     phone: apiCustomer.phone_number || apiCustomer.phone || '',
+    alternate_phone: apiCustomer.alternate_phone || '',
     city: apiCustomer.area || apiCustomer.city || '',
     address: apiCustomer.address || '',
     loans: (apiCustomer.loans || []).map((loan: any) => ({
@@ -74,6 +77,7 @@ function normalizeCustomer(apiCustomer: any): Customer {
       start_date: loan.start_date || '',
       status: loan.status || 'active',
       has_transactions: loan.has_transactions || false,
+
     })),
     created_at,
     created_by: createdBy,
@@ -91,7 +95,7 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [editFormData, setEditFormData] = useState<Partial<Customer>>({})
-  const [addFormData, setAddFormData] = useState({ name: '', phone: '', address: '', city: '' })
+  const [addFormData, setAddFormData] = useState({ name: '', phone: '', alternate_phone: '', address: '', city: '' })
   const [existingCities, setExistingCities] = useState<string[]>([])
   const [citySuggestions, setCitySuggestions] = useState<string[]>([])
   const [showCitySuggestions, setShowCitySuggestions] = useState(false)
@@ -264,13 +268,18 @@ export default function CustomersPage() {
   }
 
 
+  const [deletingCustomerId, setDeletingCustomerId] = useState<number | null>(null)
   const handleDeleteCustomer = async (id: number) => {
+    if (deletingCustomerId === id) return // Prevent double-click
     if (!confirm('Are you sure you want to delete this customer?')) return
     try {
+      setDeletingCustomerId(id)
       await customersApi.delete(id)
       await fetchCustomers()
     } catch (err: any) {
       alert(err.message || 'Failed to delete customer')
+    } finally {
+      setDeletingCustomerId(null)
     }
   }
 
@@ -324,12 +333,14 @@ export default function CustomersPage() {
 
     try {
       setSubmitting(true)
-      const created = await customersApi.create({
+       const created = await customersApi.create({
         name: addFormData.name.trim(),
         phone_number: addFormData.phone.trim(),
+        alternate_phone: addFormData.alternate_phone.trim() || undefined,
         address: addFormData.address.trim(),
         area: addFormData.city,
       })
+
       const newId = created?.id
       if (addLoanWithCustomer && newId && !isNaN(principal) && principal > 0) {
         const loanData: any = {
@@ -375,7 +386,7 @@ export default function CustomersPage() {
       }
 
       // Reset form
-      setAddFormData({ name: '', phone: '', address: '', city: '' })
+      setAddFormData({ name: '', phone: '', alternate_phone: '', address: '', city: '' })
       setAddLoanWithCustomer(false)
       setFirstLoanType(LOAN_TYPES[0])
       setFirstLoanPrincipal('')
@@ -513,6 +524,7 @@ export default function CustomersPage() {
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
+      alternate_phone: customer.alternate_phone,
       city: customer.city,
       address: customer.address,
     })
@@ -526,6 +538,7 @@ export default function CustomersPage() {
       await customersApi.update(editingCustomer.id, {
         name: editFormData.name,
         phone_number: editFormData.phone,
+        alternate_phone: editFormData.alternate_phone,
         address: editFormData.address,
         area: editFormData.city,
       })
@@ -574,6 +587,7 @@ export default function CustomersPage() {
         updateData.daily_interest_rate = parseFloat(editLoanFormData.daily_interest_rate)
       }
       await loansApi.update(editingLoan.id, updateData)
+
       setEditingLoan(null)
       setEditLoanFormData({})
       await fetchCustomers()
@@ -583,10 +597,10 @@ export default function CustomersPage() {
       setSavingLoan(false)
     }
   }
-
   const handleEditLoanCancel = () => {
     setEditingLoan(null)
     setEditLoanFormData({})
+
   }
 
   const handleDeleteLoan = async (loanId: number) => {
@@ -650,15 +664,15 @@ export default function CustomersPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleEditSave} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Full Name</label>
-                      <Input
-                        placeholder="Full Name"
-                        value={editFormData.name || ''}
-                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                        className="border-border/50"
-                        required
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                         <label className="text-sm font-medium text-foreground">Full Name</label>
+                         <Input
+                           placeholder="Full Name"
+                           value={editFormData.name || ''}
+                           onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                           className="border-border/50"
+                           required
                       />
                     </div>
                     <div className="space-y-2">
@@ -669,6 +683,15 @@ export default function CustomersPage() {
                         onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
                         className="border-border/50"
                         required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Phone2 (Optional)</label>
+                      <Input
+                        placeholder="Alternate Phone"
+                        value={editFormData.alternate_phone || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, alternate_phone: e.target.value })}
+                        className="border-border/50"
                       />
                     </div>
                   </div>
@@ -781,7 +804,7 @@ export default function CustomersPage() {
                           className="border-border/50"
                         />
                       </div>
-                    </>
+                  </>
                   )}
 
                   {editingLoan.loan_type === 'DC Loan' && (
@@ -1005,7 +1028,7 @@ export default function CustomersPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddCustomer} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Full Name</label>
                     <Input
@@ -1024,6 +1047,15 @@ export default function CustomersPage() {
                       onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
                       className="border-border/50"
                       required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Phone2 (Optional)</label>
+                    <Input
+                      placeholder="Alternate phone"
+                      value={addFormData.alternate_phone}
+                      onChange={(e) => setAddFormData({ ...addFormData, alternate_phone: e.target.value })}
+                      className="border-border/50"
                     />
                   </div>
                 </div>
@@ -1319,7 +1351,7 @@ export default function CustomersPage() {
                     <tr className="bg-muted/50 border-b border-border">
                       <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Customer Name</th>
                       <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Phone</th>
-                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Email</th>
+                     
                       <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">City</th>
                       <th className="border border-border px-4 py-3 text-center text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Active Loans</th>
                       <th className="border border-border px-4 py-3 text-right text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Total Loan</th>
@@ -1363,7 +1395,7 @@ export default function CustomersPage() {
                               </div>
                             </td>
                             <td className="border border-border px-4 py-3 text-sm text-muted-foreground">{customer.phone || 'N/A'}</td>
-                            <td className="border border-border px-4 py-3 text-sm text-muted-foreground">{customer.email || 'No email'}</td>
+                           
                             <td className="border border-border px-4 py-3 text-sm text-muted-foreground">{customer.city || 'N/A'}</td>
                             <td className="border border-border px-4 py-3 text-center">
                               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold text-xs">
@@ -1416,6 +1448,7 @@ export default function CustomersPage() {
                                     e.stopPropagation()
                                     handleDeleteCustomer(customer.id)
                                   }}
+                                  disabled={deletingCustomerId === customer.id}
                                   className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                                   title="Delete"
                                 >

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,6 +56,7 @@ export default function CollectionsPage() {
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [entries, setEntries] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [submittingLoanIds, setSubmittingLoanIds] = useState<Set<number>>(new Set())
 
   // Track payments by loan ID (not customer ID) to support multiple loans per customer
   const [loanPayments, setLoanPayments] = useState<{
@@ -192,8 +193,12 @@ export default function CollectionsPage() {
       return
     }
 
+    // Prevent double-click: check if this loan is already being submitted
+    if (submittingLoanIds.has(loanId)) return
+
     try {
       setSubmitting(true)
+      setSubmittingLoanIds(prev => new Set(prev).add(loanId))
 
       // Prepare transaction data based on loan type
       let transactionData: any = {
@@ -251,14 +256,18 @@ export default function CollectionsPage() {
         // Fallback: keep current balance if fetch fails
       }
 
-      // Refresh data
+      // Only refresh today's entries (lightweight) — no need to re-fetch all customers
       fetchTodayEntries()
-      fetchCustomers() // Refetch all customers to get updated balances
 
     } catch (err: any) {
       alert(err.message || 'Failed to submit payment')
     } finally {
       setSubmitting(false)
+      setSubmittingLoanIds(prev => {
+        const next = new Set(prev)
+        next.delete(loanId)
+        return next
+      })
     }
   }
 
@@ -433,10 +442,13 @@ export default function CollectionsPage() {
   }
 
   // Delete an entry
+  const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
   const handleDeleteEntry = async (entryId: number) => {
+    if (deletingEntryId === entryId) return // Prevent double-click
     if (!confirm('Are you sure you want to delete this payment?')) return
     try {
       setSubmitting(true)
+      setDeletingEntryId(entryId)
       await transactionsApi.delete(entryId)
       await fetchTodayEntries()
       await fetchCustomers()
@@ -444,12 +456,25 @@ export default function CollectionsPage() {
       alert(err.message || 'Failed to delete entry')
     } finally {
       setSubmitting(false)
+      setDeletingEntryId(null)
     }
   }
 
   // Fetch entries on component mount
   useEffect(() => {
     fetchTodayEntries()
+  }, [])
+
+  // Auto-poll today's entries every 30s so other users' payments appear
+  useEffect(() => {
+    const POLL_INTERVAL = 30000 // 30 seconds
+    const interval = setInterval(() => {
+      // Only poll when page is visible to avoid wasting bandwidth
+      if (document.visibilityState === 'visible') {
+        fetchTodayEntries()
+      }
+    }, POLL_INTERVAL)
+    return () => clearInterval(interval)
   }, [])
 
   // Update payment balances when loan type changes
@@ -1058,10 +1083,10 @@ export default function CollectionsPage() {
                               return (
                                 <button
                                   onClick={() => markAsPaid(customer.id, customer.name, loan.id)}
-                                  disabled={submitting || !payment?.amount || parseFloat(payment?.amount || '0') <= 0}
+                                  disabled={submitting || submittingLoanIds.has(loan.id) || !payment?.amount || parseFloat(payment?.amount || '0') <= 0}
                                   className="px-3 py-1 text-xs font-medium rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                                 >
-                                  Pay
+                                  {submittingLoanIds.has(loan.id) ? 'Paying...' : 'Pay'}
                                 </button>
                               )
                             }

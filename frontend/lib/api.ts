@@ -22,6 +22,43 @@ export function removeAuthToken() {
   }
 }
 
+// Retry helper for transient server errors (only for GET requests)
+const RETRYABLE_STATUS_CODES = [502, 503, 429];
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 500;
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = MAX_RETRIES
+): Promise<Response> {
+  const method = (options.method || 'GET').toUpperCase();
+  const canRetry = method === 'GET'; // Only retry safe/idempotent requests
+
+  for (let attempt = 0; attempt <= (canRetry ? retries : 0); attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // If retryable error and we have retries left, wait and retry
+      if (canRetry && RETRYABLE_STATUS_CODES.includes(response.status) && attempt < retries) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt); // 500, 1000, 2000
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      return response;
+    } catch (error) {
+      // Network errors (no response at all) — retry if GET
+      if (canRetry && attempt < retries) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  // Fallback (should not reach here)
+  return fetch(url, options);
+}
+
 // API request helper
 async function apiRequest<T>(
   endpoint: string,
@@ -36,7 +73,7 @@ async function apiRequest<T>(
     ...(token ? { Authorization: `Token ${token}` } : {}),
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
   });
