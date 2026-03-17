@@ -244,6 +244,11 @@ export const expensesApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  update: (id: number, data: { description?: string; amount?: number; payment_method?: string; category?: number | null }) =>
+    apiRequest<any>(`/expenses/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
   delete: (id: number) =>
     apiRequest<void>(`/expenses/${id}/`, { method: 'DELETE' }),
 };
@@ -260,6 +265,11 @@ export const incomeApi = {
   create: (data: { description: string; amount: number; source: string; payment_method?: string }) =>
     apiRequest<any>('/incomes/', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: number, data: { description?: string; amount?: number; source?: string; payment_method?: string }) =>
+    apiRequest<any>(`/incomes/${id}/`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
   delete: (id: number) =>

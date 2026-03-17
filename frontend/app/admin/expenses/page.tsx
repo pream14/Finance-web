@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings } from 'lucide-react'
+import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil } from 'lucide-react'
 import { expensesApi, incomeApi, expenseCategoriesApi } from '@/lib/api'
 
 interface Expense {
@@ -44,11 +44,15 @@ export default function MoneyManagerPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [expenseForm, setExpenseForm] = useState({ description: '', amount: '', payment_method: 'cash', category: '' })
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [editExpenseForm, setEditExpenseForm] = useState({ description: '', amount: '', payment_method: 'cash', category: '' })
 
   // Income state
   const [incomes, setIncomes] = useState<Income[]>([])
   const [showIncomeForm, setShowIncomeForm] = useState(false)
   const [incomeForm, setIncomeForm] = useState({ description: '', amount: '', source: '', payment_method: 'cash' })
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null)
+  const [editIncomeForm, setEditIncomeForm] = useState({ description: '', amount: '', source: '', payment_method: 'cash' })
 
   // Categories state
   const [categories, setCategories] = useState<Category[]>([])
@@ -184,6 +188,51 @@ export default function MoneyManagerPage() {
     }
   }
 
+  const openEditExpense = (expense: Expense) => {
+    setEditingExpense(expense)
+    setEditExpenseForm({
+      description: expense.description,
+      amount: String(expense.amount),
+      payment_method: expense.payment_method,
+      category: expense.category ? String(expense.category) : '',
+    })
+  }
+
+  const handleEditExpense = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingExpense) return
+    const amount = parseFloat(editExpenseForm.amount)
+    if (!editExpenseForm.description.trim() || isNaN(amount) || amount <= 0) {
+      setError('Please enter description and a valid amount')
+      return
+    }
+    setError('')
+    setIsSubmitting(true)
+    try {
+      const updated = await expensesApi.update(editingExpense.id, {
+        description: editExpenseForm.description.trim(),
+        amount,
+        payment_method: editExpenseForm.payment_method,
+        category: editExpenseForm.category && editExpenseForm.category !== 'none' ? parseInt(editExpenseForm.category) : null,
+      })
+      setExpenses((prev) => prev.map((exp) =>
+        exp.id === editingExpense.id ? {
+          ...exp,
+          description: updated.description,
+          amount: parseFloat(updated.amount),
+          payment_method: updated.payment_method || 'cash',
+          category: updated.category || null,
+          category_name: updated.category_name || null,
+        } : exp
+      ))
+      setEditingExpense(null)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update expense')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleDeleteIncome = async (id: number) => {
     if (!confirm('Are you sure you want to delete this income?')) return
     try {
@@ -223,6 +272,50 @@ export default function MoneyManagerPage() {
       setShowIncomeForm(false)
     } catch (err: any) {
       setError(err.message || 'Failed to add income')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const openEditIncome = (income: Income) => {
+    setEditingIncome(income)
+    setEditIncomeForm({
+      description: income.description,
+      amount: String(income.amount),
+      source: income.source,
+      payment_method: income.payment_method,
+    })
+  }
+
+  const handleEditIncome = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingIncome) return
+    const amount = parseFloat(editIncomeForm.amount)
+    if (!editIncomeForm.source.trim() || isNaN(amount) || amount <= 0) {
+      setError('Please enter source and a valid amount')
+      return
+    }
+    setError('')
+    setIsSubmitting(true)
+    try {
+      const updated = await incomeApi.update(editingIncome.id, {
+        description: editIncomeForm.description.trim(),
+        amount,
+        source: editIncomeForm.source.trim(),
+        payment_method: editIncomeForm.payment_method,
+      })
+      setIncomes((prev) => prev.map((inc) =>
+        inc.id === editingIncome.id ? {
+          ...inc,
+          description: updated.description,
+          amount: parseFloat(updated.amount),
+          source: updated.source,
+          payment_method: updated.payment_method || 'cash',
+        } : inc
+      ))
+      setEditingIncome(null)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update income')
     } finally {
       setIsSubmitting(false)
     }
@@ -524,6 +617,168 @@ export default function MoneyManagerPage() {
           </div>
         )}
 
+        {/* Edit Expense Modal */}
+        {editingExpense && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingExpense(null)}>
+            <Card className="w-full max-w-md border-border/50 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <CardHeader>
+                <CardTitle>Edit Expense</CardTitle>
+                <CardDescription>Update this expense entry</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleEditExpense} className="space-y-4">
+                  {error && (
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Description</label>
+                      <Input
+                        name="description"
+                        placeholder="Office Equipment"
+                        className="border-border/50"
+                        value={editExpenseForm.description}
+                        onChange={(e) => setEditExpenseForm((p) => ({ ...p, description: e.target.value }))}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Amount (₹)</label>
+                      <Input
+                        name="amount"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="border-border/50"
+                        value={editExpenseForm.amount}
+                        onChange={(e) => setEditExpenseForm((p) => ({ ...p, amount: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Payment Method</label>
+                        <Select value={editExpenseForm.payment_method} onValueChange={(value) => setEditExpenseForm((p) => ({ ...p, payment_method: value }))}>
+                          <SelectTrigger className="border-border/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="online">Online</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Category</label>
+                        <Select value={editExpenseForm.category} onValueChange={(value) => setEditExpenseForm((p) => ({ ...p, category: value }))}>
+                          <SelectTrigger className="border-border/50">
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No Category</SelectItem>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
+                      {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setEditingExpense(null)} disabled={isSubmitting}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Edit Income Modal */}
+        {editingIncome && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingIncome(null)}>
+            <Card className="w-full max-w-md border-border/50 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <CardHeader>
+                <CardTitle>Edit Income</CardTitle>
+                <CardDescription>Update this income entry</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleEditIncome} className="space-y-4">
+                  {error && (
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Source</label>
+                      <Input
+                        name="source"
+                        placeholder="e.g., House Rent, Shop Rent"
+                        className="border-border/50"
+                        value={editIncomeForm.source}
+                        onChange={(e) => setEditIncomeForm((p) => ({ ...p, source: e.target.value }))}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Description</label>
+                      <Input
+                        name="description"
+                        placeholder="Additional details..."
+                        className="border-border/50"
+                        value={editIncomeForm.description}
+                        onChange={(e) => setEditIncomeForm((p) => ({ ...p, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Amount (₹)</label>
+                      <Input
+                        name="amount"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="border-border/50"
+                        value={editIncomeForm.amount}
+                        onChange={(e) => setEditIncomeForm((p) => ({ ...p, amount: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Payment Method</label>
+                      <Select value={editIncomeForm.payment_method} onValueChange={(value) => setEditIncomeForm((p) => ({ ...p, payment_method: value }))}>
+                        <SelectTrigger className="border-border/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="online">Online</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={isSubmitting}>
+                      {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setEditingIncome(null)} disabled={isSubmitting}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-red-500/5 to-red-500/10">
@@ -694,14 +949,24 @@ export default function MoneyManagerPage() {
                               </span>
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteExpense(expense.id)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditExpense(expense)}
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 h-8 w-8 p-0"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteExpense(expense.id)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -771,14 +1036,24 @@ export default function MoneyManagerPage() {
                               </span>
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteIncome(income.id)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditIncome(income)}
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 h-8 w-8 p-0"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteIncome(income.id)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
