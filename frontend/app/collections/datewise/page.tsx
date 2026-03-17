@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Download, User } from 'lucide-react'
-import { transactionsApi, loansApi, reportsApi, customersApi } from '@/lib/api'
+import { transactionsApi, loansApi, reportsApi, customersApi, authApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -29,6 +29,7 @@ interface Transaction {
 export default function DatewiseCollectionsPage() {
   const [entries, setEntries] = useState<Transaction[]>([])
   const [customers, setCustomers] = useState<any[]>([])
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -227,6 +228,7 @@ export default function DatewiseCollectionsPage() {
   useEffect(() => {
     fetchEntries()
     fetchCustomers()
+    authApi.getCurrentUser().then(user => setCurrentUser(user))
   }, [startDate, endDate])
 
   // Quick date presets
@@ -548,7 +550,17 @@ export default function DatewiseCollectionsPage() {
                             year: 'numeric'
                           })}
                         </td>
-                        <td className="py-3 px-4 font-medium text-foreground">{entry.customer_name}</td>
+                        <td className="py-3 px-4 font-medium text-foreground">
+                          {(() => {
+                            if (currentUser?.role !== 'admin') return entry.customer_name
+                            const customer = customers.find(c => c.name === entry.customer_name)
+                            return customer ? (
+                              <Link href={`/admin/customers/${customer.id}`} className="hover:text-primary hover:underline transition-colors">
+                                {entry.customer_name}
+                              </Link>
+                            ) : entry.customer_name
+                          })()}
+                        </td>
                         <td className="py-3 px-4 text-foreground text-sm">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${entry.loan_type === 'DC Loan'
                             ? 'bg-blue-500/20 text-blue-600'

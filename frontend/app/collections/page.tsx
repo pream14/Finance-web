@@ -844,7 +844,13 @@ export default function CollectionsPage() {
                     return (
                       <tr key={loan.id} className={`hover:bg-muted/30 transition-colors ${index % 2 === 0 ? 'bg-card' : 'bg-muted/10'
                         }`}>
-                        <td className="px-3 py-2 text-sm font-medium text-foreground">{customer.name}</td>
+                        <td className="px-3 py-2 text-sm font-medium text-foreground">
+                          {currentUser?.role === 'admin' ? (
+                            <Link href={`/admin/customers/${customer.id}`} className="hover:text-primary hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
+                              {customer.name}
+                            </Link>
+                          ) : customer.name}
+                        </td>
                         <td className="px-3 py-2 text-sm text-muted-foreground">{customer.area || '-'}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground">{customer.phone_number || '-'}</td>
 
