@@ -14,6 +14,7 @@ const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 interface Transaction {
   id: number
   customer_name: string
+  customer_id?: number
   loan_type: string
   amount: string
   interest_amount: string
@@ -551,15 +552,11 @@ export default function DatewiseCollectionsPage() {
                           })}
                         </td>
                         <td className="py-3 px-4 font-medium text-foreground">
-                          {(() => {
-                            if (currentUser?.role !== 'admin') return entry.customer_name
-                            const customer = customers.find(c => c.name === entry.customer_name)
-                            return customer ? (
-                              <Link href={`/admin/customers/${customer.id}`} className="hover:text-primary hover:underline transition-colors">
-                                {entry.customer_name}
-                              </Link>
-                            ) : entry.customer_name
-                          })()}
+                          {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && entry.customer_id ? (
+                            <Link href={`/admin/customers/${entry.customer_id}`} className="hover:text-primary hover:underline transition-colors">
+                              {entry.customer_name}
+                            </Link>
+                          ) : entry.customer_name}
                         </td>
                         <td className="py-3 px-4 text-foreground text-sm">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${entry.loan_type === 'DC Loan'
