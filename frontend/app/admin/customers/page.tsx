@@ -119,6 +119,7 @@ export default function CustomersPage() {
   const [dailyCollectionAmount, setDailyCollectionAmount] = useState('')
   const [expectedTotalDays, setExpectedTotalDays] = useState('')
   const [dcDeductionAmount, setDcDeductionAmount] = useState('')
+  const [dcDeductionEdited, setDcDeductionEdited] = useState(false)
 
   // DL Loan fields
   const [dailyInterestRate, setDailyInterestRate] = useState('')
@@ -139,6 +140,7 @@ export default function CustomersPage() {
   const [newMaxDays, setNewMaxDays] = useState('')
   const [newAllowAsalPaymentAnytime, setNewAllowAsalPaymentAnytime] = useState(true)
   const [newDcDeductionAmount, setNewDcDeductionAmount] = useState('')
+  const [newDcDeductionEdited, setNewDcDeductionEdited] = useState(false)
 
   // Auto-calculate DC deduction (15% rate: ₹150 per ₹1000)
   const calculateDcDeduction = (principal: string) => {
@@ -359,9 +361,13 @@ export default function CustomersPage() {
           if (expectedTotalDays) {
             loanData.expected_total_days = parseInt(expectedTotalDays)
           }
-          const deduction = dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)
-          if (deduction) {
-            loanData.dc_deduction_amount = parseFloat(deduction)
+          if (dcDeductionEdited) {
+            loanData.dc_deduction_amount = parseFloat(dcDeductionAmount) || 0
+          } else {
+            const deduction = calculateDcDeduction(firstLoanPrincipal)
+            if (deduction) {
+              loanData.dc_deduction_amount = parseFloat(deduction)
+            }
           }
         } else if (firstLoanType === 'DL Loan') {
           loanData.daily_interest_rate = parseFloat(dailyInterestRate)
@@ -397,6 +403,7 @@ export default function CustomersPage() {
       setDailyCollectionAmount('')
       setExpectedTotalDays('')
       setDcDeductionAmount('')
+      setDcDeductionEdited(false)
       setDailyInterestRate('')
       setMaxDays('')
       setAllowAsalPaymentAnytime(true)
@@ -470,9 +477,13 @@ export default function CustomersPage() {
         if (newExpectedTotalDays) {
           loanData.expected_total_days = parseInt(newExpectedTotalDays)
         }
-        const deduction = newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)
-        if (deduction) {
-          loanData.dc_deduction_amount = parseFloat(deduction)
+        if (newDcDeductionEdited) {
+          loanData.dc_deduction_amount = parseFloat(newDcDeductionAmount) || 0
+        } else {
+          const deduction = calculateDcDeduction(newLoanPrincipal)
+          if (deduction) {
+            loanData.dc_deduction_amount = parseFloat(deduction)
+          }
         }
       } else if (newLoanType === 'DL Loan') {
         loanData.daily_interest_rate = parseFloat(newDailyInterestRate)
@@ -506,6 +517,7 @@ export default function CustomersPage() {
       setNewDailyCollectionAmount('')
       setNewExpectedTotalDays('')
       setNewDcDeductionAmount('')
+      setNewDcDeductionEdited(false)
       setNewDailyInterestRate('')
       setNewMaxDays('')
       setNewAllowAsalPaymentAnytime(true)
@@ -962,14 +974,14 @@ export default function CustomersPage() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Deduction / Advance Interest (₹)</label>
-                        <Input type="number" min="0" step="1" placeholder="Auto: 15% of principal" value={newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)} onChange={(e) => setNewDcDeductionAmount(e.target.value)} className="border-border/50" />
+                        <Input type="number" min="0" step="1" placeholder="Auto: 15% of principal" value={newDcDeductionEdited ? newDcDeductionAmount : (newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal))} onChange={(e) => { setNewDcDeductionAmount(e.target.value); setNewDcDeductionEdited(true) }} className="border-border/50" />
                         <p className="text-xs text-muted-foreground">₹150 per ₹1,000 (auto-calculated, editable)</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">Amount Given to Customer</label>
                         <div className="px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-md">
                           <span className="text-lg font-bold text-green-600">
-                            ₹{(() => { const pr = parseFloat(newLoanPrincipal) || 0; const d = parseFloat(newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)) || 0; return Math.max(0, pr - d).toLocaleString('en-IN') })()}
+                            ₹{(() => { const pr = parseFloat(newLoanPrincipal) || 0; const d = newDcDeductionEdited ? (parseFloat(newDcDeductionAmount) || 0) : (parseFloat(newDcDeductionAmount || calculateDcDeduction(newLoanPrincipal)) || 0); return Math.max(0, pr - d).toLocaleString('en-IN') })()}
                           </span>
                         </div>
                       </div>
@@ -1223,14 +1235,14 @@ export default function CustomersPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <label className="text-sm font-medium text-foreground">Deduction / Advance Interest (₹)</label>
-                              <Input type="number" min="0" step="1" placeholder="Auto: 15% of principal" value={dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)} onChange={(e) => setDcDeductionAmount(e.target.value)} className="border-border/50" />
+                              <Input type="number" min="0" step="1" placeholder="Auto: 15% of principal" value={dcDeductionEdited ? dcDeductionAmount : (dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal))} onChange={(e) => { setDcDeductionAmount(e.target.value); setDcDeductionEdited(true) }} className="border-border/50" />
                               <p className="text-xs text-muted-foreground">₹150 per ₹1,000 (auto-calculated, editable)</p>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium text-foreground">Amount Given to Customer</label>
                               <div className="px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-md">
                                 <span className="text-lg font-bold text-green-600">
-                                  ₹{(() => { const pr = parseFloat(firstLoanPrincipal) || 0; const d = parseFloat(dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)) || 0; return Math.max(0, pr - d).toLocaleString('en-IN') })()}
+                                  ₹{(() => { const pr = parseFloat(firstLoanPrincipal) || 0; const d = dcDeductionEdited ? (parseFloat(dcDeductionAmount) || 0) : (parseFloat(dcDeductionAmount || calculateDcDeduction(firstLoanPrincipal)) || 0); return Math.max(0, pr - d).toLocaleString('en-IN') })()}
                                 </span>
                               </div>
                             </div>
