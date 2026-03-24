@@ -1,3 +1,4 @@
+import calendar
 from datetime import date, timedelta
 from decimal import Decimal
 from django.db.models import Sum, Count, Q, Max
@@ -7,6 +8,18 @@ from rest_framework.response import Response
 from rest_framework import permissions
 
 from .models import Loan, Transaction
+
+
+def _last_day_of_month(dt):
+    """Return the last day number of the month for the given date."""
+    return calendar.monthrange(dt.year, dt.month)[1]
+
+
+def _effective_cycle_day(cycle_day, dt):
+    """Clamp cycle_day to the last day of the month if it exceeds it.
+    E.g. cycle_day=31 in April (30 days) returns 30."""
+    last_day = _last_day_of_month(dt)
+    return min(cycle_day, last_day)
 
 
 class DashboardStatsView(APIView):
@@ -24,15 +37,23 @@ class DashboardStatsView(APIView):
     def get(self, request):
         today = date.today()
         today_day = today.day
+        last_day = _last_day_of_month(today)
+        is_last_day = today_day == last_day
         
         # Get all active loans
         active_loans = Loan.objects.filter(status='active').select_related('customer')
         
         # 1. Monthly Interest Due Today
-        # Loans where interest_cycle_day matches today's date
+        # Match loans whose effective cycle day is today.
+        # If today is the last day of the month, also include loans with
+        # interest_cycle_day > last_day (e.g. day 31 in a 30-day month).
+        if is_last_day:
+            cycle_day_filter = Q(interest_cycle_day=today_day) | Q(interest_cycle_day__gt=last_day)
+        else:
+            cycle_day_filter = Q(interest_cycle_day=today_day)
+
         monthly_interest_due = active_loans.filter(
-            loan_type='Monthly Interest Loan',
-            interest_cycle_day=today_day
+            Q(loan_type='Monthly Interest Loan') & cycle_day_filter
         ).prefetch_related('transactions')
         
         monthly_interest_due_list = []
@@ -66,7 +87,10 @@ class DashboardStatsView(APIView):
         # Monthly Interest: Passed interest cycle day without payment
         monthly_loans = active_loans.filter(loan_type='Monthly Interest Loan')
         for loan in monthly_loans:
-            if loan.interest_cycle_day and loan.interest_cycle_day < today_day:
+            if not loan.interest_cycle_day:
+                continue
+            effective_day = _effective_cycle_day(loan.interest_cycle_day, today)
+            if effective_day < today_day:
                 # Check if interest was paid this month
                 month_start = today.replace(day=1)
                 interest_paid = loan.transactions.filter(
@@ -75,7 +99,7 @@ class DashboardStatsView(APIView):
                 ).exists()
                 
                 if not interest_paid:
-                    days_overdue = today_day - loan.interest_cycle_day
+                    days_overdue = today_day - effective_day
                     interest_rate = loan.monthly_interest_rate or Decimal('0')
                     interest_due = (loan.principal_amount * interest_rate / 100)
                     overdue_alerts.append({
