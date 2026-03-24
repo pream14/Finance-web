@@ -484,9 +484,11 @@ export const reportsApi = {
 
 // Cash Book API
 export const cashBookApi = {
-  get: (date?: string) => {
+  get: (params?: { date?: string; start_date?: string; end_date?: string }) => {
     const queryParams = new URLSearchParams();
-    if (date) queryParams.append('date', date);
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.date) queryParams.append('date', params.date);
     const query = queryParams.toString();
     return apiRequest<any>(`/transactions/daily-cashbook/${query ? `?${query}` : ''}`);
   },

@@ -20,15 +20,156 @@ class DailyCashBookView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # Support date range: start_date & end_date, or legacy single 'date' param
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
         date_str = request.query_params.get('date')
-        if date_str:
+
+        if start_date_str and end_date_str:
             try:
-                target_date = date.fromisoformat(date_str)
+                start_dt = date.fromisoformat(start_date_str)
+                end_dt = date.fromisoformat(end_date_str)
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+        elif date_str:
+            try:
+                start_dt = end_dt = date.fromisoformat(date_str)
             except ValueError:
                 return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            target_date = date.today()
+            start_dt = end_dt = date.today()
 
+        is_range = start_dt != end_dt
+
+        if is_range:
+            return self._get_range(request, start_dt, end_dt)
+        else:
+            return self._get_single_day(request, end_dt)
+
+    def _get_range(self, request, start_dt, end_dt):
+        """Aggregate cashbook data across a date range."""
+        date_filter = Q(created_at__date__gte=start_dt, created_at__date__lte=end_dt)
+
+        # Collections
+        cash_collections = Transaction.objects.filter(
+            date_filter, payment_method='cash'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        online_collections = Transaction.objects.filter(
+            date_filter, payment_method='online'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Loans given
+        cash_loans_given = Loan.objects.filter(
+            date_filter, payment_method='cash'
+        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+
+        online_loans_given = Loan.objects.filter(
+            date_filter, payment_method='online'
+        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+
+        # Expenses
+        try:
+            cash_expenses = Expense.objects.filter(
+                date_filter, payment_method='cash'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            online_expenses = Expense.objects.filter(
+                date_filter, payment_method='online'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            expenses_total = cash_expenses + online_expenses
+        except Exception:
+            expenses_total = Expense.objects.filter(
+                date_filter
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            cash_expenses = expenses_total
+            online_expenses = Decimal('0')
+
+        # Income
+        cash_income = Income.objects.filter(
+            date_filter, payment_method='cash'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        online_income = Income.objects.filter(
+            date_filter, payment_method='online'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        other_income_total = cash_income + online_income
+
+        # Revenue
+        dc_deduction_revenue = Loan.objects.filter(
+            date_filter, loan_type='DC Loan', dc_deduction_amount__gt=0
+        ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
+
+        monthly_interest = Transaction.objects.filter(
+            date_filter, loan__loan_type='Monthly Interest Loan', interest_amount__gt=0
+        ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
+
+        dl_interest = Transaction.objects.filter(
+            date_filter, loan__loan_type='DL Loan', interest_amount__gt=0
+        ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
+
+        dc_interest = Transaction.objects.filter(
+            date_filter, loan__loan_type='DC Loan', interest_amount__gt=0
+        ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
+
+        total_interest_collected = monthly_interest + dl_interest + dc_interest
+        total_revenue = dc_deduction_revenue + total_interest_collected + other_income_total
+
+        # Detail lists
+        try:
+            expense_list = list(Expense.objects.filter(
+                date_filter
+            ).values('id', 'description', 'amount', 'payment_method', 'created_at'))
+        except Exception:
+            expense_list = list(Expense.objects.filter(
+                date_filter
+            ).values('id', 'description', 'amount', 'created_at'))
+            for exp in expense_list:
+                exp['payment_method'] = 'cash'
+
+        income_list = list(Income.objects.filter(
+            date_filter
+        ).values('id', 'description', 'source', 'amount', 'payment_method', 'created_at'))
+
+        new_loans_list = list(Loan.objects.filter(
+            date_filter
+        ).select_related('customer').values(
+            'id', 'customer__name', 'loan_type', 'principal_amount',
+            'payment_method', 'dc_deduction_amount', 'created_at'
+        ))
+
+        return Response({
+            'is_range': True,
+            'start_date': start_dt.isoformat(),
+            'end_date': end_dt.isoformat(),
+            'cash_collections': str(cash_collections),
+            'online_collections': str(online_collections),
+            'total_collections': str(cash_collections + online_collections),
+            'cash_loans_given': str(cash_loans_given),
+            'online_loans_given': str(online_loans_given),
+            'total_loans_given': str(cash_loans_given + online_loans_given),
+            'expenses': str(expenses_total),
+            'cash_expenses': str(cash_expenses),
+            'online_expenses': str(online_expenses),
+            'other_income': str(other_income_total),
+            'cash_income': str(cash_income),
+            'online_income': str(online_income),
+            'revenue': {
+                'dc_deduction': str(dc_deduction_revenue),
+                'monthly_interest': str(monthly_interest),
+                'dl_interest': str(dl_interest),
+                'dc_interest': str(dc_interest),
+                'total_interest_collected': str(total_interest_collected),
+                'other_income': str(other_income_total),
+                'total': str(total_revenue),
+            },
+            'details': {
+                'expenses': expense_list,
+                'new_loans': new_loans_list,
+                'incomes': income_list,
+            },
+        })
+
+    def _get_single_day(self, request, target_date):
+        """Get cashbook data for a single day (original behavior)."""
         # Get or calculate opening balance (iruppu)
         cashbook_entry, _ = DailyCashBook.objects.get_or_create(
             date=target_date,
@@ -167,6 +308,7 @@ class DailyCashBookView(APIView):
         ))
 
         return Response({
+            'is_range': False,
             'date': target_date.isoformat(),
             'opening_balance': str(opening_balance),
             'cash_collections': str(cash_collections),
