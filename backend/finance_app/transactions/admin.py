@@ -4,7 +4,8 @@ from .models import Loan, Transaction
 
 @admin.register(Loan)
 class LoanAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'loan_type', 'principal_amount', 'remaining_amount', 'start_date', 'status', 'created_by', 'created_at')
+    list_display = ('customer', 'loan_type', 'principal_amount', 'remaining_amount', 'interest_cycle_day', 'start_date', 'status', 'created_by', 'created_at')
+    list_editable = ('interest_cycle_day',)
     list_filter = ('loan_type', 'status', 'created_at')
     search_fields = ('customer__name', 'customer__phone_number')
     readonly_fields = ('created_by', 'created_at', 'updated_at')
