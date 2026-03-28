@@ -338,14 +338,17 @@ export default function CollectionsPage() {
         matchingLoans.forEach((loan: Loan) => {
           let defaultAmount = ''
 
-          // Get expected interest from API (already calculated)
-          const expectedInterest = loan.expected_interest ? parseFloat(loan.expected_interest) : 0
+          // For Monthly Interest: use total_pending_interest (includes unpaid months)
+          // For DL: use expected_interest (DL has its own accumulation)
+          const expectedInterest = loan.loan_type === 'Monthly Interest Loan'
+            ? (loan.total_pending_interest ? parseFloat(loan.total_pending_interest) : 0)
+            : (loan.expected_interest ? parseFloat(loan.expected_interest) : 0)
 
           // Auto-populate default amounts based on loan type
           if (loan.loan_type === 'DC Loan') {
             defaultAmount = (loan.daily_collection_amount || FIXED_DAILY_AMOUNT).toString()
           } else if (loan.loan_type === 'Monthly Interest Loan') {
-            // Pre-populate with expected interest, asal starts at 0
+            // Pre-populate with total pending interest (includes accumulated unpaid)
             defaultAmount = expectedInterest.toString()
           } else if (loan.loan_type === 'DL Loan') {
             // Pre-populate with expected interest, asal starts at 0
@@ -509,8 +512,10 @@ export default function CollectionsPage() {
         matchingLoans.forEach((loan: Loan) => {
           let defaultAmount = ''
 
-          // Get expected interest from API (already calculated)
-          const expectedInterest = loan.expected_interest ? parseFloat(loan.expected_interest) : 0
+          // For Monthly Interest: use total_pending_interest (includes unpaid months)
+          const expectedInterest = loan.loan_type === 'Monthly Interest Loan'
+            ? (loan.total_pending_interest ? parseFloat(loan.total_pending_interest) : 0)
+            : (loan.expected_interest ? parseFloat(loan.expected_interest) : 0)
 
           // Auto-populate default amounts based on loan type
           if (loan.loan_type === 'DC Loan') {

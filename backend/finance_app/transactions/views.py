@@ -117,19 +117,37 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """Delete a transaction and reverse its effect on the loan balance."""
+        from decimal import Decimal
         transaction = self.get_object()
         loan = transaction.loan
 
         # Reverse the principal reduction
         asal = transaction.asal_amount if transaction.asal_amount is not None else transaction.amount
         if asal:
-            from decimal import Decimal
             loan.remaining_amount += Decimal(str(asal))
             # If loan was settled, reactivate it
             if loan.status == 'settled':
                 loan.status = 'active'
-            loan.save()
 
+        # Recalculate pending_interest from remaining transactions
+        if loan.loan_type in ('Monthly Interest Loan', 'DL Loan'):
+            remaining_txns = loan.transactions.exclude(pk=transaction.pk).order_by('created_at')
+            pending = Decimal('0')
+            for txn in remaining_txns:
+                if loan.loan_type == 'Monthly Interest Loan':
+                    monthly_interest = loan.calculate_monthly_interest()
+                    expected = monthly_interest + pending
+                else:
+                    dl_interest, _ = loan.calculate_dl_interest()
+                    expected = dl_interest + pending
+                paid = Decimal(str(txn.interest_amount)) if txn.interest_amount else Decimal('0')
+                if paid < expected:
+                    pending = expected - paid
+                else:
+                    pending = Decimal('0')
+            loan.pending_interest = pending
+
+        loan.save()
         transaction.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
