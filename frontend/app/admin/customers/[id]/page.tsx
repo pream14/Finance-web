@@ -454,7 +454,7 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             // Calculate running balance: start from principal and subtract previous entries' principal payments
                                             const previousEntries = entries.slice(0, index)
                                             const totalPrincipalPaidBefore = previousEntries.reduce((sum, e) => {
-                                                return sum + Number(e.asal_amount || e.amount || 0)
+                                                return sum + Number(e.asal_amount ?? e.amount ?? 0)
                                             }, 0)
                                             const loanPrincipal = selectedLoan?.principal_amount || 0
                                             const balanceBefore = Math.max(0, loanPrincipal - totalPrincipalPaidBefore)

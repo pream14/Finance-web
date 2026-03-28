@@ -60,7 +60,7 @@ class DashboardStatsView(APIView):
         for loan in monthly_interest_due:
             # Calculate interest due
             interest_rate = loan.monthly_interest_rate or Decimal('0')
-            interest_due = (loan.principal_amount * interest_rate / 100)
+            interest_due = (loan.remaining_amount * interest_rate / 100)
             
             # Check if interest was already collected this month
             month_start = today.replace(day=1)
@@ -101,7 +101,7 @@ class DashboardStatsView(APIView):
                 if not interest_paid:
                     days_overdue = today_day - effective_day
                     interest_rate = loan.monthly_interest_rate or Decimal('0')
-                    interest_due = (loan.principal_amount * interest_rate / 100)
+                    interest_due = (loan.remaining_amount * interest_rate / 100)
                     overdue_alerts.append({
                         'loan_id': loan.id,
                         'customer_id': loan.customer.id,

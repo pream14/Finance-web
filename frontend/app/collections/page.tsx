@@ -186,11 +186,19 @@ export default function CollectionsPage() {
       return
     }
 
-    // Balance validation - don't allow payment if amount > balance
-    const paymentAmount = parseFloat(payment.amount)
-    if (paymentAmount > payment.balance) {
-      alert(`Payment amount (₹${paymentAmount.toLocaleString()}) cannot exceed the remaining balance (₹${payment.balance.toLocaleString()})`)
-      return
+    // Only validate asal (principal) against remaining balance, not interest
+    if (selectedLoanType === 'Monthly Interest Loan' || selectedLoanType === 'DL Loan') {
+      const asalAmount = parseFloat(payment.monthlyAsal || payment.dlAsal || '0')
+      if (asalAmount > payment.balance) {
+        alert(`Principal amount (₹${asalAmount.toLocaleString()}) cannot exceed the remaining balance (₹${payment.balance.toLocaleString()})`)
+        return
+      }
+    } else {
+      const paymentAmount = parseFloat(payment.amount)
+      if (paymentAmount > payment.balance) {
+        alert(`Payment amount (₹${paymentAmount.toLocaleString()}) cannot exceed the remaining balance (₹${payment.balance.toLocaleString()})`)
+        return
+      }
     }
 
     // Prevent double-click: check if this loan is already being submitted
@@ -675,8 +683,8 @@ export default function CollectionsPage() {
       const transaction = await transactionsApi.create({
         loan: selectedLoan.id,
         amount: entryAmount,
-        asal_amount: asalAmount || undefined,
-        interest_amount: interestAmount || undefined,
+        asal_amount: asalAmount,
+        interest_amount: interestAmount,
         payment_method: paymentMethod,
         description: entryDescription,
       })

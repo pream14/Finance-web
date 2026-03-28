@@ -121,7 +121,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
         loan = transaction.loan
 
         # Reverse the principal reduction
-        asal = transaction.asal_amount if transaction.asal_amount else transaction.amount
+        asal = transaction.asal_amount if transaction.asal_amount is not None else transaction.amount
         if asal:
             from decimal import Decimal
             loan.remaining_amount += Decimal(str(asal))

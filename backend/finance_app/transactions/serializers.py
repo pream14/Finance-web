@@ -187,7 +187,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         # When updating a transaction, we need to adjust the loan balance
-        old_asal = instance.asal_amount or instance.amount or 0
+        old_asal = instance.asal_amount if instance.asal_amount is not None else (instance.amount or 0)
         new_asal = validated_data.get('asal_amount', instance.asal_amount)
         if new_asal is None:
             new_asal = validated_data.get('amount', instance.amount) or 0
