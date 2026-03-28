@@ -19,6 +19,10 @@ interface Loan {
     daily_interest_rate?: number
     daily_collection_amount?: number
     expected_total_days?: number
+    interest_cycle_day?: number
+    pending_interest?: number
+    total_pending_interest?: number
+    expected_interest?: number
 }
 
 interface Customer {
@@ -93,6 +97,10 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                 daily_interest_rate: loan.daily_interest_rate ? parseFloat(loan.daily_interest_rate) : undefined,
                 daily_collection_amount: loan.daily_collection_amount ? parseFloat(loan.daily_collection_amount) : undefined,
                 expected_total_days: loan.expected_total_days ? parseInt(loan.expected_total_days) : undefined,
+                interest_cycle_day: loan.interest_cycle_day ? parseInt(loan.interest_cycle_day) : undefined,
+                pending_interest: loan.pending_interest ? parseFloat(loan.pending_interest) : 0,
+                total_pending_interest: loan.total_pending_interest ? parseFloat(loan.total_pending_interest) : 0,
+                expected_interest: loan.expected_interest ? parseFloat(loan.expected_interest) : 0,
             })) : []
             setLoans(parsedLoans)
 
@@ -361,6 +369,34 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                 <div className="flex justify-between text-xs">
                                                     <span className="text-muted-foreground">Interest Rate</span>
                                                     <span className="text-green-600 font-medium">{loan.monthly_interest_rate}% / month</span>
+                                                </div>
+                                            )}
+                                            {loan.loan_type === 'Monthly Interest Loan' && loan.interest_cycle_day && (
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">Cycle Day</span>
+                                                    <span className="text-blue-600 font-medium">{loan.interest_cycle_day}{loan.interest_cycle_day === 1 ? 'st' : loan.interest_cycle_day === 2 ? 'nd' : loan.interest_cycle_day === 3 ? 'rd' : 'th'} of every month</span>
+                                                </div>
+                                            )}
+                                            {loan.loan_type === 'Monthly Interest Loan' && loan.status === 'active' && (
+                                                <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-muted-foreground">Current Month Interest</span>
+                                                        <span className="text-foreground font-medium">₹{(loan.expected_interest || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    {(loan.pending_interest || 0) > 0 && (
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-orange-600">Pending ({Math.round((loan.pending_interest || 0) / (loan.expected_interest || 1))} month{Math.round((loan.pending_interest || 0) / (loan.expected_interest || 1)) !== 1 ? 's' : ''} unpaid)</span>
+                                                            <span className="text-orange-600 font-bold">₹{(loan.pending_interest || 0).toLocaleString('en-IN')}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between text-xs font-bold">
+                                                        <span className={(loan.pending_interest || 0) > 0 ? 'text-red-600' : 'text-green-600'}>
+                                                            Total Interest Due
+                                                        </span>
+                                                        <span className={(loan.pending_interest || 0) > 0 ? 'text-red-600' : 'text-green-600'}>
+                                                            ₹{(loan.total_pending_interest || 0).toLocaleString('en-IN')}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             )}
                                             {loan.loan_type === 'DL Loan' && loan.daily_interest_rate && (
