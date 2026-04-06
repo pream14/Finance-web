@@ -332,11 +332,6 @@ export default function DatewiseCollectionsPage() {
                     </SheetClose>
                     <SheetClose asChild>
                       <Button variant="outline" asChild className="w-full justify-start">
-                        <Link href="/admin/dashboard">Dashboard</Link>
-                      </Button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Button variant="outline" asChild className="w-full justify-start">
                         <Link href="/collections/datewise">Collections</Link>
                       </Button>
                     </SheetClose>
@@ -579,8 +574,8 @@ export default function DatewiseCollectionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50">
-                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap sticky left-0 z-20 bg-muted/50" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Date</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Customer</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Date</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap sticky left-0 z-20 bg-muted/50" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Customer</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Loan Type</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Interest</th>
                       <th className="text-right py-3 px-4 font-semibold text-foreground whitespace-nowrap">Amount</th>
@@ -592,14 +587,14 @@ export default function DatewiseCollectionsPage() {
                   <tbody className="divide-y divide-border/30">
                     {filteredEntries.map((entry, index) => (
                       <tr key={entry.id} className={`hover:bg-muted/30 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/10'}`}>
-                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
+                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                           {new Date(entry.created_at).toLocaleDateString('en-IN', {
                             day: '2-digit',
                             month: 'short',
                             year: 'numeric'
                           })}
                         </td>
-                        <td className="py-3 px-4 font-medium text-foreground">
+                        <td className="py-3 px-4 font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                           {(currentUser?.role === 'admin' || currentUser?.role === 'owner') && entry.customer_id ? (
                             <Link href={`/admin/customers/${entry.customer_id}`} className="hover:text-primary hover:underline transition-colors">
                               {entry.customer_name}

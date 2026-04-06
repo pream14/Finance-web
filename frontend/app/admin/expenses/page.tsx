@@ -406,11 +406,6 @@ export default function MoneyManagerPage() {
                     </SheetClose>
                     <SheetClose asChild>
                       <Button variant="outline" asChild className="w-full justify-start">
-                        <Link href="/admin/dashboard">Dashboard</Link>
-                      </Button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Button variant="outline" asChild className="w-full justify-start">
                         <Link href="/collections/datewise">Collections</Link>
                       </Button>
                     </SheetClose>
@@ -965,8 +960,8 @@ export default function MoneyManagerPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap sticky left-0 z-20 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap sticky left-0 z-20 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Description</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Category</th>
                           <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Method</th>
@@ -976,8 +971,8 @@ export default function MoneyManagerPage() {
                       <tbody className="divide-y divide-border/30">
                         {expenses.map((expense) => (
                           <tr key={expense.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{expense.date}</td>
-                            <td className="py-3 px-4 font-medium text-foreground">{expense.description}</td>
+                            <td className="py-3 px-4 text-foreground">{expense.date}</td>
+                            <td className="py-3 px-4 font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{expense.description}</td>
                             <td className="py-3 px-4">
                               {expense.category_name ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-600">
@@ -1056,8 +1051,8 @@ export default function MoneyManagerPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap sticky left-0 z-20 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Source</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap sticky left-0 z-20 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Source</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
                           <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Method</th>
@@ -1067,8 +1062,8 @@ export default function MoneyManagerPage() {
                       <tbody className="divide-y divide-border/30">
                         {incomes.map((income) => (
                           <tr key={income.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{income.date}</td>
-                            <td className="py-3 px-4 font-medium text-foreground">
+                            <td className="py-3 px-4 text-foreground">{income.date}</td>
+                            <td className="py-3 px-4 font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-600">
                                 {income.source}
                               </span>

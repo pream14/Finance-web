@@ -682,11 +682,6 @@ export default function CustomersPage() {
                   </SheetClose>
                   <SheetClose asChild>
                     <Button variant="outline" asChild className="w-full justify-start">
-                      <Link href="/admin/dashboard">Dashboard</Link>
-                    </Button>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Button variant="outline" asChild className="w-full justify-start">
                       <Link href="/collections/datewise">Collections</Link>
                     </Button>
                   </SheetClose>
