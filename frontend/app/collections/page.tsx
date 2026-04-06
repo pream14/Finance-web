@@ -737,54 +737,49 @@ export default function CollectionsPage() {
             </div>
           </div>
 
-        </div>
+          {/* Mobile Navigation */}
+          <div className="flex md:hidden items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                <SheetHeader className="mb-6">
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4">
+                  <SheetClose asChild>
+                    <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/collections">Add Collection</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/collections/datewise">Collections</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/customers">Customers</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/expenses">Money Manager</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+                      <Link href="/admin/cashbook">Cash Book</Link>
+                    </Button>
+                  </SheetClose>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
-        {/* Mobile Navigation */}
-        <div className="flex md:hidden items-center gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-              <SheetHeader className="mb-6">
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
-              <div className="flex flex-col gap-4">
-                <SheetClose asChild>
-                  <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
-                    <Link href="/collections">Add Collection</Link>
-                  </Button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Button variant="outline" asChild className="w-full justify-start">
-                    <Link href="/admin/dashboard">Dashboard</Link>
-                  </Button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Button variant="outline" asChild className="w-full justify-start">
-                    <Link href="/collections/datewise">Collections</Link>
-                  </Button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Button variant="outline" asChild className="w-full justify-start">
-                    <Link href="/admin/customers">Customers</Link>
-                  </Button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Button variant="outline" asChild className="w-full justify-start">
-                    <Link href="/admin/expenses">Money Manager</Link>
-                  </Button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
-                    <Link href="/admin/cashbook">Cash Book</Link>
-                  </Button>
-                </SheetClose>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </header>
 

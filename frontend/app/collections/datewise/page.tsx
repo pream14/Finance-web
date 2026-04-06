@@ -306,12 +306,7 @@ export default function DatewiseCollectionsPage() {
               <Download className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">{reportLoading ? '...' : 'Download'}</span>
             </Button>
-            <Button asChild size="sm">
-              <Link href="/collections">
-                <span className="hidden sm:inline">Add Collection</span>
-                <span className="sm:hidden">Add</span>
-              </Link>
-            </Button>
+
             {/* Mobile Navigation */}
             <div className="flex md:hidden">
               <Sheet>
