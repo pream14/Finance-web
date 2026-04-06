@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Users, Plus, Trash2, Edit3, Wallet, Eye, X, Filter, ChevronDown, ChevronUp } from 'lucide-react'
-import { customersApi, loansApi, transactionsApi } from '@/lib/api'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Users, Plus, Trash2, Edit3, Wallet, Eye, X, Filter, ChevronDown, ChevronUp, Menu } from 'lucide-react'
+import { customersApi, loansApi, transactionsApi, authApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -335,7 +336,7 @@ export default function CustomersPage() {
 
     try {
       setSubmitting(true)
-       const created = await customersApi.create({
+      const created = await customersApi.create({
         name: addFormData.name.trim(),
         phone_number: addFormData.phone.trim(),
         alternate_phone: addFormData.alternate_phone.trim() || undefined,
@@ -661,11 +662,81 @@ export default function CustomersPage() {
             </div>
           </div>
 
+          {/* Mobile Navigation */}
+          <div className="flex md:hidden items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                <SheetHeader className="mb-6">
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4">
+                  <SheetClose asChild>
+                    <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/collections">Add Collection</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/dashboard">Dashboard</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/collections/datewise">Collections</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/customers">Customers</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start">
+                      <Link href="/admin/expenses">Money Manager</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+                      <Link href="/admin/cashbook">Cash Book</Link>
+                    </Button>
+                  </SheetClose>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Loan Type Customer Count */}
+        {customers.length > 0 && (() => {
+          const dcCount = customers.filter(c => c.loans.some(l => l.status === 'active' && l.loan_type === 'DC Loan')).length
+          const miCount = customers.filter(c => c.loans.some(l => l.status === 'active' && l.loan_type === 'Monthly Interest Loan')).length
+          const dlCount = customers.filter(c => c.loans.some(l => l.status === 'active' && l.loan_type === 'DL Loan')).length
+          return (
+            <div className="flex flex-wrap gap-3 mb-6">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                <span className="text-xs font-medium text-blue-600">DC Loan</span>
+                <span className="text-sm font-bold text-blue-700">{dcCount}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+                <span className="text-xs font-medium text-green-600">Monthly Interest</span>
+                <span className="text-sm font-bold text-green-700">{miCount}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+                <span className="text-xs font-medium text-purple-600">DL Loan</span>
+                <span className="text-sm font-bold text-purple-700">{dlCount}</span>
+              </div>
+            </div>
+          )
+        })()}
         {/* Edit Customer Modal */}
         {editingCustomer && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -676,15 +747,15 @@ export default function CustomersPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleEditSave} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                         <label className="text-sm font-medium text-foreground">Full Name</label>
-                         <Input
-                           placeholder="Full Name"
-                           value={editFormData.name || ''}
-                           onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                           className="border-border/50"
-                           required
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Full Name</label>
+                      <Input
+                        placeholder="Full Name"
+                        value={editFormData.name || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                        className="border-border/50"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -816,7 +887,7 @@ export default function CustomersPage() {
                           className="border-border/50"
                         />
                       </div>
-                  </>
+                    </>
                   )}
 
                   {editingLoan.loan_type === 'DC Loan' && (
@@ -1040,7 +1111,7 @@ export default function CustomersPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddCustomer} className="space-y-4">
-                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Full Name</label>
                     <Input
@@ -1358,12 +1429,12 @@ export default function CustomersPage() {
           <Card className="border-border/50">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full border-collapse" style={{ borderSpacing: 0 }}>
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
-                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Customer Name</th>
+                      <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap sticky left-0 z-20" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Customer Name</th>
                       <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Phone</th>
-                     
+
                       <th className="border border-border px-4 py-3 text-left text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">City</th>
                       <th className="border border-border px-4 py-3 text-center text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Active Loans</th>
                       <th className="border border-border px-4 py-3 text-right text-xs font-medium text-muted-foreground bg-muted whitespace-nowrap">Total Loan</th>
@@ -1383,7 +1454,7 @@ export default function CustomersPage() {
                             className="hover:bg-muted/50 border-b border-border cursor-pointer transition-colors"
                             onClick={() => handleCustomerClick(customer)}
                           >
-                            <td className="border border-border px-4 py-3">
+                            <td className="border border-border px-4 py-3 sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                               <div className="flex items-center gap-2">
                                 <Button
                                   variant="ghost"
@@ -1407,7 +1478,7 @@ export default function CustomersPage() {
                               </div>
                             </td>
                             <td className="border border-border px-4 py-3 text-sm text-muted-foreground">{customer.phone || 'N/A'}</td>
-                           
+
                             <td className="border border-border px-4 py-3 text-sm text-muted-foreground">{customer.city || 'N/A'}</td>
                             <td className="border border-border px-4 py-3 text-center">
                               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold text-xs">

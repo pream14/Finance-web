@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 import {
     BookOpen, Calendar, RefreshCw, Filter,
-    Save, Pencil, Download, TrendingUp, TrendingDown, Wallet, Banknote
+    Save, Pencil, Download, TrendingUp, TrendingDown, Wallet, Banknote, Menu
 } from 'lucide-react'
 import { cashBookApi, revenueApi } from '@/lib/api'
 
@@ -223,6 +225,53 @@ export default function CashBookPage() {
                                 <Download className={`w-4 h-4 ${pdfLoading ? 'animate-spin' : ''}`} />
                             </Button>
                         )}
+                        {/* Mobile Navigation */}
+                        <div className="flex md:hidden">
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="outline" size="icon">
+                                        <Menu className="h-5 w-5" />
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                                    <SheetHeader className="mb-6">
+                                        <SheetTitle>Menu</SheetTitle>
+                                    </SheetHeader>
+                                    <div className="flex flex-col gap-4">
+                                        <SheetClose asChild>
+                                            <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                                                <Link href="/collections">Add Collection</Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button variant="outline" asChild className="w-full justify-start">
+                                                <Link href="/admin/dashboard">Dashboard</Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button variant="outline" asChild className="w-full justify-start">
+                                                <Link href="/collections/datewise">Collections</Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button variant="outline" asChild className="w-full justify-start">
+                                                <Link href="/admin/customers">Customers</Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button variant="outline" asChild className="w-full justify-start">
+                                                <Link href="/admin/expenses">Money Manager</Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+                                                <Link href="/admin/cashbook">Cash Book</Link>
+                                            </Button>
+                                        </SheetClose>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -538,7 +587,7 @@ export default function CashBookPage() {
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="bg-muted/50">
-                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Customer</th>
+                                                        <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs sticky left-0 z-20 bg-muted/50" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Customer</th>
                                                         <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Type</th>
                                                         <th className="text-right py-2.5 px-3 font-semibold text-foreground text-xs">Amount</th>
                                                         <th className="text-left py-2.5 px-3 font-semibold text-foreground text-xs">Method</th>
@@ -548,7 +597,7 @@ export default function CashBookPage() {
                                                 <tbody className="divide-y divide-border/30">
                                                     {cashBookData.details.new_loans.map((loan, i) => (
                                                         <tr key={loan.id} className={`hover:bg-muted/30 transition-colors ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
-                                                            <td className="py-2.5 px-3 font-medium text-foreground">{loan.customer__name}</td>
+                                                            <td className="py-2.5 px-3 font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{loan.customer__name}</td>
                                                             <td className="py-2.5 px-3">
                                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${loan.loan_type === 'DC Loan'
                                                                     ? 'bg-blue-500/20 text-blue-600'

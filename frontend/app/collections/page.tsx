@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Plus, Wallet, Edit2, X, Check, Trash2 } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { ArrowLeft, Plus, Wallet, Edit2, X, Check, Trash2, Menu } from 'lucide-react'
 import { customersApi, loansApi, transactionsApi, authApi } from '@/lib/api'
 
 const PAYMENT_METHODS = [
@@ -737,6 +738,54 @@ export default function CollectionsPage() {
           </div>
 
         </div>
+
+        {/* Mobile Navigation */}
+        <div className="flex md:hidden items-center gap-2">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetHeader className="mb-6">
+                <SheetTitle>Menu</SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col gap-4">
+                <SheetClose asChild>
+                  <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Link href="/collections">Add Collection</Link>
+                  </Button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Button variant="outline" asChild className="w-full justify-start">
+                    <Link href="/admin/dashboard">Dashboard</Link>
+                  </Button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Button variant="outline" asChild className="w-full justify-start">
+                    <Link href="/collections/datewise">Collections</Link>
+                  </Button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Button variant="outline" asChild className="w-full justify-start">
+                    <Link href="/admin/customers">Customers</Link>
+                  </Button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Button variant="outline" asChild className="w-full justify-start">
+                    <Link href="/admin/expenses">Money Manager</Link>
+                  </Button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+                    <Link href="/admin/cashbook">Cash Book</Link>
+                  </Button>
+                </SheetClose>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -805,7 +854,7 @@ export default function CollectionsPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b-2 border-border">
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Name</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap sticky left-0 z-20" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Name</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Area</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Phone</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/70 whitespace-nowrap">Loan</th>
@@ -857,7 +906,7 @@ export default function CollectionsPage() {
                     return (
                       <tr key={loan.id} className={`hover:bg-muted/30 transition-colors ${index % 2 === 0 ? 'bg-card' : 'bg-muted/10'
                         }`}>
-                        <td className="px-3 py-2 text-sm font-medium text-foreground">
+                        <td className="px-3 py-2 text-sm font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                           {(currentUser?.role === 'admin' || currentUser?.role === 'owner') ? (
                             <Link href={`/admin/customers/${customer.id}`} className="hover:text-primary hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
                               {customer.name}

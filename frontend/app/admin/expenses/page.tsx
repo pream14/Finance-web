@@ -2,11 +2,13 @@
 
 import React, { useEffect } from 'react'
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil, Menu } from 'lucide-react'
 import { expensesApi, incomeApi, expenseCategoriesApi } from '@/lib/api'
 
 interface Expense {
@@ -384,6 +386,53 @@ export default function MoneyManagerPage() {
               <Plus className="w-4 h-4 mr-2" />
               Add {activeTab === 'expenses' ? 'Expense' : 'Income'}
             </Button>
+            {/* Mobile Navigation */}
+            <div className="flex md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="icon" className="shrink-0">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                  <SheetHeader className="mb-6">
+                    <SheetTitle>Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col gap-4">
+                    <SheetClose asChild>
+                      <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <Link href="/collections">Add Collection</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start">
+                        <Link href="/admin/dashboard">Dashboard</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start">
+                        <Link href="/collections/datewise">Collections</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start">
+                        <Link href="/admin/customers">Customers</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start">
+                        <Link href="/admin/expenses">Money Manager</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+                        <Link href="/admin/cashbook">Cash Book</Link>
+                      </Button>
+                    </SheetClose>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </header>
@@ -837,11 +886,10 @@ export default function MoneyManagerPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  activeTab === tab.key
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === tab.key
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <Icon className={`w-4 h-4 ${activeTab === tab.key ? tab.color : ''}`} />
                 {tab.label}
@@ -917,7 +965,7 @@ export default function MoneyManagerPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap sticky left-0 z-20 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Date</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Category</th>
                           <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
@@ -928,7 +976,7 @@ export default function MoneyManagerPage() {
                       <tbody className="divide-y divide-border/30">
                         {expenses.map((expense) => (
                           <tr key={expense.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 text-foreground">{expense.date}</td>
+                            <td className="py-3 px-4 text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{expense.date}</td>
                             <td className="py-3 px-4 font-medium text-foreground">{expense.description}</td>
                             <td className="py-3 px-4">
                               {expense.category_name ? (
@@ -1008,7 +1056,7 @@ export default function MoneyManagerPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border/50">
-                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap sticky left-0 z-20 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Date</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Source</th>
                           <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
                           <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
@@ -1019,7 +1067,7 @@ export default function MoneyManagerPage() {
                       <tbody className="divide-y divide-border/30">
                         {incomes.map((income) => (
                           <tr key={income.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 text-foreground">{income.date}</td>
+                            <td className="py-3 px-4 text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{income.date}</td>
                             <td className="py-3 px-4 font-medium text-foreground">
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-600">
                                 {income.source}

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Calendar, Filter, Search, RefreshCw } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Menu } from 'lucide-react'
 import { authApi, transactionsApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
@@ -163,6 +164,33 @@ export default function CollectorDatewiseCollectionsPage() {
             <Button onClick={fetchEntries} variant="outline" size="icon" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
+            {/* Mobile Navigation */}
+            <div className="flex md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                  <SheetHeader className="mb-6">
+                    <SheetTitle>Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col gap-4">
+                    <SheetClose asChild>
+                      <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <Link href="/collections">Add Collection</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="outline" asChild className="w-full justify-start">
+                        <Link href="/collector/datewise">My Collections</Link>
+                      </Button>
+                    </SheetClose>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </header>
@@ -347,7 +375,7 @@ export default function CollectorDatewiseCollectionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50">
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Date</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground sticky left-0 z-20 bg-muted/50" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>Date</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Customer</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Loan Type</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground">Details</th>
@@ -358,7 +386,7 @@ export default function CollectorDatewiseCollectionsPage() {
                   <tbody className="divide-y divide-border/30">
                     {filteredEntries.map((entry, index) => (
                       <tr key={entry.id} className={`hover:bg-muted/30 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/10'}`}>
-                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
+                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
                           {new Date(entry.created_at).toLocaleDateString('en-IN', {
                             day: '2-digit',
                             month: 'short',
