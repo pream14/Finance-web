@@ -49,7 +49,11 @@ class LoanSerializer(serializers.ModelSerializer):
         """Get current cycle's expected interest"""
         result = '0.00'
         if obj.loan_type == 'Monthly Interest Loan':
-            result = str(obj.calculate_monthly_interest())
+            # If interest already paid for this cycle, show 0
+            if obj.is_current_cycle_interest_paid():
+                result = '0.00'
+            else:
+                result = str(obj.calculate_monthly_interest())
         elif obj.loan_type == 'DL Loan':
             interest, _ = obj.calculate_dl_interest()
             result = str(interest)
@@ -91,9 +95,14 @@ class LoanSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        from datetime import date as date_cls
         user = self.context['request'].user
         validated_data['created_by'] = user
         validated_data['remaining_amount'] = validated_data.get('principal_amount', 0)
+        # For Monthly Interest Loans, first month's interest is collected upfront
+        # So mark the interest as paid from the start date
+        if validated_data.get('loan_type') == 'Monthly Interest Loan':
+            validated_data['last_interest_payment_date'] = validated_data.get('start_date', date_cls.today())
         return super().create(validated_data)
 
 
@@ -123,6 +132,8 @@ class LoanDetailSerializer(serializers.ModelSerializer):
     def get_expected_interest(self, obj):
         """Get current cycle's expected interest"""
         if obj.loan_type == 'Monthly Interest Loan':
+            if obj.is_current_cycle_interest_paid():
+                return '0.00'
             return str(obj.calculate_monthly_interest())
         elif obj.loan_type == 'DL Loan':
             interest, _ = obj.calculate_dl_interest()

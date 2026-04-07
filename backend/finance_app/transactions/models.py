@@ -1,4 +1,5 @@
-from datetime import date
+import calendar
+from datetime import date, timedelta
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
@@ -88,9 +89,46 @@ class Loan(models.Model):
         interest = self.remaining_amount * (self.daily_interest_rate / Decimal('100')) * days
         return interest.quantize(Decimal('0.01')), days
     
+    def _get_current_cycle_start(self):
+        """Get the start date of the current interest cycle for Monthly Interest Loans"""
+        if not self.interest_cycle_day:
+            return self.start_date
+        
+        today = date.today()
+        cycle_day = self.interest_cycle_day
+        
+        # Get effective cycle day for current month (handle months with fewer days)
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        effective_day = min(cycle_day, last_day)
+        
+        if today.day >= effective_day:
+            # Current cycle started this month on the cycle day
+            return date(today.year, today.month, effective_day)
+        else:
+            # Current cycle started last month on the cycle day
+            if today.month == 1:
+                prev_year, prev_month = today.year - 1, 12
+            else:
+                prev_year, prev_month = today.year, today.month - 1
+            prev_last_day = calendar.monthrange(prev_year, prev_month)[1]
+            prev_effective_day = min(cycle_day, prev_last_day)
+            return date(prev_year, prev_month, prev_effective_day)
+    
+    def is_current_cycle_interest_paid(self):
+        """Check if interest has been paid for the current cycle (Monthly Interest Loan)"""
+        if self.loan_type != 'Monthly Interest Loan':
+            return False
+        if not self.last_interest_payment_date:
+            return False
+        cycle_start = self._get_current_cycle_start()
+        return self.last_interest_payment_date >= cycle_start
+    
     def get_total_pending_interest(self):
         """Get total pending interest including current cycle"""
         if self.loan_type == 'Monthly Interest Loan':
+            # If interest is already paid for the current cycle, only show past pending
+            if self.is_current_cycle_interest_paid():
+                return self.pending_interest
             return self.pending_interest + self.calculate_monthly_interest()
         elif self.loan_type == 'DL Loan':
             dl_interest, _ = self.calculate_dl_interest()
@@ -154,10 +192,13 @@ class Transaction(models.Model):
                 expected_interest = loan.calculate_monthly_interest() + loan.pending_interest
                 interest_paid = Decimal(str(self.interest_amount)) if self.interest_amount else Decimal('0')
                 # If paid less than expected, add to pending
-                if interest_paid < expected_interest:
-                    loan.pending_interest = expected_interest - interest_paid
-                else:
-                    loan.pending_interest = Decimal('0')
+                if interest_paid > 0:
+                    if interest_paid < expected_interest:
+                        loan.pending_interest = expected_interest - interest_paid
+                    else:
+                        loan.pending_interest = Decimal('0')
+                    # Record interest payment date to track cycle payment
+                    loan.last_interest_payment_date = date.today()
             
             elif loan.loan_type == 'DL Loan':
                 expected_interest, _ = loan.calculate_dl_interest()

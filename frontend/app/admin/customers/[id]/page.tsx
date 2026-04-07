@@ -424,24 +424,31 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             )}
                                             {loan.loan_type === 'Monthly Interest Loan' && loan.status === 'active' && (
                                                 <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
-                                                    <div className="flex justify-between text-xs">
-                                                        <span className="text-muted-foreground">Current Month Interest</span>
-                                                        <span className="text-foreground font-medium">₹{(loan.expected_interest || 0).toLocaleString('en-IN')}</span>
-                                                    </div>
-                                                    {(loan.pending_interest || 0) > 0 && (
-                                                        <div className="flex justify-between text-xs">
-                                                            <span className="text-orange-600">Pending ({Math.round((loan.pending_interest || 0) / (loan.expected_interest || 1))} month{Math.round((loan.pending_interest || 0) / (loan.expected_interest || 1)) !== 1 ? 's' : ''} unpaid)</span>
-                                                            <span className="text-orange-600 font-bold">₹{(loan.pending_interest || 0).toLocaleString('en-IN')}</span>
+                                                    {(loan.total_pending_interest || 0) === 0 ? (
+                                                        <div className="flex justify-between text-xs font-bold">
+                                                            <span className="text-green-600">Interest Paid ✓</span>
+                                                            <span className="text-green-600">₹0</span>
                                                         </div>
+                                                    ) : (
+                                                        <>
+                                                            {(loan.expected_interest || 0) > 0 && (
+                                                                <div className="flex justify-between text-xs">
+                                                                    <span className="text-muted-foreground">Current Month Interest</span>
+                                                                    <span className="text-foreground font-medium">₹{(loan.expected_interest || 0).toLocaleString('en-IN')}</span>
+                                                                </div>
+                                                            )}
+                                                            {(loan.pending_interest || 0) > 0 && (
+                                                                <div className="flex justify-between text-xs">
+                                                                    <span className="text-orange-600">Pending ({Math.round((loan.pending_interest || 0) / (loan.expected_interest || loan.monthly_interest_rate ? (loan.remaining_amount * (loan.monthly_interest_rate || 0) / 100) : 1))} month{Math.round((loan.pending_interest || 0) / (loan.expected_interest || loan.monthly_interest_rate ? (loan.remaining_amount * (loan.monthly_interest_rate || 0) / 100) : 1)) !== 1 ? 's' : ''} unpaid)</span>
+                                                                    <span className="text-orange-600 font-bold">₹{(loan.pending_interest || 0).toLocaleString('en-IN')}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex justify-between text-xs font-bold">
+                                                                <span className="text-red-600">Total Interest Due</span>
+                                                                <span className="text-red-600">₹{(loan.total_pending_interest || 0).toLocaleString('en-IN')}</span>
+                                                            </div>
+                                                        </>
                                                     )}
-                                                    <div className="flex justify-between text-xs font-bold">
-                                                        <span className={(loan.pending_interest || 0) > 0 ? 'text-red-600' : 'text-green-600'}>
-                                                            Total Interest Due
-                                                        </span>
-                                                        <span className={(loan.pending_interest || 0) > 0 ? 'text-red-600' : 'text-green-600'}>
-                                                            ₹{(loan.total_pending_interest || 0).toLocaleString('en-IN')}
-                                                        </span>
-                                                    </div>
                                                 </div>
                                             )}
                                             {loan.loan_type === 'DL Loan' && loan.daily_interest_rate && (
