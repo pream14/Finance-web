@@ -357,6 +357,7 @@ export default function CustomersPage() {
         if (firstLoanType === 'Monthly Interest Loan') {
           loanData.monthly_interest_rate = parseFloat(monthlyInterestRate)
           loanData.interest_cycle_day = parseInt(interestCycleDay)
+          loanData.first_month_interest_paid = firstMonthInterestPaid
         } else if (firstLoanType === 'DC Loan') {
           loanData.daily_collection_amount = parseFloat(dailyCollectionAmount)
           if (expectedTotalDays) {
@@ -473,6 +474,7 @@ export default function CustomersPage() {
       if (newLoanType === 'Monthly Interest Loan') {
         loanData.monthly_interest_rate = parseFloat(newMonthlyInterestRate)
         loanData.interest_cycle_day = parseInt(newInterestCycleDay)
+        loanData.first_month_interest_paid = newFirstMonthInterestPaid
       } else if (newLoanType === 'DC Loan') {
         loanData.daily_collection_amount = parseFloat(newDailyCollectionAmount)
         if (newExpectedTotalDays) {

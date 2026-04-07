@@ -17,6 +17,7 @@ class LoanSerializer(serializers.ModelSerializer):
     days_since_start = serializers.SerializerMethodField()
     has_transactions = serializers.SerializerMethodField()
     amount_given_to_customer = serializers.SerializerMethodField()
+    first_month_interest_paid = serializers.BooleanField(write_only=True, required=False, default=True)
     
     class Meta:
         model = Loan
@@ -32,7 +33,9 @@ class LoanSerializer(serializers.ModelSerializer):
                  'payment_method',
                  # Calculated fields
                  'expected_interest', 'total_pending_interest', 'days_since_start', 'has_transactions',
-                 'amount_given_to_customer']
+                 'amount_given_to_customer',
+                 # Write-only fields
+                 'first_month_interest_paid']
         read_only_fields = ['remaining_amount', 'pending_interest', 'start_date', 'status', 'created_by', 'created_at', 'updated_at']
     
     def get_has_transactions(self, obj):
@@ -99,9 +102,10 @@ class LoanSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['created_by'] = user
         validated_data['remaining_amount'] = validated_data.get('principal_amount', 0)
-        # For Monthly Interest Loans, first month's interest is collected upfront
-        # So mark the interest as paid from the start date
-        if validated_data.get('loan_type') == 'Monthly Interest Loan':
+        # Pop the flag before creating (not a model field)
+        first_month_paid = validated_data.pop('first_month_interest_paid', True)
+        # For Monthly Interest Loans, only mark interest as paid if first month was collected
+        if validated_data.get('loan_type') == 'Monthly Interest Loan' and first_month_paid:
             validated_data['last_interest_payment_date'] = validated_data.get('start_date', date_cls.today())
         return super().create(validated_data)
 
