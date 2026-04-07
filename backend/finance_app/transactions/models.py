@@ -89,47 +89,87 @@ class Loan(models.Model):
         interest = self.remaining_amount * (self.daily_interest_rate / Decimal('100')) * days
         return interest.quantize(Decimal('0.01')), days
     
-    def _get_current_cycle_start(self):
-        """Get the start date of the current interest cycle for Monthly Interest Loans"""
-        if not self.interest_cycle_day:
+    def _get_interest_covered_until(self):
+        """Calculate the date until which interest is covered.
+        
+        Each payment covers one cycle. If paid BEFORE the cycle day,
+        it covers the upcoming cycle. If paid ON or AFTER, it covers
+        the current cycle. Returns the date when next payment is due.
+        """
+        if not self.last_interest_payment_date or not self.interest_cycle_day:
             return self.start_date
         
-        today = date.today()
+        lpd = self.last_interest_payment_date
         cycle_day = self.interest_cycle_day
-        
-        # Get effective cycle day for current month (handle months with fewer days)
-        last_day = calendar.monthrange(today.year, today.month)[1]
+        last_day = calendar.monthrange(lpd.year, lpd.month)[1]
         effective_day = min(cycle_day, last_day)
         
-        if today.day >= effective_day:
-            # Current cycle started this month on the cycle day
-            return date(today.year, today.month, effective_day)
-        else:
-            # Current cycle started last month on the cycle day
-            if today.month == 1:
-                prev_year, prev_month = today.year - 1, 12
+        if lpd.day < effective_day:
+            # Paid BEFORE cycle day → covers the upcoming cycle
+            # Covered until next month's cycle day
+            if lpd.month == 12:
+                ny, nm = lpd.year + 1, 1
             else:
-                prev_year, prev_month = today.year, today.month - 1
-            prev_last_day = calendar.monthrange(prev_year, prev_month)[1]
-            prev_effective_day = min(cycle_day, prev_last_day)
-            return date(prev_year, prev_month, prev_effective_day)
+                ny, nm = lpd.year, lpd.month + 1
+            nd = min(cycle_day, calendar.monthrange(ny, nm)[1])
+            return date(ny, nm, nd)
+        else:
+            # Paid ON or AFTER cycle day → covers the current cycle
+            # Covered until next month's cycle day
+            if lpd.month == 12:
+                ny, nm = lpd.year + 1, 1
+            else:
+                ny, nm = lpd.year, lpd.month + 1
+            nd = min(cycle_day, calendar.monthrange(ny, nm)[1])
+            return date(ny, nm, nd)
     
     def is_current_cycle_interest_paid(self):
-        """Check if interest has been paid for the current cycle (Monthly Interest Loan)"""
+        """Check if interest has been paid for the current cycle."""
         if self.loan_type != 'Monthly Interest Loan':
             return False
         if not self.last_interest_payment_date:
             return False
-        cycle_start = self._get_current_cycle_start()
-        return self.last_interest_payment_date >= cycle_start
+        return date.today() < self._get_interest_covered_until()
+    
+    def _count_unpaid_cycles(self):
+        """Count how many interest cycles are unpaid since last payment."""
+        if not self.interest_cycle_day:
+            return 1
+        if self.is_current_cycle_interest_paid():
+            return 0
+        
+        # Start counting from when coverage expired
+        if self.last_interest_payment_date:
+            ref_date = self._get_interest_covered_until()
+        else:
+            ref_date = self.start_date
+        
+        today = date.today()
+        cycle_day = self.interest_cycle_day
+        count = 0
+        current = ref_date
+        
+        while current <= today:
+            count += 1
+            # Move to next cycle boundary
+            if current.month == 12:
+                ny, nm = current.year + 1, 1
+            else:
+                ny, nm = current.year, current.month + 1
+            nd = min(cycle_day, calendar.monthrange(ny, nm)[1])
+            current = date(ny, nm, nd)
+        
+        return max(1, count)
     
     def get_total_pending_interest(self):
-        """Get total pending interest including current cycle"""
+        """Get total pending interest including all unpaid cycles"""
         if self.loan_type == 'Monthly Interest Loan':
             # If interest is already paid for the current cycle, only show past pending
             if self.is_current_cycle_interest_paid():
                 return self.pending_interest
-            return self.pending_interest + self.calculate_monthly_interest()
+            # Count missed cycles and multiply
+            unpaid = self._count_unpaid_cycles()
+            return self.pending_interest + (self.calculate_monthly_interest() * unpaid)
         elif self.loan_type == 'DL Loan':
             dl_interest, _ = self.calculate_dl_interest()
             return self.pending_interest + dl_interest
@@ -189,9 +229,11 @@ class Transaction(models.Model):
             
             # Handle pending interest for Monthly and DL loans
             if loan.loan_type == 'Monthly Interest Loan':
-                expected_interest = loan.calculate_monthly_interest() + loan.pending_interest
+                # Calculate expected interest including missed cycles
+                unpaid_cycles = loan._count_unpaid_cycles()
+                expected_interest = (loan.calculate_monthly_interest() * max(1, unpaid_cycles)) + loan.pending_interest
                 interest_paid = Decimal(str(self.interest_amount)) if self.interest_amount else Decimal('0')
-                # If paid less than expected, add to pending
+                # If paid less than expected, store remainder as pending
                 if interest_paid > 0:
                     if interest_paid < expected_interest:
                         loan.pending_interest = expected_interest - interest_paid
