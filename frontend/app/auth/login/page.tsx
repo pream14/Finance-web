@@ -110,9 +110,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          © 2024 Sri Sendhur | Sri Lakshmi Finance. All rights reserved.
-        </p>
+  
       </div>
     </div>
   )
