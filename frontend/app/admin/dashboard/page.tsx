@@ -102,6 +102,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [markingCollected, setMarkingCollected] = useState<number | null>(null)
+  const [expandedInterestDue, setExpandedInterestDue] = useState(true)
   const [expandedOverdue, setExpandedOverdue] = useState(false)
   const [expandedAlmostPaid, setExpandedAlmostPaid] = useState(false)
 
@@ -153,7 +154,8 @@ export default function AdminDashboard() {
     window.location.href = '/auth/login'
   }
 
-  const handleMarkCollected = async (loanId: number, interestDue: string) => {
+  const handleMarkCollected = async (loanId: number, interestDue: string, customerName: string) => {
+    if (!confirm(`Mark ₹${parseFloat(interestDue).toLocaleString('en-IN')} interest collected from ${customerName}?`)) return
     setMarkingCollected(loanId)
     try {
       await transactionsApi.create({
@@ -345,55 +347,99 @@ export default function AdminDashboard() {
             {/* Monthly Interest Due Today */}
             {dashboardStats.monthly_interest_due.length > 0 && (
               <Card className="border-red-500/50 bg-red-500/5">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-red-500/20 rounded-lg">
-                      <Bell className="w-5 h-5 text-red-500" />
+                <CardHeader
+                  className="pb-2 cursor-pointer hover:bg-red-500/10 transition-colors"
+                  onClick={() => setExpandedInterestDue(!expandedInterestDue)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-red-500/20 rounded">
+                        <Bell className="w-4 h-4 text-red-500" />
+                      </div>
+                      <CardTitle className="text-sm font-semibold text-red-600 dark:text-red-400">
+                        Interest Due ({dashboardStats.monthly_interest_due.filter(i => !i.is_collected).length})
+                      </CardTitle>
+                      {dashboardStats.monthly_interest_due.some(i => i.is_collected) && (
+                        <span className="px-1.5 py-0.5 bg-green-500/20 text-green-600 rounded text-xs font-medium">
+                          {dashboardStats.monthly_interest_due.filter(i => i.is_collected).length} collected
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <CardTitle className="text-lg text-red-600 dark:text-red-400">Monthly Interest Due Today</CardTitle>
-                      <CardDescription>{dashboardStats.monthly_interest_due.length} customer(s) with interest due</CardDescription>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-red-600">
+                        ₹{dashboardStats.monthly_interest_due
+                          .filter(i => !i.is_collected)
+                          .reduce((sum, i) => sum + parseFloat(i.interest_due), 0)
+                          .toLocaleString('en-IN')}
+                      </span>
+                      <div className={`transition-transform duration-200 ${expandedInterestDue ? 'rotate-180' : ''}`}>
+                        <Bell className="w-4 h-4 text-red-500" />
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {dashboardStats.monthly_interest_due.map((item) => (
-                      <div key={item.loan_id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
-                        <div className="flex-1">
-                          <Link href={`/admin/customers/${item.customer_id}`} className="font-medium text-foreground hover:text-primary">
-                            {item.customer_name}
-                          </Link>
-                          <div className="text-sm text-muted-foreground">
-                            Principal: ₹{parseFloat(item.principal_amount).toLocaleString('en-IN')} •
-                            Interest Rate: {item.interest_rate}%
-                          </div>
-                        </div>
-                        <div className="text-right flex items-center gap-4">
-                          <div>
-                            <p className="text-lg font-bold text-red-600">₹{parseFloat(item.interest_due).toLocaleString('en-IN')}</p>
-                            <p className="text-xs text-muted-foreground">Interest Due</p>
-                          </div>
-                          {item.is_collected ? (
-                            <div className="flex items-center gap-1 text-green-600">
-                              <CheckCircle className="w-5 h-5" />
-                              <span className="text-sm font-medium">Collected</span>
+                {expandedInterestDue && (
+                  <CardContent className="pt-0">
+                    <div className="space-y-1">
+                      {dashboardStats.monthly_interest_due.map((item) => (
+                        <div
+                          key={item.loan_id}
+                          className={`flex items-center justify-between p-2 rounded transition-colors ${
+                            item.is_collected
+                              ? 'bg-green-500/5 opacity-60'
+                              : 'hover:bg-red-500/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
+                              item.is_collected ? 'bg-green-500/20' : 'bg-red-500/20'
+                            }`}>
+                              {item.is_collected
+                                ? <CheckCircle className="w-3 h-3 text-green-500" />
+                                : <IndianRupee className="w-3 h-3 text-red-500" />
+                              }
                             </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleMarkCollected(item.loan_id, item.interest_due)}
-                              disabled={markingCollected === item.loan_id}
-                            >
-                              {markingCollected === item.loan_id ? 'Marking...' : 'Mark Collected'}
-                            </Button>
-                          )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <Link
+                                  href={`/admin/customers/${item.customer_id}`}
+                                  className="font-medium text-foreground text-sm truncate hover:text-primary"
+                                >
+                                  {item.customer_name}
+                                </Link>
+                                <span className="px-1 py-0.5 bg-muted text-muted-foreground rounded text-xs font-medium flex-shrink-0">
+                                  {item.interest_rate}%
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Balance: ₹{parseFloat(item.remaining_amount).toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className={`text-sm font-bold ${item.is_collected ? 'text-green-600 line-through' : 'text-red-600'}`}>
+                              ₹{parseFloat(item.interest_due).toLocaleString('en-IN')}
+                            </span>
+                            {item.is_collected ? (
+                              <span className="text-xs text-green-600 font-medium">✓</span>
+                            ) : (
+                              <button
+                                className="px-2 py-1 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleMarkCollected(item.loan_id, item.interest_due, item.customer_name)
+                                }}
+                                disabled={markingCollected === item.loan_id}
+                              >
+                                {markingCollected === item.loan_id ? '...' : 'Collect'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
+                      ))}
+                    </div>
+                  </CardContent>
+                )}
               </Card>
             )}
           </div>
