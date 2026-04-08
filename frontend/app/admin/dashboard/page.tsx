@@ -341,10 +341,11 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+
         {/* Priority Alerts Section */}
         {dashboardStats && (
-          <div className="mb-8 space-y-4">
-            {/* Monthly Interest Due Today */}
+          <div className="mb-8 space-y-3">
+            {/* Today's Interest Collection */}
             {dashboardStats.monthly_interest_due.length > 0 && (
               <Card className="border-red-500/50 bg-red-500/5">
                 <CardHeader
@@ -357,7 +358,7 @@ export default function AdminDashboard() {
                         <Bell className="w-4 h-4 text-red-500" />
                       </div>
                       <CardTitle className="text-sm font-semibold text-red-600 dark:text-red-400">
-                        Interest Due ({dashboardStats.monthly_interest_due.filter(i => !i.is_collected).length})
+                        Today&apos;s Interest ({dashboardStats.monthly_interest_due.filter(i => !i.is_collected).length})
                       </CardTitle>
                       {dashboardStats.monthly_interest_due.some(i => i.is_collected) && (
                         <span className="px-1.5 py-0.5 bg-green-500/20 text-green-600 rounded text-xs font-medium">
@@ -442,6 +443,151 @@ export default function AdminDashboard() {
                 )}
               </Card>
             )}
+
+            {/* Overdue Interest Payments */}
+            {dashboardStats.overdue_alerts.length > 0 && (
+              <Card className="border-orange-500/50 bg-orange-500/5">
+                <CardHeader
+                  className="pb-2 cursor-pointer hover:bg-orange-500/10 transition-colors"
+                  onClick={() => setExpandedOverdue(!expandedOverdue)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-orange-500/20 rounded">
+                        <AlertTriangle className="w-4 h-4 text-orange-500" />
+                      </div>
+                      <CardTitle className="text-sm font-semibold text-orange-600">
+                        Overdue Interest ({dashboardStats.overdue_alerts.length})
+                      </CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-orange-600">
+                        ₹{dashboardStats.overdue_alerts
+                          .reduce((sum, i) => sum + parseFloat(i.expected_amount), 0)
+                          .toLocaleString('en-IN')}
+                      </span>
+                      <div className={`transition-transform duration-200 ${expandedOverdue ? 'rotate-180' : ''}`}>
+                        <AlertTriangle className="w-4 h-4 text-orange-500" />
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                {expandedOverdue && (
+                  <CardContent className="pt-0">
+                    <div className="space-y-1">
+                      {dashboardStats.overdue_alerts.map((item) => (
+                        <Link
+                          key={item.loan_id}
+                          href={`/admin/customers/${item.customer_id}`}
+                          className="flex items-center justify-between p-2 rounded hover:bg-orange-500/10 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="w-6 h-6 rounded bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                              <Clock className="w-3 h-3 text-orange-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
+                                <span className="px-1 py-0.5 bg-orange-500/20 text-orange-600 rounded text-xs font-medium flex-shrink-0">
+                                  {item.days_overdue}d late
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Balance: ₹{parseFloat(item.remaining_amount).toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <span className="text-sm font-bold text-orange-600">
+                              ₹{parseFloat(item.expected_amount).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            )}
+
+            {/* Almost Paid Off */}
+            {dashboardStats.low_balance_warnings.length > 0 && (
+              <Card className="border-green-500/50 bg-green-500/5">
+                <CardHeader
+                  className="pb-2 cursor-pointer hover:bg-green-500/10 transition-colors"
+                  onClick={() => setExpandedAlmostPaid(!expandedAlmostPaid)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-green-500/20 rounded">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      </div>
+                      <CardTitle className="text-sm font-semibold text-green-600">
+                        Almost Paid Off ({dashboardStats.low_balance_warnings.length})
+                      </CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {expandedAlmostPaid ? 'Collapse' : 'Expand'}
+                      </span>
+                      <div className={`transition-transform duration-200 ${expandedAlmostPaid ? 'rotate-180' : ''}`}>
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                {expandedAlmostPaid && (
+                  <CardContent className="pt-0">
+                    <div className="space-y-1">
+                      {dashboardStats.low_balance_warnings.map((item) => (
+                        <Link
+                          key={item.loan_id}
+                          href={`/admin/customers/${item.customer_id}`}
+                          className="flex items-center justify-between p-2 rounded hover:bg-green-500/10 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
+                              item.loan_type === 'DC Loan' ? 'bg-blue-500/20' : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20' : 'bg-purple-500/20'
+                            }`}>
+                              <CheckCircle className={`w-3 h-3 ${
+                                item.loan_type === 'DC Loan' ? 'text-blue-500' : item.loan_type === 'Monthly Interest Loan' ? 'text-green-500' : 'text-purple-500'
+                              }`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
+                                <span className={`px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                                  item.loan_type === 'DC Loan' ? 'bg-blue-500/20 text-blue-600'
+                                    : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20 text-green-600'
+                                    : 'bg-purple-500/20 text-purple-600'
+                                }`}>
+                                  {item.loan_type === 'DC Loan' ? 'DC' : item.loan_type === 'Monthly Interest Loan' ? 'ML' : 'DL'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-medium text-green-600">{100 - item.percentage_remaining}% paid</span>
+                                <span>•</span>
+                                <span>₹{parseFloat(item.remaining_amount).toLocaleString('en-IN')} left</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <div className="w-16 bg-muted rounded-full h-1.5">
+                              <div
+                                className={`h-full rounded-full ${
+                                  item.loan_type === 'DC Loan' ? 'bg-blue-500' : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500' : 'bg-purple-500'
+                                }`}
+                                style={{ width: `${100 - item.percentage_remaining}%` }}
+                              />
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            )}
           </div>
         )}
 
@@ -461,7 +607,6 @@ export default function AdminDashboard() {
             </Select>
           </div>
         </div>
-
         {/* Quick Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Today's Collections */}
@@ -628,145 +773,6 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Expandable Alert Sections */}
-        {dashboardStats && (
-          <div className="mb-8 space-y-4">
-            {/* Overdue Alerts */}
-            {dashboardStats.overdue_alerts.length > 0 && (
-              <Card className="border-orange-500/50 bg-orange-500/5">
-                <CardHeader
-                  className="pb-2 cursor-pointer hover:bg-orange-500/10 transition-colors"
-                  onClick={() => setExpandedOverdue(!expandedOverdue)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-orange-500/20 rounded">
-                        <AlertTriangle className="w-4 h-4 text-orange-500" />
-                      </div>
-                      <CardTitle className="text-sm font-semibold text-orange-600">Overdue ({dashboardStats.overdue_alerts.length})</CardTitle>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {expandedOverdue ? 'Click to collapse' : 'Click to expand'}
-                      </span>
-                      <div className={`transition-transform duration-200 ${expandedOverdue ? 'rotate-180' : ''}`}>
-                        <AlertTriangle className="w-4 h-4 text-orange-500" />
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                {expandedOverdue && (
-                  <CardContent className="pt-0">
-                    <div className="space-y-1">
-                      {dashboardStats.overdue_alerts.slice(0, expandedOverdue ? dashboardStats.overdue_alerts.length : 3).map((item) => (
-                        <Link
-                          key={item.loan_id}
-                          href={`/admin/customers/${item.customer_id}?loan=${item.loan_id}`}
-                          className="flex items-center justify-between p-2 rounded hover:bg-orange-500/10 transition-colors group"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className="w-6 h-6 rounded bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                              <Clock className="w-3 h-3 text-orange-500" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
-                                <span className="px-1 py-0.5 bg-orange-500/20 text-orange-600 rounded text-xs font-medium flex-shrink-0">
-                                  {item.loan_type === 'DC Loan' ? 'DC' : item.loan_type === 'Monthly Interest Loan' ? 'Monthly' : 'DL'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span className="text-orange-600 font-medium">{item.days_overdue}d</span>
-                                <span>•</span>
-                                <span>₹{parseFloat(item.remaining_amount).toLocaleString('en-IN')}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs font-bold text-foreground">₹{parseFloat(item.expected_amount).toLocaleString('en-IN')}</p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            )}
-
-            {/* Low Balance Warnings */}
-            {dashboardStats.low_balance_warnings.length > 0 && (
-              <Card className="border-green-500/50 bg-green-500/5">
-                <CardHeader
-                  className="pb-2 cursor-pointer hover:bg-green-500/10 transition-colors"
-                  onClick={() => setExpandedAlmostPaid(!expandedAlmostPaid)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-green-500/20 rounded">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      </div>
-                      <CardTitle className="text-sm font-semibold text-green-600">Almost Paid Off ({dashboardStats.low_balance_warnings.length})</CardTitle>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {expandedAlmostPaid ? 'Click to collapse' : 'Click to expand'}
-                      </span>
-                      <div className={`transition-transform duration-200 ${expandedAlmostPaid ? 'rotate-180' : ''}`}>
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                {expandedAlmostPaid && (
-                  <CardContent className="pt-0">
-                    <div className="space-y-1">
-                      {dashboardStats.low_balance_warnings.slice(0, expandedAlmostPaid ? dashboardStats.low_balance_warnings.length : 4).map((item) => (
-                        <Link
-                          key={item.loan_id}
-                          href={`/admin/customers/${item.customer_id}?loan=${item.loan_id}`}
-                          className="flex items-center justify-between p-2 rounded hover:bg-green-500/10 transition-colors group"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${item.loan_type === 'DC Loan' ? 'bg-blue-500/20' : 'bg-green-500/20'
-                              }`}>
-                              <CheckCircle className={`w-3 h-3 ${item.loan_type === 'DC Loan' ? 'text-blue-500' : 'text-green-500'
-                                }`} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
-                                <span className={`px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 ${item.loan_type === 'DC Loan'
-                                  ? 'bg-blue-500/20 text-blue-600'
-                                  : 'bg-green-500/20 text-green-600'
-                                  }`}>
-                                  {item.loan_type === 'DC Loan' ? 'DC' : item.loan_type === 'Monthly Interest Loan' ? 'Monthly' : 'DL'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span className="font-medium">{100 - item.percentage_remaining}% paid</span>
-                                <span>•</span>
-                                <span>₹{parseFloat(item.remaining_amount).toLocaleString('en-IN')} left</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="w-12 bg-muted rounded-full h-1">
-                              <div
-                                className={`h-full rounded-full ${item.loan_type === 'DC Loan' ? 'bg-blue-500' : 'bg-green-500'
-                                  }`}
-                                style={{ width: `${100 - item.percentage_remaining}%` }}
-                              />
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            )}
-          </div>
-        )}
 
         {/* Recent Activity Feed */}
         <Card className="border-border/50 mb-6">
