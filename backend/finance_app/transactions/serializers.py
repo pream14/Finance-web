@@ -201,6 +201,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
+        from decimal import Decimal
+        from datetime import date
+
         # When updating a transaction, we need to adjust the loan balance
         old_asal = instance.asal_amount if instance.asal_amount is not None else (instance.amount or 0)
         new_asal = validated_data.get('asal_amount', instance.asal_amount)
@@ -218,5 +221,45 @@ class TransactionSerializer(serializers.ModelSerializer):
                 loan.status = 'active'
             loan.save()
         
-        return super().update(instance, validated_data)
+        # Save the updated transaction first
+        updated = super().update(instance, validated_data)
+        
+        # Recalculate interest tracking for Monthly Interest and DL loans
+        loan = instance.loan
+        if loan.loan_type in ('Monthly Interest Loan', 'DL Loan'):
+            self._recalculate_interest_from_transactions(loan)
+        
+        return updated
+    
+    def _recalculate_interest_from_transactions(self, loan):
+        """Replay all transactions to recalculate pending_interest and last_interest_payment_date."""
+        from decimal import Decimal
+
+        all_txns = loan.transactions.order_by('created_at')
+        pending = Decimal('0')
+        last_interest_date = None
+
+        for txn in all_txns:
+            interest_paid = Decimal(str(txn.interest_amount)) if txn.interest_amount else Decimal('0')
+            if interest_paid > 0:
+                if loan.loan_type == 'Monthly Interest Loan':
+                    monthly_interest = loan.calculate_monthly_interest()
+                    expected = monthly_interest + pending
+                    if interest_paid < expected:
+                        pending = expected - interest_paid
+                    else:
+                        pending = Decimal('0')
+                    last_interest_date = txn.created_at.date()
+                elif loan.loan_type == 'DL Loan':
+                    dl_interest, _ = loan.calculate_dl_interest(as_of_date=txn.created_at.date())
+                    expected = dl_interest + pending
+                    if interest_paid < expected:
+                        pending = expected - interest_paid
+                    else:
+                        pending = Decimal('0')
+                        last_interest_date = txn.created_at.date()
+
+        loan.pending_interest = pending
+        loan.last_interest_payment_date = last_interest_date
+        loan.save()
 
