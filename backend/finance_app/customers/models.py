@@ -4,6 +4,7 @@ from django.conf import settings
 class Customer(models.Model):
     name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=15, db_index=True)
+    alternate_phone = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField()
     area = models.CharField(max_length=50, db_index=True)
     created_by = models.ForeignKey(
