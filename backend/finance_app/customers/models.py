@@ -6,9 +6,6 @@ class Customer(models.Model):
     phone_number = models.CharField(max_length=15, db_index=True)
     address = models.TextField()
     area = models.CharField(max_length=50, db_index=True)
-    is_daily = models.BooleanField(default=False)
-    is_monthly = models.BooleanField(default=False)
-    is_dl = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

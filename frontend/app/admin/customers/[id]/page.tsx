@@ -14,7 +14,7 @@ interface Loan {
     principal_amount: number
     remaining_amount: number
     start_date: string
-    status: 'active' | 'settled' | 'overdue'
+    status: 'active' | 'settled'
     payment_method: 'cash' | 'online'
     monthly_interest_rate?: number
     daily_interest_rate?: number

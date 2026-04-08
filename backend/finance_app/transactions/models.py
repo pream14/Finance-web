@@ -24,7 +24,6 @@ class Loan(models.Model):
     status = models.CharField(max_length=20, choices=[
         ('active', 'Active'),
         ('settled', 'Settled'),
-        ('overdue', 'Overdue'),
     ], default='active')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

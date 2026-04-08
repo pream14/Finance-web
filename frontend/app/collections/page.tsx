@@ -20,7 +20,7 @@ interface Loan {
   principal_amount: number
   remaining_amount: number
   start_date: string
-  status: 'active' | 'settled' | 'overdue'
+  status: 'active' | 'settled'
   // Interest tracking
   pending_interest?: number
   expected_interest?: string
