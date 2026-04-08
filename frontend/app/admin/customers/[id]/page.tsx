@@ -31,6 +31,7 @@ interface Customer {
     name: string
     email?: string
     phone: string
+    alternate_phone?: string
     city: string
     address: string
     loans: Loan[]
@@ -78,6 +79,7 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                 name: customerData.name,
                 email: customerData.email || '',
                 phone: customerData.phone_number || customerData.phone || '',
+                alternate_phone: customerData.alternate_phone || '',
                 city: customerData.area || customerData.city || '',
                 address: customerData.address || '',
                 loans: [],
@@ -284,6 +286,9 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                 <div>
                                     <p className="text-xs text-muted-foreground">Phone</p>
                                     <p className="text-sm font-medium text-foreground">{customer.phone || 'N/A'}</p>
+                                    {customer.alternate_phone && (
+                                        <p className="text-xs text-muted-foreground mt-0.5">Alt: {customer.alternate_phone}</p>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
