@@ -44,6 +44,18 @@ interface Customer {
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 const FIXED_DAILY_AMOUNT = 100 // Fixed daily collection amount
 
+// Helper: check if a loan should be visible on the collections page
+// Active loans are always shown. Settled loans are shown if they were settled today
+// (so users can edit/delete same-day payments).
+const isLoanVisible = (loan: Loan, todayEntries: any[]): boolean => {
+  if (loan.status === 'active') return true
+  // Settled loan: show if it has a transaction from today
+  if (loan.status === 'settled') {
+    return todayEntries.some((e: any) => e.loan === loan.id)
+  }
+  return false
+}
+
 export default function CollectionsPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
@@ -293,10 +305,18 @@ export default function CollectionsPage() {
 
       // Use loans already embedded in customer data from Django's CustomerSerializer
       // This avoids making N separate API calls that overwhelm the server with 503 errors
+      // Get today's entries to check for settled-today loans
+      const today = new Date().toISOString().split('T')[0]
+      let todayTxns: any[] = []
+      try {
+        todayTxns = await transactionsApi.getAll({ start_date: today, end_date: today, include_all: 'true' })
+      } catch (e) { /* ignore */ }
+      setEntries(todayTxns)
+
       const customersWithLoans = data.map((customer: any) => ({
         ...customer,
         loans: (customer.loans || [])
-          .filter((loan: any) => loan.status === 'active')
+          .filter((loan: any) => loan.status === 'active' || todayTxns.some((e: any) => e.loan === loan.id))
           .map((loan: any) => ({
             id: loan.id,
             loan_type: loan.loan_type,
@@ -333,7 +353,7 @@ export default function CollectionsPage() {
       customersWithLoans.forEach((customer: Customer) => {
         // Get ALL matching loans for this customer (not just the first one)
         const matchingLoans = customer.loans.filter((loan: Loan) =>
-          loan.status === 'active' && loan.loan_type === selectedLoanType
+          isLoanVisible(loan, entries) && loan.loan_type === selectedLoanType
         )
 
         matchingLoans.forEach((loan: Loan) => {
@@ -507,7 +527,7 @@ export default function CollectionsPage() {
       customers.forEach((customer: Customer) => {
         // Get ALL matching loans for this customer (not just the first one)
         const matchingLoans = customer.loans.filter((loan: Loan) =>
-          loan.status === 'active' && loan.loan_type === selectedLoanType
+          isLoanVisible(loan, entries) && loan.loan_type === selectedLoanType
         )
 
         matchingLoans.forEach((loan: Loan) => {
@@ -558,7 +578,7 @@ export default function CollectionsPage() {
       const matchesArea = areaFilter === 'all' || customer.area === areaFilter
       if (matchesSearch && matchesArea) {
         customer.loans
-          .filter(loan => loan.loan_type === selectedLoanType && loan.status === 'active')
+          .filter(loan => loan.loan_type === selectedLoanType && isLoanVisible(loan, entries))
           .forEach(loan => {
             // Apply paid/unpaid filter
             if (paymentStatusFilter !== 'all') {
@@ -585,7 +605,7 @@ export default function CollectionsPage() {
   // Keep for backward compat with other parts
   const getFilteredCustomers = () => {
     return customers.filter((customer) => {
-      const hasLoanType = customer.loans.some((loan) => loan.loan_type === selectedLoanType && loan.status === 'active')
+      const hasLoanType = customer.loans.some((loan) => loan.loan_type === selectedLoanType && isLoanVisible(loan, entries))
       const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesArea = areaFilter === 'all' || customer.area === areaFilter
       return hasLoanType && matchesSearch && matchesArea
@@ -596,7 +616,7 @@ export default function CollectionsPage() {
   const getAvailableLoans = () => {
     if (!selectedCustomer) return []
     return selectedCustomer.loans.filter((loan) =>
-      loan.status === 'active' && loan.loan_type === selectedLoanType
+      isLoanVisible(loan, entries) && loan.loan_type === selectedLoanType
     )
   }
 

@@ -214,6 +214,13 @@ class TransactionSerializer(serializers.ModelSerializer):
         difference = new_asal - old_asal
         if difference != 0:
             loan = instance.loan
+            # Validate: new asal shouldn't exceed remaining balance + old asal (what was already paid)
+            max_allowed = loan.remaining_amount + Decimal(str(old_asal))
+            if Decimal(str(new_asal)) > max_allowed:
+                from rest_framework import serializers as drf_serializers
+                raise drf_serializers.ValidationError({
+                    'asal_amount': f'Principal amount (₹{new_asal}) exceeds remaining balance (₹{max_allowed}).'
+                })
             loan.remaining_amount -= difference
             if loan.remaining_amount <= 0:
                 loan.status = 'settled'
