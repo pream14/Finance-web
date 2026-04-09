@@ -452,7 +452,7 @@ export default function MoneyManagerPage() {
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
   const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0)
-  const totalRevenue = revenue ? parseFloat(revenue.total || '0') : 0
+  const totalRevenue = revenue ? parseFloat(revenue.total_interest_collected || '0') : 0
   const hasActiveFilters = !!(startDate || endDate || filterCategory)
 
   const tabs = [
@@ -1293,22 +1293,12 @@ export default function MoneyManagerPage() {
                           <td className="py-3 px-4 text-foreground">DL Interest</td>
                           <td className="py-3 px-4 text-right font-medium text-foreground">₹{parseFloat(revenue.dl_interest || '0').toLocaleString('en-IN')}</td>
                         </tr>
-                        <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
-                          <td className="py-3 px-4 text-foreground">DC Interest</td>
-                          <td className="py-3 px-4 text-right font-medium text-foreground">₹{parseFloat(revenue.dc_interest || '0').toLocaleString('en-IN')}</td>
-                        </tr>
-                        {parseFloat(revenue.other_income || '0') > 0 && (
-                          <tr className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 text-foreground">Other Income</td>
-                            <td className="py-3 px-4 text-right font-medium text-green-600">₹{parseFloat(revenue.other_income || '0').toLocaleString('en-IN')}</td>
-                          </tr>
-                        )}
                       </tbody>
                     </table>
                   </div>
                   <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
                     <span className="font-semibold text-foreground">Total Revenue</span>
-                    <span className="font-bold text-lg text-emerald-600">₹{parseFloat(revenue.total || '0').toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-lg text-emerald-600">₹{parseFloat(revenue.total_interest_collected || '0').toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>
