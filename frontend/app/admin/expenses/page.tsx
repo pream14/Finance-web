@@ -191,15 +191,61 @@ export default function MoneyManagerPage() {
     setStartDate(''); setEndDate(''); setFilterCategory(''); setActivePreset('')
   }
 
+  // Load all data together so summary cards are always accurate
+  const loadAllData = async () => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const expParams: { start_date?: string; end_date?: string; category?: string } = {}
+      if (startDate) expParams.start_date = startDate
+      if (endDate) expParams.end_date = endDate
+      if (filterCategory) expParams.category = filterCategory
+
+      const dateParams: { start_date?: string; end_date?: string } = {}
+      if (startDate) dateParams.start_date = startDate
+      if (endDate) dateParams.end_date = endDate
+
+      const revParams = { ...dateParams }
+      if (!startDate && !endDate) {
+        const today = new Date().toISOString().split('T')[0]
+        revParams.start_date = today
+        revParams.end_date = today
+      }
+
+      const [expData, incData, cashData] = await Promise.all([
+        expensesApi.getAll(Object.keys(expParams).length ? expParams : undefined),
+        incomeApi.getAll(Object.keys(dateParams).length ? dateParams : undefined),
+        cashBookApi.get(revParams),
+      ])
+
+      setExpenses(Array.isArray(expData) ? expData.map((e: any) => ({
+        id: e.id, description: e.description, amount: parseFloat(e.amount),
+        payment_method: e.payment_method || 'cash', category: e.category || null,
+        category_name: e.category_name || null,
+        date: e.created_at ? e.created_at.split('T')[0] : '', created_by_name: e.created_by_name || '—',
+      })) : [])
+
+      setIncomes(Array.isArray(incData) ? incData.map((i: any) => ({
+        id: i.id, description: i.description, amount: parseFloat(i.amount),
+        source: i.source, payment_method: i.payment_method || 'cash',
+        date: i.created_at ? i.created_at.split('T')[0] : '', created_by_name: i.created_by_name || '—',
+      })) : [])
+
+      setRevenue(cashData.revenue || null)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadCategories()
   }, [])
 
   useEffect(() => {
-    if (activeTab === 'expenses') loadExpenses()
-    else if (activeTab === 'income') loadIncomes()
-    else if (activeTab === 'revenue') loadRevenue()
-  }, [startDate, endDate, filterCategory, activeTab])
+    loadAllData()
+  }, [startDate, endDate, filterCategory])
 
   // Handlers
   const handleDeleteExpense = async (id: number) => {
@@ -977,8 +1023,8 @@ export default function MoneyManagerPage() {
                 <Wallet className="w-3 h-3 text-primary" />
                 <p className="text-xs text-muted-foreground">Net Balance</p>
               </div>
-              <p className={`text-xl sm:text-2xl font-bold truncate ${totalIncome - totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ₹{(totalIncome - totalExpenses).toLocaleString('en-IN')}
+              <p className={`text-xl sm:text-2xl font-bold truncate ${(totalRevenue + totalIncome - totalExpenses) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ₹{(totalRevenue + totalIncome - totalExpenses).toLocaleString('en-IN')}
               </p>
             </CardContent>
           </Card>
