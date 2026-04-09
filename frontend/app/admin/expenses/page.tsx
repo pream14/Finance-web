@@ -452,7 +452,7 @@ export default function MoneyManagerPage() {
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
   const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0)
-  const totalRevenue = revenue ? parseFloat(revenue.total_interest_collected || '0') : 0
+  const totalRevenue = revenue ? parseFloat(revenue.dc_deduction || '0') + parseFloat(revenue.monthly_interest || '0') + parseFloat(revenue.dl_interest || '0') : 0
   const hasActiveFilters = !!(startDate || endDate || filterCategory)
 
   const tabs = [
@@ -1298,7 +1298,7 @@ export default function MoneyManagerPage() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
                     <span className="font-semibold text-foreground">Total Revenue</span>
-                    <span className="font-bold text-lg text-emerald-600">₹{parseFloat(revenue.total_interest_collected || '0').toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-lg text-emerald-600">₹{(parseFloat(revenue.dc_deduction || '0') + parseFloat(revenue.monthly_interest || '0') + parseFloat(revenue.dl_interest || '0')).toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>
