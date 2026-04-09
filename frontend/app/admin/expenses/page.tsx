@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil, Menu } from 'lucide-react'
-import { expensesApi, incomeApi, expenseCategoriesApi } from '@/lib/api'
+import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil, Menu, Filter, Banknote } from 'lucide-react'
+import { expensesApi, incomeApi, expenseCategoriesApi, cashBookApi } from '@/lib/api'
 
 interface Expense {
   id: number
@@ -37,7 +37,17 @@ interface Category {
   name: string
 }
 
-type ActiveTab = 'expenses' | 'income'
+interface Revenue {
+  dc_deduction: string
+  monthly_interest: string
+  dl_interest: string
+  dc_interest: string
+  total_interest_collected: string
+  other_income: string
+  total: string
+}
+
+type ActiveTab = 'expenses' | 'income' | 'revenue'
 
 export default function MoneyManagerPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('expenses')
@@ -65,6 +75,10 @@ export default function MoneyManagerPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
+  const [activePreset, setActivePreset] = useState('')
+
+  // Revenue state
+  const [revenue, setRevenue] = useState<Revenue | null>(null)
 
   // UI state
   const [error, setError] = useState('')
@@ -135,13 +149,56 @@ export default function MoneyManagerPage() {
     }
   }
 
+  // Load revenue
+  const loadRevenue = async () => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const params: { start_date?: string; end_date?: string } = {}
+      if (startDate) params.start_date = startDate
+      if (endDate) params.end_date = endDate
+      if (!startDate && !endDate) {
+        const today = new Date().toISOString().split('T')[0]
+        params.start_date = today
+        params.end_date = today
+      }
+      const data = await cashBookApi.get(params)
+      setRevenue(data.revenue || null)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load revenue')
+      setRevenue(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Quick filter presets
+  const applyPreset = (preset: string) => {
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    let start = '', end = ''
+    switch (preset) {
+      case 'today': start = end = today; break
+      case 'yesterday': { const d = new Date(now); d.setDate(d.getDate() - 1); start = end = d.toISOString().split('T')[0]; break }
+      case 'week': { const ws = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); start = ws.toISOString().split('T')[0]; end = today; break }
+      case 'month': start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`; end = today; break
+      case 'last_month': { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); const lme = new Date(now.getFullYear(), now.getMonth(), 0); start = lm.toISOString().split('T')[0]; end = lme.toISOString().split('T')[0]; break }
+    }
+    setStartDate(start); setEndDate(end); setActivePreset(preset)
+  }
+
+  const clearFilters = () => {
+    setStartDate(''); setEndDate(''); setFilterCategory(''); setActivePreset('')
+  }
+
   useEffect(() => {
     loadCategories()
   }, [])
 
   useEffect(() => {
     if (activeTab === 'expenses') loadExpenses()
-    if (activeTab === 'income') loadIncomes()
+    else if (activeTab === 'income') loadIncomes()
+    else if (activeTab === 'revenue') loadRevenue()
   }, [startDate, endDate, filterCategory, activeTab])
 
   // Handlers
@@ -349,10 +406,13 @@ export default function MoneyManagerPage() {
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
   const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0)
+  const totalRevenue = revenue ? parseFloat(revenue.total || '0') : 0
+  const hasActiveFilters = !!(startDate || endDate || filterCategory)
 
   const tabs = [
     { key: 'expenses' as ActiveTab, label: 'Expenses', icon: TrendingDown, color: 'text-red-500' },
     { key: 'income' as ActiveTab, label: 'Income', icon: TrendingUp, color: 'text-green-500' },
+    { key: 'revenue' as ActiveTab, label: 'Revenue', icon: Banknote, color: 'text-emerald-500' },
   ]
 
   return (
@@ -823,46 +883,112 @@ export default function MoneyManagerPage() {
           </div>
         )}
 
+        {/* Filter Card */}
+        <Card className="border-border/50 mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-primary" />
+                <CardTitle className="text-base">Filters</CardTitle>
+              </div>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
+                  Clear All
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-muted-foreground mr-1 flex items-center">Quick:</span>
+              {[
+                { key: 'today', label: 'Today' },
+                { key: 'yesterday', label: 'Yesterday' },
+                { key: 'week', label: 'This Week' },
+                { key: 'month', label: 'This Month' },
+                { key: 'last_month', label: 'Last Month' },
+              ].map(({ key, label }) => (
+                <Button
+                  key={key}
+                  variant={activePreset === key ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => applyPreset(key)}
+                  className="h-8 text-xs"
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Date Range & Category */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Start Date</label>
+                <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setActivePreset('custom') }} className="border-border/50 h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">End Date</label>
+                <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setActivePreset('custom') }} className="border-border/50 h-9" />
+              </div>
+              {activeTab === 'expenses' && categories.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Category</label>
+                  <Select value={filterCategory || 'all'} onValueChange={(value) => setFilterCategory(value === 'all' ? '' : value)}>
+                    <SelectTrigger className="border-border/50 h-9">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-red-500/5 to-red-500/10">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-red-500" />
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Expenses</CardTitle>
+            <CardContent className="py-4 px-4">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingDown className="w-3 h-3 text-red-600" />
+                <p className="text-xs text-muted-foreground">Expenses</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-red-600">₹{totalExpenses.toLocaleString('en-IN')}</p>
-              <p className="text-xs text-muted-foreground mt-2">Filtered total</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-600 truncate">₹{totalExpenses.toLocaleString('en-IN')}</p>
             </CardContent>
           </Card>
-
           <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-green-500/5 to-green-500/10">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Income</CardTitle>
+            <CardContent className="py-4 px-4">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingUp className="w-3 h-3 text-green-600" />
+                <p className="text-xs text-muted-foreground">Income</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-green-600">₹{totalIncome.toLocaleString('en-IN')}</p>
-              <p className="text-xs text-muted-foreground mt-2">From other sources</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600 truncate">₹{totalIncome.toLocaleString('en-IN')}</p>
             </CardContent>
           </Card>
-
           <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-primary/5 to-primary/10">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-primary" />
-                <CardTitle className="text-sm font-medium text-muted-foreground">Net Balance</CardTitle>
+            <CardContent className="py-4 px-4">
+              <div className="flex items-center gap-1 mb-1">
+                <Wallet className="w-3 h-3 text-primary" />
+                <p className="text-xs text-muted-foreground">Net Balance</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-3xl font-bold ${totalIncome - totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-xl sm:text-2xl font-bold truncate ${totalIncome - totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ₹{(totalIncome - totalExpenses).toLocaleString('en-IN')}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">Income - Expenses</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-emerald-500/5 to-emerald-500/10">
+            <CardContent className="py-4 px-4">
+              <div className="flex items-center gap-1 mb-1">
+                <Banknote className="w-3 h-3 text-emerald-600" />
+                <p className="text-xs text-muted-foreground">Revenue</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-emerald-600 truncate">₹{totalRevenue.toLocaleString('en-IN')}</p>
             </CardContent>
           </Card>
         </div>
@@ -891,48 +1017,6 @@ export default function MoneyManagerPage() {
               </button>
             )
           })}
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-6 items-start sm:items-center w-full">
-          <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-            <div className="flex flex-row items-center gap-4 w-full sm:w-auto">
-              <div className="flex items-center gap-2 flex-1">
-                <label className="text-sm font-medium text-muted-foreground shrink-0">Start Date:</label>
-                <Input
-                  type="date"
-                  className="w-full sm:w-40 border-border/50"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                <label className="text-sm font-medium text-muted-foreground shrink-0">End Date:</label>
-                <Input
-                  type="date"
-                  className="w-full sm:w-40 border-border/50"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          {activeTab === 'expenses' && categories.length > 0 && (
-            <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 lg:ml-auto">
-              <label className="text-sm font-medium text-muted-foreground shrink-0 hidden sm:block">Category:</label>
-              <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value === 'all' ? '' : value)}>
-                <SelectTrigger className="w-full sm:w-44 border-border/50">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
         </div>
 
         {/* Expenses Tab */}
@@ -1106,6 +1190,79 @@ export default function MoneyManagerPage() {
                   <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
                     <span className="font-semibold text-foreground">Total</span>
                     <span className="font-bold text-lg text-green-600">₹{totalIncome.toLocaleString('en-IN')}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* Revenue Tab */}
+        {activeTab === 'revenue' && (
+          <>
+            {isLoading ? (
+              <Card className="border-border/50">
+                <CardContent className="py-12 text-center text-muted-foreground">Loading revenue...</CardContent>
+              </Card>
+            ) : !revenue ? (
+              <Card className="border-border/50">
+                <CardContent className="py-12 text-center">
+                  <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-muted-foreground">No revenue data available</p>
+                  <p className="text-xs text-muted-foreground mt-1">Select a date range to view revenue</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                    Revenue Breakdown
+                  </CardTitle>
+                  <CardDescription>
+                    {startDate && endDate && startDate !== endDate
+                      ? `${startDate} to ${endDate}`
+                      : startDate || endDate || 'Today'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto rounded-lg border border-border/50">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50">
+                          <th className="text-left py-3 px-4 font-semibold text-foreground">Source</th>
+                          <th className="text-right py-3 px-4 font-semibold text-foreground">Amount (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        <tr className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 text-foreground">DC Deduction</td>
+                          <td className="py-3 px-4 text-right font-medium text-foreground">₹{parseFloat(revenue.dc_deduction || '0').toLocaleString('en-IN')}</td>
+                        </tr>
+                        <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                          <td className="py-3 px-4 text-foreground">Monthly Interest</td>
+                          <td className="py-3 px-4 text-right font-medium text-foreground">₹{parseFloat(revenue.monthly_interest || '0').toLocaleString('en-IN')}</td>
+                        </tr>
+                        <tr className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4 text-foreground">DL Interest</td>
+                          <td className="py-3 px-4 text-right font-medium text-foreground">₹{parseFloat(revenue.dl_interest || '0').toLocaleString('en-IN')}</td>
+                        </tr>
+                        <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                          <td className="py-3 px-4 text-foreground">DC Interest</td>
+                          <td className="py-3 px-4 text-right font-medium text-foreground">₹{parseFloat(revenue.dc_interest || '0').toLocaleString('en-IN')}</td>
+                        </tr>
+                        {parseFloat(revenue.other_income || '0') > 0 && (
+                          <tr className="hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4 text-foreground">Other Income</td>
+                            <td className="py-3 px-4 text-right font-medium text-green-600">₹{parseFloat(revenue.other_income || '0').toLocaleString('en-IN')}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
+                    <span className="font-semibold text-foreground">Total Revenue</span>
+                    <span className="font-bold text-lg text-emerald-600">₹{parseFloat(revenue.total || '0').toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>
