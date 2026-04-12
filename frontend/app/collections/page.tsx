@@ -361,9 +361,9 @@ export default function CollectionsPage() {
 
           // For Monthly Interest: use total_pending_interest (includes unpaid months)
           // For DL: use expected_interest (DL has its own accumulation)
-          const expectedInterest = loan.loan_type === 'Monthly Interest Loan'
+          const expectedInterest = Math.max(0, loan.loan_type === 'Monthly Interest Loan'
             ? (loan.total_pending_interest ? parseFloat(loan.total_pending_interest) : 0)
-            : (loan.expected_interest ? parseFloat(loan.expected_interest) : 0)
+            : (loan.expected_interest ? parseFloat(loan.expected_interest) : 0))
 
           // Auto-populate default amounts based on loan type
           if (loan.loan_type === 'DC Loan') {
@@ -534,9 +534,9 @@ export default function CollectionsPage() {
           let defaultAmount = ''
 
           // For Monthly Interest: use total_pending_interest (includes unpaid months)
-          const expectedInterest = loan.loan_type === 'Monthly Interest Loan'
+          const expectedInterest = Math.max(0, loan.loan_type === 'Monthly Interest Loan'
             ? (loan.total_pending_interest ? parseFloat(loan.total_pending_interest) : 0)
-            : (loan.expected_interest ? parseFloat(loan.expected_interest) : 0)
+            : (loan.expected_interest ? parseFloat(loan.expected_interest) : 0))
 
           // Auto-populate default amounts based on loan type
           if (loan.loan_type === 'DC Loan') {

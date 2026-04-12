@@ -161,18 +161,25 @@ class Loan(models.Model):
         return max(1, count)
     
     def get_total_pending_interest(self):
-        """Get total pending interest including all unpaid cycles"""
+        """Get total pending interest including all unpaid cycles.
+        
+        pending_interest can be negative (advance credit from early payments).
+        The total is clamped to 0 minimum so it never shows a negative debt.
+        """
         if self.loan_type == 'Monthly Interest Loan':
             # If interest is already paid for the current cycle, only show past pending
             if self.is_current_cycle_interest_paid():
-                return self.pending_interest
+                # pending_interest may be negative (advance credit) – clamp to 0
+                return max(Decimal('0'), self.pending_interest)
             # Count missed cycles and multiply
             unpaid = self._count_unpaid_cycles()
-            return self.pending_interest + (self.calculate_monthly_interest() * unpaid)
+            total = self.pending_interest + (self.calculate_monthly_interest() * unpaid)
+            return max(Decimal('0'), total)
         elif self.loan_type == 'DL Loan':
             dl_interest, _ = self.calculate_dl_interest()
-            return self.pending_interest + dl_interest
-        return self.pending_interest
+            total = self.pending_interest + dl_interest
+            return max(Decimal('0'), total)
+        return max(Decimal('0'), self.pending_interest)
     
     class Meta:
         db_table = 'transactions_loan'
@@ -230,16 +237,26 @@ class Transaction(models.Model):
             if loan.loan_type == 'Monthly Interest Loan':
                 # Calculate expected interest including missed cycles
                 unpaid_cycles = loan._count_unpaid_cycles()
-                expected_interest = (loan.calculate_monthly_interest() * max(1, unpaid_cycles)) + loan.pending_interest
                 interest_paid = Decimal(str(self.interest_amount)) if self.interest_amount else Decimal('0')
-                # If paid less than expected, store remainder as pending
+                
                 if interest_paid > 0:
-                    if interest_paid < expected_interest:
+                    if unpaid_cycles == 0:
+                        # Current cycle already paid — this is an ADVANCE payment
+                        # Store excess as negative pending (advance credit)
+                        expected_interest = max(Decimal('0'), loan.pending_interest)
                         loan.pending_interest = expected_interest - interest_paid
+                        # Don't update last_interest_payment_date for advance payments
+                        # to avoid extending coverage prematurely
                     else:
-                        loan.pending_interest = Decimal('0')
-                    # Record interest payment date to track cycle payment
-                    loan.last_interest_payment_date = date.today()
+                        # Normal payment: cover unpaid cycles
+                        expected_interest = (loan.calculate_monthly_interest() * unpaid_cycles) + loan.pending_interest
+                        if interest_paid < expected_interest:
+                            loan.pending_interest = expected_interest - interest_paid
+                        else:
+                            # Overpaid — store excess as advance credit (negative)
+                            loan.pending_interest = expected_interest - interest_paid
+                        # Record interest payment date to track cycle payment
+                        loan.last_interest_payment_date = date.today()
             
             elif loan.loan_type == 'DL Loan':
                 expected_interest, _ = loan.calculate_dl_interest()

@@ -226,7 +226,7 @@ export default function AdminDashboard() {
             <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate max-w-[200px] sm:max-w-none">Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground mt-1">Welcome back, Admin</p>
           </div>
-          
+
           {/* Mobile Navigation */}
           <div className="flex md:hidden items-center gap-2">
             <Sheet>
@@ -265,9 +265,9 @@ export default function AdminDashboard() {
                       <Link href="/admin/cashbook">Cash Book</Link>
                     </Button>
                   </SheetClose>
-                  
+
                   <div className="h-px bg-border my-2" />
-                  
+
                   <SheetClose asChild>
                     <Button variant="ghost" asChild className="w-full justify-start">
                       <Link href="/admin/users/add" className="flex items-center gap-2">
@@ -385,16 +385,14 @@ export default function AdminDashboard() {
                       {dashboardStats.monthly_interest_due.map((item) => (
                         <div
                           key={item.loan_id}
-                          className={`flex items-center justify-between p-2 rounded transition-colors ${
-                            item.is_collected
+                          className={`flex items-center justify-between p-2 rounded transition-colors ${item.is_collected
                               ? 'bg-green-500/5 opacity-60'
                               : 'hover:bg-red-500/10'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
-                              item.is_collected ? 'bg-green-500/20' : 'bg-red-500/20'
-                            }`}>
+                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${item.is_collected ? 'bg-green-500/20' : 'bg-red-500/20'
+                              }`}>
                               {item.is_collected
                                 ? <CheckCircle className="w-3 h-3 text-green-500" />
                                 : <IndianRupee className="w-3 h-3 text-red-500" />
@@ -546,21 +544,18 @@ export default function AdminDashboard() {
                           className="flex items-center justify-between p-2 rounded hover:bg-green-500/10 transition-colors"
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
-                              item.loan_type === 'DC Loan' ? 'bg-blue-500/20' : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20' : 'bg-purple-500/20'
-                            }`}>
-                              <CheckCircle className={`w-3 h-3 ${
-                                item.loan_type === 'DC Loan' ? 'text-blue-500' : item.loan_type === 'Monthly Interest Loan' ? 'text-green-500' : 'text-purple-500'
-                              }`} />
+                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${item.loan_type === 'DC Loan' ? 'bg-blue-500/20' : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20' : 'bg-purple-500/20'
+                              }`}>
+                              <CheckCircle className={`w-3 h-3 ${item.loan_type === 'DC Loan' ? 'text-blue-500' : item.loan_type === 'Monthly Interest Loan' ? 'text-green-500' : 'text-purple-500'
+                                }`} />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1">
                                 <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
-                                <span className={`px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
-                                  item.loan_type === 'DC Loan' ? 'bg-blue-500/20 text-blue-600'
+                                <span className={`px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 ${item.loan_type === 'DC Loan' ? 'bg-blue-500/20 text-blue-600'
                                     : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20 text-green-600'
-                                    : 'bg-purple-500/20 text-purple-600'
-                                }`}>
+                                      : 'bg-purple-500/20 text-purple-600'
+                                  }`}>
                                   {item.loan_type === 'DC Loan' ? 'DC' : item.loan_type === 'Monthly Interest Loan' ? 'ML' : 'DL'}
                                 </span>
                               </div>
@@ -574,9 +569,8 @@ export default function AdminDashboard() {
                           <div className="flex-shrink-0">
                             <div className="w-16 bg-muted rounded-full h-1.5">
                               <div
-                                className={`h-full rounded-full ${
-                                  item.loan_type === 'DC Loan' ? 'bg-blue-500' : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500' : 'bg-purple-500'
-                                }`}
+                                className={`h-full rounded-full ${item.loan_type === 'DC Loan' ? 'bg-blue-500' : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500' : 'bg-purple-500'
+                                  }`}
                                 style={{ width: `${100 - item.percentage_remaining}%` }}
                               />
                             </div>

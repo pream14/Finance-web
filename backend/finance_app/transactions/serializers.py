@@ -251,12 +251,13 @@ class TransactionSerializer(serializers.ModelSerializer):
             if interest_paid > 0:
                 if loan.loan_type == 'Monthly Interest Loan':
                     monthly_interest = loan.calculate_monthly_interest()
-                    expected = monthly_interest + pending
-                    if interest_paid < expected:
-                        pending = expected - interest_paid
-                    else:
-                        pending = Decimal('0')
-                    last_interest_date = txn.created_at.date()
+                    expected = monthly_interest + max(Decimal('0'), pending)
+                    # Allow pending to go negative (advance credit)
+                    pending = expected - interest_paid
+                    # Only update last_interest_date for non-advance payments
+                    # (when there was actual debt to cover)
+                    if expected > 0:
+                        last_interest_date = txn.created_at.date()
                 elif loan.loan_type == 'DL Loan':
                     dl_interest, _ = loan.calculate_dl_interest(as_of_date=txn.created_at.date())
                     expected = dl_interest + pending
