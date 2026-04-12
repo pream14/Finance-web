@@ -226,8 +226,8 @@ class DailyCashBookView(APIView):
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
 
-        if created:
-            # First visit for this date — dynamically compute from anchor + all cash flows
+        if created or cashbook_entry.opening_balance == 0:
+            # New record OR stale record with 0 — dynamically compute from anchor + all cash flows
             cashbook_entry.opening_balance = compute_opening_balance(target_date)
             cashbook_entry.save()
 
@@ -573,7 +573,7 @@ class CashBookPDFDownloadView(APIView):
             date=target_date,
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
-        if created:
+        if created or cashbook_entry.opening_balance == 0:
             cashbook_entry.opening_balance = compute_opening_balance(target_date)
             cashbook_entry.save()
 
