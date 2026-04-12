@@ -11,6 +11,56 @@ from .models import Loan, Transaction, DailyCashBook
 from expenses.models import Expense, Income
 
 
+def compute_opening_balance(target_date):
+    """
+    Dynamically compute the opening balance for a given date.
+    Finds the most recent DailyCashBook anchor and aggregates all cash
+    transactions from the anchor date through the day before target_date.
+
+    This fixes the skipped-days bug: even if the user hasn't opened the
+    cashbook for several days, all intermediate transactions are accounted for.
+    """
+    # Find the most recent anchor entry (any previous DailyCashBook record)
+    anchor = DailyCashBook.objects.filter(
+        date__lt=target_date
+    ).order_by('-date').first()
+
+    if not anchor:
+        return Decimal('0')
+
+    anchor_opening = anchor.opening_balance
+    anchor_date = anchor.date
+
+    # Aggregate all cash flows from anchor_date (inclusive) to target_date (exclusive)
+    # This covers anchor_day + all skipped days up to yesterday
+    date_range_q = Q(created_at__date__gte=anchor_date, created_at__date__lt=target_date)
+
+    # Cash IN
+    cash_collections = Transaction.objects.filter(
+        date_range_q, payment_method='cash'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    cash_income = Income.objects.filter(
+        date_range_q, payment_method='cash'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    # Cash OUT
+    cash_loans_given = Loan.objects.filter(
+        date_range_q, payment_method='cash'
+    ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+
+    try:
+        cash_expenses = Expense.objects.filter(
+            date_range_q, payment_method='cash'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    except Exception:
+        cash_expenses = Expense.objects.filter(
+            created_at__date__gte=anchor_date, created_at__date__lt=target_date
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    return anchor_opening + cash_collections + cash_income - cash_loans_given - cash_expenses
+
+
 class DailyCashBookView(APIView):
     """
     Daily Cash Book (Iruppu) API
@@ -171,18 +221,15 @@ class DailyCashBookView(APIView):
     def _get_single_day(self, request, target_date):
         """Get cashbook data for a single day (original behavior)."""
         # Get or calculate opening balance (iruppu)
-        cashbook_entry, _ = DailyCashBook.objects.get_or_create(
+        cashbook_entry, created = DailyCashBook.objects.get_or_create(
             date=target_date,
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
 
-        if cashbook_entry.opening_balance == 0:
-            previous_entry = DailyCashBook.objects.filter(
-                date__lt=target_date
-            ).order_by('-date').first()
-            if previous_entry:
-                cashbook_entry.opening_balance = previous_entry.closing_balance
-                cashbook_entry.save()
+        if created:
+            # First visit for this date — dynamically compute from anchor + all cash flows
+            cashbook_entry.opening_balance = compute_opening_balance(target_date)
+            cashbook_entry.save()
 
         opening_balance = cashbook_entry.opening_balance
 
@@ -522,15 +569,13 @@ class CashBookPDFDownloadView(APIView):
 
         # ---- Fetch the same data as DailyCashBookView ----
         from .models import DailyCashBook
-        cashbook_entry, _ = DailyCashBook.objects.get_or_create(
+        cashbook_entry, created = DailyCashBook.objects.get_or_create(
             date=target_date,
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
-        if cashbook_entry.opening_balance == 0:
-            previous_entry = DailyCashBook.objects.filter(date__lt=target_date).order_by('-date').first()
-            if previous_entry:
-                cashbook_entry.opening_balance = previous_entry.closing_balance
-                cashbook_entry.save()
+        if created:
+            cashbook_entry.opening_balance = compute_opening_balance(target_date)
+            cashbook_entry.save()
 
         opening_balance = cashbook_entry.opening_balance
 
