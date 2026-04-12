@@ -49,6 +49,12 @@ def compute_opening_balance(target_date):
         date_range_q, payment_method='cash'
     ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
+    # DC deduction for cash DC loans stays in hand (not actually given out)
+    cash_dc_deduction = Loan.objects.filter(
+        date_range_q, payment_method='cash',
+        loan_type='DC Loan', dc_deduction_amount__gt=0
+    ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
+
     try:
         cash_expenses = Expense.objects.filter(
             date_range_q, payment_method='cash'
@@ -58,7 +64,7 @@ def compute_opening_balance(target_date):
             created_at__date__gte=anchor_date, created_at__date__lt=target_date
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-    return anchor_opening + cash_collections + cash_income - cash_loans_given - cash_expenses
+    return anchor_opening + cash_collections + cash_income - cash_loans_given + cash_dc_deduction - cash_expenses
 
 
 class DailyCashBookView(APIView):
@@ -297,6 +303,14 @@ class DailyCashBookView(APIView):
             dc_deduction_amount__gt=0
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
+        # DC deduction for cash DC loans (stays in cash box, not given to customer)
+        cash_dc_deduction = Loan.objects.filter(
+            created_at__date=target_date,
+            payment_method='cash',
+            loan_type='DC Loan',
+            dc_deduction_amount__gt=0
+        ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
+
         # Interest revenue collected today broken down by loan type
         monthly_interest = Transaction.objects.filter(
             created_at__date=target_date,
@@ -319,8 +333,9 @@ class DailyCashBookView(APIView):
         total_interest_collected = monthly_interest + dl_interest + dc_interest
 
         # Calculate closing balance
-        # Closing = Opening + Cash Collections + Cash Income - Cash Loans Given - Cash Expenses
-        closing_balance = opening_balance + cash_collections + cash_income - cash_loans_given - cash_expenses
+        # Closing = Opening + Cash Collections + Cash Income - (Cash Loans Given - DC Deduction) - Cash Expenses
+        # DC deduction is added back because it was never given out as cash
+        closing_balance = opening_balance + cash_collections + cash_income - cash_loans_given + cash_dc_deduction - cash_expenses
 
         # Save closing balance
         cashbook_entry.closing_balance = closing_balance
@@ -370,6 +385,7 @@ class DailyCashBookView(APIView):
             'other_income': str(other_income_total),
             'cash_income': str(cash_income),
             'online_income': str(online_income),
+            'cash_dc_deduction': str(cash_dc_deduction),
             'closing_balance': str(closing_balance),
             'revenue': {
                 'dc_deduction': str(dc_deduction_revenue),
@@ -623,8 +639,16 @@ class CashBookPDFDownloadView(APIView):
 
         other_income_total = cash_income + online_income
 
-        # Closing balance now includes cash income
-        closing_balance = opening_balance + cash_collections + cash_income - cash_loans_given - cash_expenses
+        # DC deduction for cash DC loans stays in hand
+        cash_dc_deduction = Loan.objects.filter(
+            created_at__date=target_date,
+            payment_method='cash',
+            loan_type='DC Loan',
+            dc_deduction_amount__gt=0
+        ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
+
+        # Closing balance: DC deduction added back since it was never given out
+        closing_balance = opening_balance + cash_collections + cash_income - cash_loans_given + cash_dc_deduction - cash_expenses
 
         # Revenue
         dc_deduction = Loan.objects.filter(
@@ -713,6 +737,10 @@ class CashBookPDFDownloadView(APIView):
             flow_data.append(['+ Cash Income (Other)', f'+{fmt(cash_income)}'])
         flow_data.extend([
             ['\u2212 Cash Loans Given', f'-{fmt(cash_loans_given)}'],
+        ])
+        if cash_dc_deduction > 0:
+            flow_data.append(['+ DC Deduction (kept in cash)', f'+{fmt(cash_dc_deduction)}'])
+        flow_data.extend([
             ['\u2212 Cash Expenses', f'-{fmt(cash_expenses)}'],
             ['= Closing Cash in Hand', fmt(closing_balance)],
         ])

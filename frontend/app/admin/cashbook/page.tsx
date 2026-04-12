@@ -30,6 +30,7 @@ interface CashBookData {
     other_income: string
     cash_income: string
     online_income: string
+    cash_dc_deduction?: string
     closing_balance?: string
     revenue: {
         dc_deduction: string
@@ -472,6 +473,12 @@ export default function CashBookPage() {
                                                         <td className="py-3 px-4 text-foreground">− Cash Loans Given</td>
                                                         <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.cash_loans_given).toLocaleString('en-IN')}</td>
                                                     </tr>
+                                                    {p(cashBookData.cash_dc_deduction || '0') > 0 && (
+                                                        <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
+                                                            <td className="py-3 px-4 text-foreground">+ DC Deduction (in cash)</td>
+                                                            <td className="py-3 px-4 text-right font-medium text-green-600">+₹{p(cashBookData.cash_dc_deduction || '0').toLocaleString('en-IN')}</td>
+                                                        </tr>
+                                                    )}
                                                     <tr className="hover:bg-muted/30 transition-colors bg-muted/10">
                                                         <td className="py-3 px-4 text-foreground">− Cash Expenses</td>
                                                         <td className="py-3 px-4 text-right font-medium text-red-600">-₹{p(cashBookData.cash_expenses).toLocaleString('en-IN')}</td>
