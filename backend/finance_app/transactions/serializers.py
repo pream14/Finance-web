@@ -31,6 +31,8 @@ class LoanSerializer(serializers.ModelSerializer):
                  'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Payment method
                  'payment_method',
+                 # Closure fields
+                 'closed_at', 'closure_note',
                  # Calculated fields
                  'expected_interest', 'total_pending_interest', 'days_since_start', 'has_transactions',
                  'amount_given_to_customer',
@@ -129,6 +131,8 @@ class LoanDetailSerializer(serializers.ModelSerializer):
                  'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Payment method
                  'payment_method',
+                 # Closure fields
+                 'closed_at', 'closure_note',
                  # Calculated fields
                  'expected_interest', 'total_pending_interest', 'days_since_start',
                  'amount_given_to_customer']

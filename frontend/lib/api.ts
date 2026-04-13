@@ -166,6 +166,12 @@ export const loansApi = {
   delete: (id: number) => apiRequest<void>(`/transactions/loans/${id}/`, {
     method: 'DELETE',
   }),
+
+  closeLoan: (id: number, data: { closure_note?: string; final_amount?: number; payment_method?: string }) =>
+    apiRequest<any>(`/transactions/loans/${id}/close/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Transactions/Collections API

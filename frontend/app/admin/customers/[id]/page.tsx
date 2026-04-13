@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download, Menu } from 'lucide-react'
+import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download, Menu, AlertTriangle, XCircle } from 'lucide-react'
 import { customersApi, loansApi, transactionsApi, customerReportApi } from '@/lib/api'
 
 interface Loan {
@@ -14,7 +14,7 @@ interface Loan {
     principal_amount: number
     remaining_amount: number
     start_date: string
-    status: 'active' | 'settled'
+    status: 'active' | 'settled' | 'closed'
     payment_method: 'cash' | 'online'
     monthly_interest_rate?: number
     daily_interest_rate?: number
@@ -24,6 +24,8 @@ interface Loan {
     pending_interest?: number
     total_pending_interest?: number
     expected_interest?: number
+    closed_at?: string
+    closure_note?: string
 }
 
 interface Customer {
@@ -64,7 +66,15 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
     const [entriesLoading, setEntriesLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
-    const [loanStatusFilter, setLoanStatusFilter] = useState<'active' | 'settled' | 'all'>('active')
+    const [loanStatusFilter, setLoanStatusFilter] = useState<'active' | 'settled' | 'closed' | 'all'>('active')
+
+    // Close loan state
+    const [showCloseDialog, setShowCloseDialog] = useState(false)
+    const [closingLoanId, setClosingLoanId] = useState<number | null>(null)
+    const [closeFinalAmount, setCloseFinalAmount] = useState('')
+    const [closePaymentMethod, setClosePaymentMethod] = useState('cash')
+    const [closeNote, setCloseNote] = useState('')
+    const [closeLoading, setCloseLoading] = useState(false)
 
     // Fetch customer data
     const fetchCustomerData = async () => {
@@ -151,8 +161,39 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
         }
     }
 
+    // Handle close loan
+    const handleOpenCloseDialog = (loanId: number) => {
+        setClosingLoanId(loanId)
+        setCloseFinalAmount('')
+        setClosePaymentMethod('cash')
+        setCloseNote('')
+        setShowCloseDialog(true)
+    }
+
+    const handleCloseLoan = async () => {
+        if (!closingLoanId) return
+        try {
+            setCloseLoading(true)
+            const data: any = {}
+            if (closeNote.trim()) data.closure_note = closeNote.trim()
+            if (closeFinalAmount && parseFloat(closeFinalAmount) > 0) {
+                data.final_amount = parseFloat(closeFinalAmount)
+                data.payment_method = closePaymentMethod
+            }
+            await loansApi.closeLoan(closingLoanId, data)
+            setShowCloseDialog(false)
+            setClosingLoanId(null)
+            await fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to close loan')
+        } finally {
+            setCloseLoading(false)
+        }
+    }
+
     // Get selected loan details for display
     const selectedLoan = selectedLoanId ? loans.find(l => l.id === selectedLoanId) : null
+    const closingLoan = closingLoanId ? loans.find(l => l.id === closingLoanId) : null
 
     // Calculate totals
     const totalAmount = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0)
@@ -356,16 +397,16 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                     <p className="text-xs text-muted-foreground mt-1">Click a loan to filter entries</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    {(['active', 'settled'] as const).map(status => (
+                                    {(['active', 'settled', 'closed'] as const).map(st => (
                                         <button
-                                            key={status}
-                                            onClick={() => setLoanStatusFilter(status)}
-                                            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors capitalize ${loanStatusFilter === status
+                                            key={st}
+                                            onClick={() => setLoanStatusFilter(st)}
+                                            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors capitalize ${loanStatusFilter === st
                                                 ? 'bg-primary text-primary-foreground'
                                                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                                 }`}
                                         >
-                                            {status}
+                                            {st}
                                         </button>
                                     ))}
                                 </div>
@@ -395,9 +436,10 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             </span>
                                             <span className={`text-xs px-2 py-0.5 rounded-full ${loan.status === 'active' ? 'bg-green-500/20 text-green-600' :
                                                 loan.status === 'settled' ? 'bg-gray-500/20 text-gray-600' :
-                                                    'bg-red-500/20 text-red-600'
+                                                loan.status === 'closed' ? 'bg-red-500/20 text-red-600' :
+                                                    'bg-orange-500/20 text-orange-600'
                                                 }`}>
-                                                {loan.status}
+                                                {loan.status === 'closed' ? '✕ Closed' : loan.status}
                                             </span>
                                         </div>
                                         <div className="space-y-1">
@@ -489,8 +531,36 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                 </div>
                                             )}
                                         </div>
-                                        {selectedLoanId === loan.id && (
+                                        {/* Closure metadata for closed loans */}
+                                        {loan.status === 'closed' && (
+                                            <div className="mt-2 pt-2 border-t border-red-500/30 space-y-1">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">Closed On</span>
+                                                    <span className="text-red-600 font-medium">
+                                                        {loan.closed_at ? new Date(loan.closed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                                                    </span>
+                                                </div>
+                                                {loan.remaining_amount > 0 && (
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-muted-foreground">Written Off</span>
+                                                        <span className="text-red-600 font-medium">₹{loan.remaining_amount.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+                                                {loan.closure_note && (
+                                                    <p className="text-xs text-muted-foreground italic mt-1">Note: {loan.closure_note}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {/* Close Loan button for selected active loans */}
+                                        {selectedLoanId === loan.id && loan.status === 'active' && (
                                             <div className="mt-2 pt-2 border-t border-primary/30 text-center">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleOpenCloseDialog(loan.id) }}
+                                                    className="w-full px-3 py-2 text-xs font-medium rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/30 transition-colors flex items-center justify-center gap-1.5"
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                    Close Loan
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -612,6 +682,132 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                     </CardContent>
                 </Card>
             </main>
+
+            {/* Close Loan Confirmation Dialog */}
+            {showCloseDialog && closingLoan && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowCloseDialog(false)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-5 border-b border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-red-500/10 rounded-lg">
+                                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-foreground">Close Loan</h3>
+                                    <p className="text-sm text-muted-foreground">{closingLoan.loan_type} — {customer.name}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-5 space-y-4">
+                            {/* Loan Summary */}
+                            <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Principal Amount</span>
+                                    <span className="font-medium text-foreground">₹{closingLoan.principal_amount.toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Remaining Balance</span>
+                                    <span className="font-bold text-orange-600">₹{closingLoan.remaining_amount.toLocaleString('en-IN')}</span>
+                                </div>
+                                {(closingLoan.total_pending_interest || 0) > 0 && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Pending Interest (waived)</span>
+                                        <span className="font-medium text-red-500 line-through">₹{(closingLoan.total_pending_interest || 0).toLocaleString('en-IN')}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Final Amount Input */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Final Amount Received (optional)</label>
+                                <input
+                                    type="number"
+                                    value={closeFinalAmount}
+                                    onChange={(e) => setCloseFinalAmount(e.target.value)}
+                                    placeholder="0"
+                                    min="0"
+                                    max={closingLoan.remaining_amount}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Amount customer paid at the time of closure</p>
+                            </div>
+
+                            {/* Payment Method (only if final amount) */}
+                            {closeFinalAmount && parseFloat(closeFinalAmount) > 0 && (
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-1.5">Payment Method</label>
+                                    <div className="flex gap-2">
+                                        {['cash', 'online'].map(method => (
+                                            <button
+                                                key={method}
+                                                onClick={() => setClosePaymentMethod(method)}
+                                                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors capitalize ${
+                                                    closePaymentMethod === method
+                                                        ? 'bg-primary text-primary-foreground border-primary'
+                                                        : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'
+                                                }`}
+                                            >
+                                                {method}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Closure Note */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Closure Note (optional)</label>
+                                <textarea
+                                    value={closeNote}
+                                    onChange={(e) => setCloseNote(e.target.value)}
+                                    placeholder="Reason for closing this loan..."
+                                    rows={2}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                                />
+                            </div>
+
+                            {/* Write-off summary */}
+                            {closingLoan.remaining_amount > 0 && (
+                                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                                    <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                        Write-off amount: ₹{(
+                                            closingLoan.remaining_amount - (parseFloat(closeFinalAmount) || 0)
+                                        ).toLocaleString('en-IN')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">This amount will remain in the balance as a loss. This action cannot be undone.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button
+                                onClick={() => setShowCloseDialog(false)}
+                                disabled={closeLoading}
+                                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCloseLoan}
+                                disabled={closeLoading}
+                                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                                {closeLoading ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <XCircle className="w-4 h-4" />
+                                )}
+                                {closeLoading ? 'Closing...' : 'Close Loan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

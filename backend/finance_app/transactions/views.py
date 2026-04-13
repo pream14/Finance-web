@@ -82,6 +82,63 @@ class LoanViewSet(viewsets.ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
+    @action(detail=True, methods=['post'], url_path='close')
+    def close_loan(self, request, pk=None):
+        """Manually close/write-off a loan.
+
+        Used when a customer hasn't paid interest for months and
+        the admin decides to absorb the loss and close the loan.
+        Optionally accepts a final payment amount.
+        """
+        from decimal import Decimal
+        from django.utils import timezone
+
+        loan = self.get_object()
+
+        if loan.status != 'active':
+            return Response(
+                {'error': f'Cannot close a loan that is already {loan.status}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        closure_note = request.data.get('closure_note', '')
+        final_amount = request.data.get('final_amount')
+
+        # If admin records a final payment at the time of closure
+        if final_amount is not None:
+            final_amount = Decimal(str(final_amount))
+            if final_amount > 0:
+                if final_amount > loan.remaining_amount:
+                    return Response(
+                        {'error': f'Final amount (₹{final_amount}) exceeds remaining balance (₹{loan.remaining_amount}).'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # Create a transaction for the final payment
+                Transaction.objects.create(
+                    loan=loan,
+                    amount=final_amount,
+                    asal_amount=final_amount,
+                    interest_amount=Decimal('0'),
+                    payment_method=request.data.get('payment_method', 'cash'),
+                    description=f'Final payment before loan closure',
+                    created_by=request.user,
+                )
+                # The Transaction.save() already reduces remaining_amount,
+                # but we need to reload the loan to get the updated value
+                loan.refresh_from_db()
+
+        # Close the loan
+        loan.status = 'closed'
+        loan.closed_at = timezone.now()
+        loan.closure_note = closure_note
+        loan.save()
+
+        serializer = LoanDetailSerializer(loan)
+        return Response({
+            'message': 'Loan closed successfully.',
+            'loan': serializer.data,
+        })
+
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [permissions.IsAuthenticated]

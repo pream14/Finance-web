@@ -24,6 +24,7 @@ class Loan(models.Model):
     status = models.CharField(max_length=20, choices=[
         ('active', 'Active'),
         ('settled', 'Settled'),
+        ('closed', 'Closed'),
     ], default='active')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -55,6 +56,10 @@ class Loan(models.Model):
         ('cash', 'Cash'),
         ('online', 'Online Transfer'),
     ], default='cash', help_text="How the loan amount was disbursed")
+    
+    # Loan closure fields
+    closed_at = models.DateTimeField(null=True, blank=True, help_text="When the loan was manually closed/written off")
+    closure_note = models.TextField(null=True, blank=True, help_text="Admin's reason for closing the loan")
     
     @property
     def amount_given_to_customer(self):
