@@ -190,6 +190,38 @@ class DashboardStatsView(APIView):
             'created_at': loan.created_at.isoformat(),
         } for loan in new_loans_this_month]
         
+        # 7. Interest Calendar — group all active ML loans by cycle day
+        from collections import defaultdict
+        calendar_data = defaultdict(list)
+        ml_loans = active_loans.filter(
+            loan_type='Monthly Interest Loan',
+            interest_cycle_day__isnull=False,
+        )
+        for loan in ml_loans:
+            cycle_day = loan.interest_cycle_day
+            interest_rate = loan.monthly_interest_rate or Decimal('0')
+            interest_amount = (loan.remaining_amount * interest_rate / 100)
+            calendar_data[cycle_day].append({
+                'loan_id': loan.id,
+                'customer_id': loan.customer.id,
+                'customer_name': loan.customer.name,
+                'customer_phone': loan.customer.phone_number,
+                'remaining_amount': str(loan.remaining_amount),
+                'interest_rate': str(interest_rate),
+                'interest_amount': str(interest_amount.quantize(Decimal('0.01'))),
+            })
+        
+        interest_calendar = []
+        for day in sorted(calendar_data.keys()):
+            customers = calendar_data[day]
+            total_interest = sum(Decimal(c['interest_amount']) for c in customers)
+            interest_calendar.append({
+                'cycle_day': day,
+                'count': len(customers),
+                'total_interest': str(total_interest.quantize(Decimal('0.01'))),
+                'customers': customers,
+            })
+        
         return Response({
             'monthly_interest_due': monthly_interest_due_list,
             'overdue_alerts': overdue_alerts,
@@ -202,4 +234,5 @@ class DashboardStatsView(APIView):
                 'avg_collection_per_day': str(round(avg_collection_per_day, 2)),
             },
             'new_loans_this_month': new_loans_list,
+            'interest_calendar': interest_calendar,
         })

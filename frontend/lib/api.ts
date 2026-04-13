@@ -406,6 +406,20 @@ export const dashboardApi = {
       principal_amount: string;
       created_at: string;
     }>;
+    interest_calendar: Array<{
+      cycle_day: number;
+      count: number;
+      total_interest: string;
+      customers: Array<{
+        loan_id: number;
+        customer_id: number;
+        customer_name: string;
+        customer_phone: string;
+        remaining_amount: string;
+        interest_rate: string;
+        interest_amount: string;
+      }>;
+    }>;
   }>('/transactions/dashboard-stats/'),
 
   paymentAnalytics: {
