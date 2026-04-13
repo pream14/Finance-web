@@ -853,14 +853,14 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => navigateCalendarMonth(-1)}
-                    className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground text-lg font-bold"
                   >
                     ‹
                   </button>
                   <span className="text-sm font-medium text-foreground min-w-[140px] text-center">{calendarMonthLabel}</span>
                   <button
                     onClick={() => navigateCalendarMonth(1)}
-                    className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground text-lg font-bold"
                   >
                     ›
                   </button>
@@ -868,117 +868,126 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Day-of-week headers */}
-              <div className="grid grid-cols-7 gap-1 mb-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-                ))}
-              </div>
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {/* Empty cells for offset */}
-                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                  <div key={`empty-${i}`} className="aspect-square" />
-                ))}
-                {/* Day cells */}
-                {Array.from({ length: daysInCalendarMonth }).map((_, i) => {
-                  const day = i + 1
-                  const data = calendarMap[day]
-                  const isToday = isCurrentMonth && day === todayDate.getDate()
-                  const isSelected = selectedCalendarDay === day
-                  const hasLoans = data && data.count > 0
-                  return (
-                    <button
-                      key={day}
-                      onClick={() => setSelectedCalendarDay(isSelected ? null : day)}
-                      className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all text-sm
-                        ${isSelected
-                          ? 'bg-violet-600 text-white ring-2 ring-violet-400 shadow-lg'
-                          : isToday
-                            ? 'bg-primary/10 text-primary font-bold ring-1 ring-primary/30'
-                            : hasLoans
-                              ? 'bg-violet-500/10 hover:bg-violet-500/20 text-foreground cursor-pointer'
-                              : 'text-muted-foreground hover:bg-muted/50'
-                        }
-                      `}
-                    >
-                      <span className={`text-xs sm:text-sm ${isToday && !isSelected ? 'font-bold' : ''}`}>{day}</span>
-                      {hasLoans && (
-                        <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold leading-none px-1
-                          ${isSelected
-                            ? 'bg-white text-violet-700'
-                            : data.count >= 5
-                              ? 'bg-red-500 text-white'
-                              : data.count >= 3
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-violet-500 text-white'
-                          }
-                        `}>
-                          {data.count}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Legend */}
-              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-violet-500" />
-                  <span className="text-xs text-muted-foreground">1-2 loans</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-orange-500" />
-                  <span className="text-xs text-muted-foreground">3-4 loans</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-xs text-muted-foreground">5+ loans</span>
-                </div>
-              </div>
-
-              {/* Selected day detail */}
-              {selectedCalendarDay && selectedDayData && (
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-foreground">
-                      {selectedCalendarDay}{selectedCalendarDay === 1 ? 'st' : selectedCalendarDay === 2 ? 'nd' : selectedCalendarDay === 3 ? 'rd' : 'th'} of every month — {selectedDayData.count} customer{selectedDayData.count > 1 ? 's' : ''}
-                    </h4>
-                    <span className="text-sm font-bold text-violet-600">
-                      ₹{parseFloat(selectedDayData.total_interest).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                    {selectedDayData.customers.map((c: any) => (
-                      <Link
-                        key={c.loan_id}
-                        href={`/admin/customers/${c.customer_id}`}
-                        className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 hover:bg-violet-500/10 transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <span className="font-medium text-foreground text-sm truncate block">{c.customer_name}</span>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>Balance: ₹{parseFloat(c.remaining_amount).toLocaleString('en-IN')}</span>
-                            <span>•</span>
-                            <span>{c.interest_rate}%</span>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-violet-600 flex-shrink-0">
-                          ₹{parseFloat(c.interest_amount).toLocaleString('en-IN')}
-                        </span>
-                      </Link>
+              {/* Desktop: side-by-side | Mobile: stacked */}
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Calendar Grid — compact on desktop */}
+                <div className="w-full lg:w-auto lg:min-w-[320px] lg:max-w-[360px]">
+                  {/* Day-of-week headers */}
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                      <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
                     ))}
                   </div>
-                </div>
-              )}
+                  {/* Calendar grid */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {/* Empty cells for offset */}
+                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                      <div key={`empty-${i}`} className="h-10 lg:h-9" />
+                    ))}
+                    {/* Day cells */}
+                    {Array.from({ length: daysInCalendarMonth }).map((_, i) => {
+                      const day = i + 1
+                      const data = calendarMap[day]
+                      const isToday = isCurrentMonth && day === todayDate.getDate()
+                      const isSelected = selectedCalendarDay === day
+                      const hasLoans = data && data.count > 0
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => setSelectedCalendarDay(isSelected ? null : day)}
+                          className={`relative h-10 lg:h-9 rounded-lg flex items-center justify-center transition-all text-sm
+                            ${isSelected
+                              ? 'bg-violet-600 text-white ring-2 ring-violet-400 shadow-lg'
+                              : isToday
+                                ? 'bg-primary/10 text-primary font-bold ring-1 ring-primary/30'
+                                : hasLoans
+                                  ? 'bg-violet-500/10 hover:bg-violet-500/20 text-foreground cursor-pointer'
+                                  : 'text-muted-foreground hover:bg-muted/50'
+                            }
+                          `}
+                        >
+                          <span className={`text-xs sm:text-sm ${isToday && !isSelected ? 'font-bold' : ''}`}>{day}</span>
+                          {hasLoans && (
+                            <span className={`absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full text-[10px] font-bold leading-none px-0.5
+                              ${isSelected
+                                ? 'bg-white text-violet-700'
+                                : data.count >= 5
+                                  ? 'bg-red-500 text-white'
+                                  : data.count >= 3
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-violet-500 text-white'
+                              }
+                            `}>
+                              {data.count}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
 
-              {/* Selected day with no data */}
-              {selectedCalendarDay && !selectedDayData && (
-                <div className="mt-4 pt-4 border-t border-border/50 text-center py-4">
-                  <p className="text-sm text-muted-foreground">No interest collections due on day {selectedCalendarDay}</p>
+                  {/* Legend */}
+                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+                      <span className="text-xs text-muted-foreground">1-2</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                      <span className="text-xs text-muted-foreground">3-4</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                      <span className="text-xs text-muted-foreground">5+</span>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Detail Panel — right side on desktop, below on mobile */}
+                <div className="flex-1 min-w-0 lg:border-l lg:border-border/50 lg:pl-6">
+                  {selectedCalendarDay && selectedDayData ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-foreground">
+                          {selectedCalendarDay}{selectedCalendarDay === 1 ? 'st' : selectedCalendarDay === 2 ? 'nd' : selectedCalendarDay === 3 ? 'rd' : 'th'} of every month — {selectedDayData.count} customer{selectedDayData.count > 1 ? 's' : ''}
+                        </h4>
+                        <span className="text-sm font-bold text-violet-600">
+                          ₹{parseFloat(selectedDayData.total_interest).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                        {selectedDayData.customers.map((c: any) => (
+                          <Link
+                            key={c.loan_id}
+                            href={`/admin/customers/${c.customer_id}`}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 hover:bg-violet-500/10 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <span className="font-medium text-foreground text-sm truncate block">{c.customer_name}</span>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Balance: ₹{parseFloat(c.remaining_amount).toLocaleString('en-IN')}</span>
+                                <span>•</span>
+                                <span>{c.interest_rate}%</span>
+                              </div>
+                            </div>
+                            <span className="text-sm font-bold text-violet-600 flex-shrink-0">
+                              ₹{parseFloat(c.interest_amount).toLocaleString('en-IN')}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : selectedCalendarDay && !selectedDayData ? (
+                    <div className="flex items-center justify-center h-full py-8">
+                      <p className="text-sm text-muted-foreground">No interest collections due on day {selectedCalendarDay}</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full py-8">
+                      <p className="text-sm text-muted-foreground">Click a day to see customers with interest due</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
