@@ -273,7 +273,9 @@ class Transaction(models.Model):
                 else:
                     loan.pending_interest = Decimal('0')
                     # Update last interest payment date when interest is fully paid
-                    loan.last_interest_payment_date = self.created_at.date()
+                    # Note: self.created_at is None for new transactions (auto_now_add
+                    # isn't set until super().save()), so use date.today() instead.
+                    loan.last_interest_payment_date = date.today()
             
             # Check if loan is fully paid
             if loan.remaining_amount <= 0:

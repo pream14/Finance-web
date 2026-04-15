@@ -455,8 +455,8 @@ export default function AdminDashboard() {
                         <div
                           key={item.loan_id}
                           className={`flex items-center justify-between p-2 rounded transition-colors ${item.is_collected
-                              ? 'bg-green-500/5 opacity-60'
-                              : 'hover:bg-red-500/10'
+                            ? 'bg-green-500/5 opacity-60'
+                            : 'hover:bg-red-500/10'
                             }`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -622,8 +622,8 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-1">
                                 <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
                                 <span className={`px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 ${item.loan_type === 'DC Loan' ? 'bg-blue-500/20 text-blue-600'
-                                    : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20 text-green-600'
-                                      : 'bg-purple-500/20 text-purple-600'
+                                  : item.loan_type === 'Monthly Interest Loan' ? 'bg-green-500/20 text-green-600'
+                                    : 'bg-purple-500/20 text-purple-600'
                                   }`}>
                                   {item.loan_type === 'DC Loan' ? 'DC' : item.loan_type === 'Monthly Interest Loan' ? 'ML' : 'DL'}
                                 </span>
