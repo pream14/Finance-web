@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key, Menu } from 'lucide-react'
 import { transactionsApi, expensesApi, incomeApi, authApi, dashboardApi } from '@/lib/api'
 
@@ -120,6 +122,17 @@ export default function AdminDashboard() {
   const [expandedOverdue, setExpandedOverdue] = useState(false)
   const [expandedAlmostPaid, setExpandedAlmostPaid] = useState(false)
 
+  // Collection dialog state
+  const [collectDialogOpen, setCollectDialogOpen] = useState(false)
+  const [collectDialogData, setCollectDialogData] = useState<{
+    loanId: number; customerName: string; interestDue: string; remainingAmount: string;
+  } | null>(null)
+  const [collectPaymentMethod, setCollectPaymentMethod] = useState('cash')
+  const [collectType, setCollectType] = useState<'full_interest' | 'interest_asal' | 'custom'>('full_interest')
+  const [collectInterestAmount, setCollectInterestAmount] = useState('')
+  const [collectAsalAmount, setCollectAsalAmount] = useState('')
+  const [collectCustomAmount, setCollectCustomAmount] = useState('')
+
   // Interest Calendar state
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date()
@@ -175,19 +188,60 @@ export default function AdminDashboard() {
     window.location.href = '/auth/login'
   }
 
-  const handleMarkCollected = async (loanId: number, interestDue: string, customerName: string) => {
-    if (!confirm(`Mark ₹${parseFloat(interestDue).toLocaleString('en-IN')} interest collected from ${customerName}?`)) return
+  const openCollectDialog = (loanId: number, interestDue: string, customerName: string, remainingAmount: string) => {
+    setCollectDialogData({ loanId, customerName, interestDue, remainingAmount })
+    setCollectPaymentMethod('cash')
+    setCollectType('full_interest')
+    setCollectInterestAmount(parseFloat(interestDue).toString())
+    setCollectAsalAmount('')
+    setCollectCustomAmount('')
+    setCollectDialogOpen(true)
+  }
+
+  const getCollectTotal = () => {
+    if (collectType === 'full_interest') return parseFloat(collectInterestAmount) || 0
+    if (collectType === 'interest_asal') return (parseFloat(collectInterestAmount) || 0) + (parseFloat(collectAsalAmount) || 0)
+    return parseFloat(collectCustomAmount) || 0
+  }
+
+  const handleSubmitCollection = async () => {
+    if (!collectDialogData) return
+    const { loanId } = collectDialogData
+    const total = getCollectTotal()
+    if (total <= 0) { alert('Please enter a valid amount'); return }
+
+    if (collectType === 'interest_asal') {
+      const asalAmt = parseFloat(collectAsalAmount) || 0
+      const remaining = parseFloat(collectDialogData.remainingAmount) || 0
+      if (asalAmt > remaining) {
+        alert(`Asal amount (₹${asalAmt.toLocaleString('en-IN')}) cannot exceed remaining balance (₹${remaining.toLocaleString('en-IN')})`)
+        return
+      }
+    }
+
     setMarkingCollected(loanId)
     try {
-      await transactionsApi.create({
-        loan: loanId,
-        amount: parseFloat(interestDue),
-        interest_amount: parseFloat(interestDue),
-        asal_amount: 0,
-        payment_method: 'cash',
-        description: 'Monthly interest collection',
-      })
-      // Refresh dashboard stats
+      const txData: any = { loan: loanId, payment_method: collectPaymentMethod, description: 'Monthly interest collection' }
+
+      if (collectType === 'full_interest') {
+        txData.amount = parseFloat(collectInterestAmount)
+        txData.interest_amount = parseFloat(collectInterestAmount)
+        txData.asal_amount = 0
+      } else if (collectType === 'interest_asal') {
+        const interest = parseFloat(collectInterestAmount) || 0
+        const asal = parseFloat(collectAsalAmount) || 0
+        txData.amount = interest + asal
+        txData.interest_amount = interest
+        txData.asal_amount = asal
+        txData.description = `Interest: ₹${interest.toLocaleString('en-IN')}` + (asal > 0 ? ` + Asal: ₹${asal.toLocaleString('en-IN')}` : '')
+      } else {
+        txData.amount = parseFloat(collectCustomAmount)
+        txData.interest_amount = parseFloat(collectCustomAmount)
+        txData.asal_amount = 0
+      }
+
+      await transactionsApi.create(txData)
+      setCollectDialogOpen(false)
       await fetchDashboardStats()
     } catch (err: any) {
       console.error('Failed to mark as collected:', err)
@@ -495,7 +549,7 @@ export default function AdminDashboard() {
                                 className="px-2 py-1 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  handleMarkCollected(item.loan_id, item.interest_due, item.customer_name)
+                                  openCollectDialog(item.loan_id, item.interest_due, item.customer_name, item.remaining_amount)
                                 }}
                                 disabled={markingCollected === item.loan_id}
                               >
@@ -1071,6 +1125,166 @@ export default function AdminDashboard() {
           </Card>
         )}
       </main>
+
+      {/* Interest Collection Dialog */}
+      <Dialog open={collectDialogOpen} onOpenChange={setCollectDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Collect Interest</DialogTitle>
+            <DialogDescription>
+              {collectDialogData?.customerName} — Balance: ₹{parseFloat(collectDialogData?.remainingAmount || '0').toLocaleString('en-IN')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Payment Method */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Payment Method</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCollectPaymentMethod('cash')}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                    collectPaymentMethod === 'cash'
+                      ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                      : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4" />
+                  Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectPaymentMethod('online')}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                    collectPaymentMethod === 'online'
+                      ? 'border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-400'
+                      : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                  }`}
+                >
+                  <IndianRupee className="w-4 h-4" />
+                  Online
+                </button>
+              </div>
+            </div>
+
+            {/* Collection Type */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Collection Type</label>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCollectType('full_interest')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-2 text-sm transition-all ${
+                    collectType === 'full_interest'
+                      ? 'border-green-500 bg-green-500/10 text-green-700 dark:text-green-400'
+                      : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                  }`}
+                >
+                  <span className="font-medium">Full Interest Only</span>
+                  <span className="font-bold">₹{parseFloat(collectDialogData?.interestDue || '0').toLocaleString('en-IN')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectType('interest_asal')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-2 text-sm transition-all ${
+                    collectType === 'interest_asal'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                      : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                  }`}
+                >
+                  <span className="font-medium">Interest + Asal (Principal)</span>
+                  <span className="text-xs">Custom</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectType('custom')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-2 text-sm transition-all ${
+                    collectType === 'custom'
+                      ? 'border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-400'
+                      : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                  }`}
+                >
+                  <span className="font-medium">Custom Amount</span>
+                  <span className="text-xs">Enter manually</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Amount Fields */}
+            {collectType === 'full_interest' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Interest Amount</label>
+                <Input
+                  type="number"
+                  value={collectInterestAmount}
+                  onChange={(e) => setCollectInterestAmount(e.target.value)}
+                  placeholder="Interest amount"
+                  className="text-lg font-semibold"
+                />
+              </div>
+            )}
+
+            {collectType === 'interest_asal' && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Interest Amount</label>
+                  <Input
+                    type="number"
+                    value={collectInterestAmount}
+                    onChange={(e) => setCollectInterestAmount(e.target.value)}
+                    placeholder="Interest amount"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Asal (Principal) Amount</label>
+                  <Input
+                    type="number"
+                    value={collectAsalAmount}
+                    onChange={(e) => setCollectAsalAmount(e.target.value)}
+                    placeholder="Enter asal amount"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Max: ₹{parseFloat(collectDialogData?.remainingAmount || '0').toLocaleString('en-IN')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {collectType === 'custom' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Amount</label>
+                <Input
+                  type="number"
+                  value={collectCustomAmount}
+                  onChange={(e) => setCollectCustomAmount(e.target.value)}
+                  placeholder="Enter custom amount"
+                  className="text-lg font-semibold"
+                />
+              </div>
+            )}
+
+            {/* Total */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
+              <span className="text-sm font-medium text-muted-foreground">Total to Collect</span>
+              <span className="text-lg font-bold text-foreground">
+                ₹{getCollectTotal().toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCollectDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSubmitCollection}
+              disabled={markingCollected !== null || getCollectTotal() <= 0}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {markingCollected !== null ? 'Collecting...' : `Collect ₹${getCollectTotal().toLocaleString('en-IN')}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
