@@ -600,6 +600,11 @@ export default function AdminDashboard() {
                                 <span className="px-1 py-0.5 bg-orange-500/20 text-orange-600 rounded text-xs font-medium flex-shrink-0">
                                   {item.days_overdue}d late
                                 </span>
+                                {(item as any).unpaid_cycles > 1 && (
+                                  <span className="px-1 py-0.5 bg-red-500/20 text-red-600 rounded text-xs font-medium flex-shrink-0">
+                                    {(item as any).unpaid_cycles} cycles
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 Balance: ₹{parseFloat(item.remaining_amount).toLocaleString('en-IN')}

@@ -84,33 +84,45 @@ class DashboardStatsView(APIView):
         # 2. Overdue Payments - Only Monthly Interest Loans
         overdue_alerts = []
         
-        # Monthly Interest: Passed interest cycle day without payment
+        # Monthly Interest: Check for unpaid interest using the model's
+        # cycle-tracking logic, which works correctly across month boundaries.
         monthly_loans = active_loans.filter(loan_type='Monthly Interest Loan')
         for loan in monthly_loans:
             if not loan.interest_cycle_day:
                 continue
             effective_day = _effective_cycle_day(loan.interest_cycle_day, today)
-            if effective_day < today_day:
-                # Check if interest was paid this month
-                month_start = today.replace(day=1)
-                interest_paid = loan.transactions.filter(
-                    created_at__date__gte=month_start,
-                    interest_amount__gt=0
-                ).exists()
+            
+            # Skip loans whose interest is due today (shown in "Today's Interest")
+            if effective_day == today_day:
+                continue
+            
+            # Use the model's method to check if interest is current
+            if not loan.is_current_cycle_interest_paid():
+                # Count how many cycles are unpaid
+                unpaid_cycles = loan._count_unpaid_cycles()
                 
-                if not interest_paid:
-                    days_overdue = today_day - effective_day
-                    interest_rate = loan.monthly_interest_rate or Decimal('0')
-                    interest_due = (loan.remaining_amount * interest_rate / 100)
-                    overdue_alerts.append({
-                        'loan_id': loan.id,
-                        'customer_id': loan.customer.id,
-                        'customer_name': loan.customer.name,
-                        'loan_type': 'Monthly Interest',
-                        'days_overdue': days_overdue,
-                        'expected_amount': str(interest_due),
-                        'remaining_amount': str(loan.remaining_amount),
-                    })
+                # Calculate days overdue from the first missed cycle day
+                if loan.last_interest_payment_date:
+                    covered_until = loan._get_interest_covered_until()
+                else:
+                    covered_until = loan.start_date
+                days_overdue = (today - covered_until).days
+                if days_overdue < 0:
+                    days_overdue = 0
+                
+                interest_rate = loan.monthly_interest_rate or Decimal('0')
+                interest_per_cycle = (loan.remaining_amount * interest_rate / 100)
+                total_interest_due = interest_per_cycle * unpaid_cycles
+                overdue_alerts.append({
+                    'loan_id': loan.id,
+                    'customer_id': loan.customer.id,
+                    'customer_name': loan.customer.name,
+                    'loan_type': 'Monthly Interest',
+                    'days_overdue': days_overdue,
+                    'unpaid_cycles': unpaid_cycles,
+                    'expected_amount': str(total_interest_due),
+                    'remaining_amount': str(loan.remaining_amount),
+                })
         
         # Sort overdue by days_overdue descending
         overdue_alerts.sort(key=lambda x: x.get('days_overdue', 0), reverse=True)
