@@ -187,7 +187,7 @@ class DailyCashBookView(APIView):
 
         new_loans_list = list(Loan.objects.filter(
             date_filter
-        ).select_related('customer').values(
+        ).select_related('customer').order_by('created_at').values(
             'id', 'customer__name', 'loan_type', 'principal_amount',
             'payment_method', 'dc_deduction_amount', 'created_at'
         ))
@@ -364,7 +364,7 @@ class DailyCashBookView(APIView):
         # Get new loans given today
         new_loans_list = list(Loan.objects.filter(
             created_at__date=target_date
-        ).select_related('customer').values(
+        ).select_related('customer').order_by('created_at').values(
             'id', 'customer__name', 'loan_type', 'principal_amount',
             'payment_method', 'dc_deduction_amount'
         ))
@@ -687,7 +687,7 @@ class CashBookPDFDownloadView(APIView):
 
         new_loans = list(Loan.objects.filter(
             created_at__date=target_date
-        ).select_related('customer').values(
+        ).select_related('customer').order_by('created_at').values(
             'id', 'customer__name', 'loan_type', 'principal_amount',
             'payment_method', 'dc_deduction_amount'
         ))
