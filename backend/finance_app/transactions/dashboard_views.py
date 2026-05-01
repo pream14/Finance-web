@@ -131,10 +131,21 @@ class DashboardStatsView(APIView):
                     ) if loan.principal_amount else 0,
                 })
         
-        # 4. Total Outstanding Amount
+        # 4. Total Outstanding Amount (overall + per loan type)
         total_outstanding = active_loans.aggregate(
             total=Sum('remaining_amount')
         )['total'] or Decimal('0')
+        
+        outstanding_by_type = active_loans.aggregate(
+            dc=Sum('remaining_amount', filter=Q(loan_type='DC Loan')),
+            monthly=Sum('remaining_amount', filter=Q(loan_type='Monthly Interest Loan')),
+            dl=Sum('remaining_amount', filter=Q(loan_type='DL Loan')),
+        )
+        outstanding_breakdown = {
+            'dc_loan': str(outstanding_by_type['dc'] or Decimal('0')),
+            'monthly_interest_loan': str(outstanding_by_type['monthly'] or Decimal('0')),
+            'dl_loan': str(outstanding_by_type['dl'] or Decimal('0')),
+        }
         
         # 5. Recent Activity Feed (last 10 transactions)
         recent_transactions = Transaction.objects.select_related(
@@ -227,6 +238,7 @@ class DashboardStatsView(APIView):
             'overdue_alerts': overdue_alerts,
             'low_balance_warnings': low_balance_loans,
             'total_outstanding': str(total_outstanding),
+            'outstanding_breakdown': outstanding_breakdown,
             'recent_activity': recent_activity,
             'quick_stats': {
                 'total_active_customers': total_active_customers,

@@ -67,6 +67,11 @@ interface DashboardStats {
     percentage_remaining: number
   }>
   total_outstanding: string
+  outstanding_breakdown?: {
+    dc_loan: string
+    monthly_interest_loan: string
+    dl_loan: string
+  }
   recent_activity: Array<{
     id: number
     loan_id: number
@@ -765,7 +770,31 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-foreground">
                 {dashboardStats ? `₹${parseFloat(dashboardStats.total_outstanding).toLocaleString('en-IN')}` : '—'}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">All active loans</p>
+              {dashboardStats?.outstanding_breakdown && (
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-muted-foreground">DC Loan</span>
+                    </span>
+                    <span className="font-semibold text-blue-600">₹{parseFloat(dashboardStats.outstanding_breakdown.dc_loan).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-muted-foreground">Monthly Interest</span>
+                    </span>
+                    <span className="font-semibold text-green-600">₹{parseFloat(dashboardStats.outstanding_breakdown.monthly_interest_loan).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span className="text-muted-foreground">DL Loan</span>
+                    </span>
+                    <span className="font-semibold text-purple-600">₹{parseFloat(dashboardStats.outstanding_breakdown.dl_loan).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
