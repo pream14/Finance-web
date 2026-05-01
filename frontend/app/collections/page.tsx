@@ -1130,7 +1130,7 @@ export default function CollectionsPage() {
                                       ? 'bg-green-100 text-green-800'
                                       : 'bg-yellow-100 text-yellow-800'
                                       }`}>
-                                      {isMyEntry ? 'Paid' : `By ${todayEntry.collected_by_name?.split(' ')[0] || 'Other'}`}
+                                      {isMyEntry ? 'Received' : `By ${todayEntry.collected_by_name?.split(' ')[0] || 'Other'}`}
                                     </span>
 
                                     <div className="text-xs font-medium">₹{amt.toLocaleString()}</div>
@@ -1162,14 +1162,14 @@ export default function CollectionsPage() {
                                 )
                               }
                             } else {
-                              // NOT PAID - Show Pay Button
+                              // NOT PAID - Show Receive Button
                               return (
                                 <button
                                   onClick={() => markAsPaid(customer.id, customer.name, loan.id)}
                                   disabled={submitting || submittingLoanIds.has(loan.id) || !payment?.amount || parseFloat(payment?.amount || '0') <= 0}
                                   className="px-3 py-1 text-xs font-medium rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                                 >
-                                  {submittingLoanIds.has(loan.id) ? 'Paying...' : 'Pay'}
+                                  {submittingLoanIds.has(loan.id) ? 'Receiving...' : 'Receive'}
                                 </button>
                               )
                             }

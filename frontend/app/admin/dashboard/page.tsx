@@ -585,9 +585,8 @@ export default function AdminDashboard() {
                   <CardContent className="pt-0">
                     <div className="space-y-1">
                       {dashboardStats.overdue_alerts.map((item) => (
-                        <Link
+                        <div
                           key={item.loan_id}
-                          href={`/admin/customers/${item.customer_id}`}
                           className="flex items-center justify-between p-2 rounded hover:bg-orange-500/10 transition-colors"
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -596,7 +595,12 @@ export default function AdminDashboard() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1">
-                                <span className="font-medium text-foreground text-sm truncate">{item.customer_name}</span>
+                                <Link
+                                  href={`/admin/customers/${item.customer_id}`}
+                                  className="font-medium text-foreground text-sm truncate hover:text-primary"
+                                >
+                                  {item.customer_name}
+                                </Link>
                                 <span className="px-1 py-0.5 bg-orange-500/20 text-orange-600 rounded text-xs font-medium flex-shrink-0">
                                   {item.days_overdue}d late
                                 </span>
@@ -611,12 +615,22 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-sm font-bold text-orange-600">
                               ₹{parseFloat(item.expected_amount).toLocaleString('en-IN')}
                             </span>
+                            <button
+                              className="px-2 py-1 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openCollectDialog(item.loan_id, item.expected_amount, item.customer_name, item.remaining_amount)
+                              }}
+                              disabled={markingCollected === item.loan_id}
+                            >
+                              {markingCollected === item.loan_id ? '...' : 'Collect'}
+                            </button>
                           </div>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   </CardContent>
