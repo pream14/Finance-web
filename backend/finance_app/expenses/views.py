@@ -46,10 +46,31 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     ))
                     Expense.objects.filter(pk=expense.pk).update(created_at=new_dt)
                     expense.refresh_from_db()
+                    # Invalidate cashbook from the backdated date
+                    from transactions.cashbook_views import invalidate_cashbook_from
+                    invalidate_cashbook_from(dt.date())
                 except (ValueError, TypeError):
                     pass
             return Response(ExpenseSerializer(expense, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        affected_date = instance.created_at.date()
+        response = super().update(request, *args, **kwargs)
+        # Invalidate cashbook from the expense's date
+        from transactions.cashbook_views import invalidate_cashbook_from
+        invalidate_cashbook_from(affected_date)
+        return response
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        affected_date = instance.created_at.date()
+        response = super().destroy(request, *args, **kwargs)
+        # Invalidate cashbook from the deleted expense's date
+        from transactions.cashbook_views import invalidate_cashbook_from
+        invalidate_cashbook_from(affected_date)
+        return response
 
 
 class IncomeViewSet(viewsets.ModelViewSet):
@@ -84,7 +105,28 @@ class IncomeViewSet(viewsets.ModelViewSet):
                     ))
                     Income.objects.filter(pk=income.pk).update(created_at=new_dt)
                     income.refresh_from_db()
+                    # Invalidate cashbook from the backdated date
+                    from transactions.cashbook_views import invalidate_cashbook_from
+                    invalidate_cashbook_from(dt.date())
                 except (ValueError, TypeError):
                     pass
             return Response(IncomeSerializer(income).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        affected_date = instance.created_at.date()
+        response = super().update(request, *args, **kwargs)
+        # Invalidate cashbook from the income's date
+        from transactions.cashbook_views import invalidate_cashbook_from
+        invalidate_cashbook_from(affected_date)
+        return response
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        affected_date = instance.created_at.date()
+        response = super().destroy(request, *args, **kwargs)
+        # Invalidate cashbook from the deleted income's date
+        from transactions.cashbook_views import invalidate_cashbook_from
+        invalidate_cashbook_from(affected_date)
+        return response

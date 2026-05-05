@@ -204,6 +204,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         # Reverse the principal reduction
         asal = transaction.asal_amount if transaction.asal_amount is not None else transaction.amount
+        txn_date = transaction.created_at.date()  # Capture before delete
         if asal:
             loan.remaining_amount += Decimal(str(asal))
             # If loan was settled, reactivate it
@@ -244,6 +245,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
             loan.pending_interest = pending
             loan.last_interest_payment_date = last_interest_date
             loan.save()
+
+        # Invalidate cached cashbook entries after the transaction date
+        from transactions.cashbook_views import invalidate_cashbook_from
+        invalidate_cashbook_from(txn_date)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

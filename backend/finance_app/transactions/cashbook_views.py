@@ -11,6 +11,19 @@ from .models import Loan, Transaction, DailyCashBook
 from expenses.models import Expense, Income
 
 
+def invalidate_cashbook_from(affected_date):
+    """
+    Delete cached DailyCashBook entries AFTER the affected date so that
+    opening balances are recomputed dynamically on next view.
+
+    The affected date's own entry is kept (its opening is still valid,
+    and its closing is recalculated live when viewed). Only subsequent
+    days' anchors become stale and need to be cleared.
+    """
+    DailyCashBook.objects.filter(date__gt=affected_date).delete()
+
+
+
 def compute_opening_balance(target_date):
     """
     Dynamically compute the opening balance for a given date.

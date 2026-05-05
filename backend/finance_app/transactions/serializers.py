@@ -240,6 +240,10 @@ class TransactionSerializer(serializers.ModelSerializer):
         if loan.loan_type in ('Monthly Interest Loan', 'DL Loan'):
             self._recalculate_interest_from_transactions(loan)
         
+        # Invalidate cached cashbook entries after the transaction date
+        from transactions.cashbook_views import invalidate_cashbook_from
+        invalidate_cashbook_from(instance.created_at.date())
+        
         return updated
     
     def _recalculate_interest_from_transactions(self, loan):
