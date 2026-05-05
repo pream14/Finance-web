@@ -30,8 +30,25 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            expense = serializer.save()
+            # Owner can set a custom date for the expense
+            custom_date = request.data.get('custom_date')
+            if custom_date and request.user.role in ('owner', 'admin'):
+                from django.utils import timezone
+                from datetime import datetime
+                try:
+                    dt = datetime.strptime(custom_date, '%Y-%m-%d')
+                    # Preserve the current time but change the date
+                    new_dt = timezone.make_aware(dt.replace(
+                        hour=expense.created_at.hour,
+                        minute=expense.created_at.minute,
+                        second=expense.created_at.second
+                    ))
+                    Expense.objects.filter(pk=expense.pk).update(created_at=new_dt)
+                    expense.refresh_from_db()
+                except (ValueError, TypeError):
+                    pass
+            return Response(ExpenseSerializer(expense, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -52,6 +69,22 @@ class IncomeViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            income = serializer.save()
+            # Owner can set a custom date for the income
+            custom_date = request.data.get('custom_date')
+            if custom_date and request.user.role in ('owner', 'admin'):
+                from django.utils import timezone
+                from datetime import datetime
+                try:
+                    dt = datetime.strptime(custom_date, '%Y-%m-%d')
+                    new_dt = timezone.make_aware(dt.replace(
+                        hour=income.created_at.hour,
+                        minute=income.created_at.minute,
+                        second=income.created_at.second
+                    ))
+                    Income.objects.filter(pk=income.pk).update(created_at=new_dt)
+                    income.refresh_from_db()
+                except (ValueError, TypeError):
+                    pass
+            return Response(IncomeSerializer(income).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

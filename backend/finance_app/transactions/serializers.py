@@ -38,7 +38,7 @@ class LoanSerializer(serializers.ModelSerializer):
                  'amount_given_to_customer',
                  # Write-only fields
                  'first_month_interest_paid']
-        read_only_fields = ['remaining_amount', 'pending_interest', 'start_date', 'status', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ['remaining_amount', 'pending_interest', 'status', 'created_by', 'created_at', 'updated_at']
     
     def get_has_transactions(self, obj):
         """Check if loan has any transactions"""

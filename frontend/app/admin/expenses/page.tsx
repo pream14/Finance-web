@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil, Menu, Filter, Banknote } from 'lucide-react'
-import { expensesApi, incomeApi, expenseCategoriesApi, cashBookApi } from '@/lib/api'
+import { Trash2, Plus, TrendingDown, TrendingUp, Wallet, Tag, X, Settings, Pencil, Menu, Filter, Banknote, Calendar } from 'lucide-react'
+import { expensesApi, incomeApi, expenseCategoriesApi, cashBookApi, authApi } from '@/lib/api'
 
 interface Expense {
   id: number
@@ -84,6 +84,14 @@ export default function MoneyManagerPage() {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Current user for owner check
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const isOwner = currentUser?.role === 'owner' || currentUser?.role === 'admin'
+
+  // Custom date for owner (expense/income backdating)
+  const [expenseCustomDate, setExpenseCustomDate] = useState('')
+  const [incomeCustomDate, setIncomeCustomDate] = useState('')
 
   // Load categories
   const loadCategories = async () => {
@@ -241,6 +249,8 @@ export default function MoneyManagerPage() {
 
   useEffect(() => {
     loadCategories()
+    loadAllData()
+    authApi.getCurrentUser().then(user => setCurrentUser(user))
   }, [])
 
   useEffect(() => {
@@ -268,12 +278,16 @@ export default function MoneyManagerPage() {
     setError('')
     setIsSubmitting(true)
     try {
-      const created = await expensesApi.create({
+      const createData: any = {
         description: expenseForm.description.trim(),
         amount,
         payment_method: expenseForm.payment_method,
         category: expenseForm.category && expenseForm.category !== 'none' ? parseInt(expenseForm.category) : null,
-      })
+      }
+      if (isOwner && expenseCustomDate) {
+        createData.custom_date = expenseCustomDate
+      }
+      const created = await expensesApi.create(createData)
       setExpenses((prev) => [{
         id: created.id,
         description: created.description,
@@ -285,6 +299,7 @@ export default function MoneyManagerPage() {
         created_by_name: created.created_by_name || '—',
       }, ...prev])
       setExpenseForm({ description: '', amount: '', payment_method: 'cash', category: '' })
+      setExpenseCustomDate('')
       setShowExpenseForm(false)
     } catch (err: any) {
       setError(err.message || 'Failed to add expense')
@@ -358,12 +373,16 @@ export default function MoneyManagerPage() {
     setError('')
     setIsSubmitting(true)
     try {
-      const created = await incomeApi.create({
+      const createData: any = {
         description: incomeForm.description.trim(),
         amount,
         source: incomeForm.source.trim(),
         payment_method: incomeForm.payment_method,
-      })
+      }
+      if (isOwner && incomeCustomDate) {
+        createData.custom_date = incomeCustomDate
+      }
+      const created = await incomeApi.create(createData)
       setIncomes((prev) => [{
         id: created.id,
         description: created.description,
@@ -374,6 +393,7 @@ export default function MoneyManagerPage() {
         created_by_name: created.created_by_name || '—',
       }, ...prev])
       setIncomeForm({ description: '', amount: '', source: '', payment_method: 'cash' })
+      setIncomeCustomDate('')
       setShowIncomeForm(false)
     } catch (err: any) {
       setError(err.message || 'Failed to add income')
@@ -674,6 +694,22 @@ export default function MoneyManagerPage() {
                         </Select>
                       </div>
                     </div>
+                    {/* Owner-only date picker for backdating */}
+                    {isOwner && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5" /> Date (optional)
+                        </label>
+                        <Input
+                          type="date"
+                          value={expenseCustomDate}
+                          onChange={(e) => setExpenseCustomDate(e.target.value)}
+                          className="border-border/50"
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        <p className="text-xs text-muted-foreground">Leave blank for today&apos;s date</p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 pt-2">
                     <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
@@ -752,6 +788,22 @@ export default function MoneyManagerPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Owner-only date picker for backdating */}
+                    {isOwner && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5" /> Date (optional)
+                        </label>
+                        <Input
+                          type="date"
+                          value={incomeCustomDate}
+                          onChange={(e) => setIncomeCustomDate(e.target.value)}
+                          className="border-border/50"
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        <p className="text-xs text-muted-foreground">Leave blank for today&apos;s date</p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 pt-2">
                     <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={isSubmitting}>

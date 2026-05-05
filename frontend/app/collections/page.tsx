@@ -1043,8 +1043,9 @@ export default function CollectionsPage() {
                             if (todayEntry) {
                               // Entry exists
                               const isMyEntry = !currentUser || todayEntry.created_by === currentUser.id
+                              const canEdit = isMyEntry || (currentUser?.role === 'owner' || currentUser?.role === 'admin')
 
-                              if (editingEntry?.id === todayEntry.id && isMyEntry) {
+                              if (editingEntry?.id === todayEntry.id && canEdit) {
                                 // EDIT MODE (Only for own entries)
                                 const isCompound = editingEntry.loan_type !== 'DC Loan'
                                 return (
@@ -1140,7 +1141,7 @@ export default function CollectionsPage() {
                                       </div>
                                     )}
 
-                                    {isMyEntry && (
+                                    {canEdit && (
                                       <div className="flex gap-1">
                                         <button
                                           onClick={() => startEditEntry(todayEntry)}

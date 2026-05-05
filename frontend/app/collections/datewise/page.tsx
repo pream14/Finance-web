@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Download, User, Menu } from 'lucide-react'
+import { ArrowLeft, Calendar, Filter, Search, RefreshCw, Download, User, Menu, Edit2, Trash2, X, Check } from 'lucide-react'
 import { transactionsApi, loansApi, reportsApi, customersApi, authApi } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
@@ -26,6 +26,8 @@ interface Transaction {
   loan_id?: number
   remaining_amount?: string
   collected_by_name?: string
+  asal_amount?: string
+  loan?: number
 }
 
 export default function DatewiseCollectionsPage() {
@@ -33,6 +35,16 @@ export default function DatewiseCollectionsPage() {
   const [customers, setCustomers] = useState<any[]>([])
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Admin edit/delete state
+  const [editingEntry, setEditingEntry] = useState<Transaction | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editAsalAmount, setEditAsalAmount] = useState('')
+  const [editInterestAmount, setEditInterestAmount] = useState('')
+  const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
+  const [editLoading, setEditLoading] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Filtering states
@@ -273,6 +285,51 @@ export default function DatewiseCollectionsPage() {
   }
 
   const hasActiveFilters = startDate || endDate || filterLoanType !== 'all' || filterCollectedBy !== 'all' || filterArea !== 'All Areas' || searchTerm
+
+  const isOwner = currentUser?.role === 'owner' || currentUser?.role === 'admin'
+
+  // Handle edit entry
+  const handleEditEntry = (entry: Transaction) => {
+    setEditingEntry(entry)
+    setEditAmount(entry.amount)
+    setEditAsalAmount(entry.asal_amount || '')
+    setEditInterestAmount(entry.interest_amount || '')
+    setEditPaymentMethod(entry.payment_method || 'cash')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry) return
+    try {
+      setEditLoading(true)
+      const data: any = {
+        amount: parseFloat(editAmount),
+        payment_method: editPaymentMethod,
+      }
+      if (editAsalAmount) data.asal_amount = parseFloat(editAsalAmount)
+      if (editInterestAmount) data.interest_amount = parseFloat(editInterestAmount)
+      await transactionsApi.update(editingEntry.id, data)
+      setEditingEntry(null)
+      fetchEntries()
+    } catch (err: any) {
+      alert(err.message || 'Failed to update entry')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  // Handle delete entry
+  const handleDeleteEntry = async (id: number) => {
+    try {
+      setDeleteLoading(true)
+      await transactionsApi.delete(id)
+      setDeleteConfirmId(null)
+      fetchEntries()
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete entry')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -577,6 +634,7 @@ export default function DatewiseCollectionsPage() {
                       <th className="text-right py-3 px-4 font-semibold text-foreground whitespace-nowrap">Balance</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Method</th>
                       <th className="text-left py-3 px-4 font-semibold text-foreground whitespace-nowrap">Collected By</th>
+                      {isOwner && <th className="text-center py-3 px-4 font-semibold text-foreground whitespace-nowrap">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
@@ -626,6 +684,26 @@ export default function DatewiseCollectionsPage() {
                             {entry.collected_by_name || 'Unknown'}
                           </span>
                         </td>
+                        {isOwner && (
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleEditEntry(entry)}
+                                className="p-1.5 rounded-md hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 transition-colors"
+                                title="Edit Entry"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(entry.id)}
+                                className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors"
+                                title="Delete Entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -646,6 +724,131 @@ export default function DatewiseCollectionsPage() {
           </Card>
         )}
       </main>
+
+      {/* Edit Entry Modal (Owner only) */}
+      {editingEntry && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setEditingEntry(null)}>
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Edit Entry</h3>
+                  <p className="text-sm text-muted-foreground">{editingEntry.customer_name} — {editingEntry.loan_type}</p>
+                </div>
+                <button onClick={() => setEditingEntry(null)} className="p-1.5 rounded-md hover:bg-muted/50">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Amount (₹)</label>
+                <input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              {(editingEntry.loan_type === 'Monthly Interest Loan' || editingEntry.loan_type === 'DL Loan') && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Principal (Asal) (₹)</label>
+                    <input
+                      type="number"
+                      value={editAsalAmount}
+                      onChange={(e) => setEditAsalAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Interest (₹)</label>
+                    <input
+                      type="number"
+                      value={editInterestAmount}
+                      onChange={(e) => setEditInterestAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Payment Method</label>
+                <div className="flex gap-2">
+                  {['cash', 'online'].map(method => (
+                    <button
+                      key={method}
+                      onClick={() => setEditPaymentMethod(method)}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors capitalize ${
+                        editPaymentMethod === method
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'
+                      }`}
+                    >
+                      {method}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-5 border-t border-border flex gap-3">
+              <button
+                onClick={() => setEditingEntry(null)}
+                disabled={editLoading}
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={editLoading || !editAmount}
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {editLoading ? (
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>
+                ) : (
+                  <><Check className="w-4 h-4" /> Save Changes</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog (Owner only) */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setDeleteConfirmId(null)}>
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="p-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Delete Entry</h3>
+              <p className="text-sm text-muted-foreground">Are you sure? This will reverse the payment and update the loan balance. This action cannot be undone.</p>
+            </div>
+            <div className="p-5 border-t border-border flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteEntry(deleteConfirmId)}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {deleteLoading ? (
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Delete</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

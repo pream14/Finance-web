@@ -190,7 +190,11 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers()
+    authApi.getCurrentUser().then(user => setCurrentUser(user))
   }, [])
+
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const isOwner = currentUser?.role === 'owner' || currentUser?.role === 'admin'
 
   // Extract existing cities from customers
   useEffect(() => {
@@ -1570,7 +1574,7 @@ export default function CustomersPage() {
                                           </td>
                                           <td className="py-2 px-2">{loan.start_date}</td>
                                           <td className="py-2 px-2 text-center">
-                                            {!loan.has_transactions ? (
+                                            {(!loan.has_transactions || isOwner) ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <Button
                                                   variant="ghost"

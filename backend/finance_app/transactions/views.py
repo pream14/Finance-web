@@ -38,12 +38,17 @@ class LoanViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def update(self, request, *args, **kwargs):
-        """Handle loan updates with remaining_amount sync"""
+        """Handle loan updates with remaining_amount sync.
+        
+        Owner can edit loans even when transactions exist.
+        Employees are blocked from editing loans with transactions.
+        """
         partial = kwargs.pop('partial', False)
         loan = self.get_object()
+        is_owner = request.user.role in ('owner', 'admin')
         
-        # Block editing if loan has any transactions
-        if loan.transactions.exists():
+        # Block editing if loan has transactions — unless user is owner
+        if loan.transactions.exists() and not is_owner:
             return Response(
                 {'error': 'Cannot edit loan with existing transactions.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -57,16 +62,28 @@ class LoanViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             updated_loan = serializer.save()
             
-            # If principal changed, adjust remaining_amount proportionally
+            # If principal changed, adjust remaining_amount
             if new_principal and float(new_principal) != float(old_principal):
                 from decimal import Decimal
                 new_principal_decimal = Decimal(str(new_principal))
-                # Calculate how much has been paid off
-                paid_amount = old_principal - loan.remaining_amount
-                # New remaining = new principal - paid amount
-                new_remaining = new_principal_decimal - paid_amount
-                # Ensure remaining doesn't go below 0
+                
+                if loan.transactions.exists():
+                    # Option A: recalculate remaining = new_principal - total_paid
+                    total_paid = sum(
+                        Decimal(str(t.asal_amount or t.amount or 0))
+                        for t in loan.transactions.all()
+                    )
+                    new_remaining = new_principal_decimal - total_paid
+                else:
+                    # No transactions: remaining = new principal
+                    paid_amount = old_principal - loan.remaining_amount
+                    new_remaining = new_principal_decimal - paid_amount
+                
                 updated_loan.remaining_amount = max(Decimal('0'), new_remaining)
+                if updated_loan.remaining_amount <= 0:
+                    updated_loan.status = 'settled'
+                elif updated_loan.status == 'settled':
+                    updated_loan.status = 'active'
                 updated_loan.save()
             
             return Response(self.get_serializer(updated_loan).data)
@@ -74,12 +91,19 @@ class LoanViewSet(viewsets.ModelViewSet):
     
     def destroy(self, request, *args, **kwargs):
         loan = self.get_object()
-        # Block deletion if loan has any transactions
-        if loan.transactions.exists():
+        is_owner = request.user.role in ('owner', 'admin')
+        
+        # Block deletion if loan has transactions — unless user is owner
+        if loan.transactions.exists() and not is_owner:
             return Response(
                 {'error': 'Cannot delete loan with existing transactions. Please delete all transactions first.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # If owner is deleting a loan with transactions, delete all transactions first
+        if loan.transactions.exists() and is_owner:
+            loan.transactions.all().delete()
+        
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], url_path='close')

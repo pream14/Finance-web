@@ -801,7 +801,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="text-muted-foreground">Monthly Interest</span>
+                      <span className="text-muted-foreground">Monthly Loan</span>
                     </span>
                     <span className="font-semibold text-green-600">₹{parseFloat(dashboardStats.outstanding_breakdown.monthly_interest_loan).toLocaleString('en-IN')}</span>
                   </div>

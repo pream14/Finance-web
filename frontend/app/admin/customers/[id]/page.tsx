@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download, Menu, AlertTriangle, XCircle } from 'lucide-react'
-import { customersApi, loansApi, transactionsApi, customerReportApi } from '@/lib/api'
+import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download, Menu, AlertTriangle, XCircle, Edit2, Trash2, X, Check } from 'lucide-react'
+import { customersApi, loansApi, transactionsApi, customerReportApi, authApi } from '@/lib/api'
 
 interface Loan {
     id: number
@@ -75,6 +75,30 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
     const [closePaymentMethod, setClosePaymentMethod] = useState('cash')
     const [closeNote, setCloseNote] = useState('')
     const [closeLoading, setCloseLoading] = useState(false)
+
+    // Current user for owner check
+    const [currentUser, setCurrentUser] = useState<any>(null)
+
+    // Admin edit entry state
+    const [editingEntry, setEditingEntry] = useState<Transaction | null>(null)
+    const [editAmount, setEditAmount] = useState('')
+    const [editAsalAmount, setEditAsalAmount] = useState('')
+    const [editInterestAmount, setEditInterestAmount] = useState('')
+    const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
+    const [editLoading, setEditLoading] = useState(false)
+    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+
+    // Admin edit loan state
+    const [editingLoan, setEditingLoan] = useState<Loan | null>(null)
+    const [editLoanPrincipal, setEditLoanPrincipal] = useState('')
+    const [editLoanRate, setEditLoanRate] = useState('')
+    const [editLoanCycleDay, setEditLoanCycleDay] = useState('')
+    const [editLoanDailyAmount, setEditLoanDailyAmount] = useState('')
+    const [editLoanStartDate, setEditLoanStartDate] = useState('')
+    const [editLoanLoading, setEditLoanLoading] = useState(false)
+    const [deleteLoanConfirmId, setDeleteLoanConfirmId] = useState<number | null>(null)
+    const [deleteLoanLoading, setDeleteLoanLoading] = useState(false)
 
     // Fetch customer data
     const fetchCustomerData = async () => {
@@ -151,7 +175,10 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
         if (customerId) {
             fetchCustomerData()
         }
+        authApi.getCurrentUser().then(user => setCurrentUser(user))
     }, [customerId])
+
+    const isOwner = currentUser?.role === 'owner' || currentUser?.role === 'admin'
 
     // Handle loan card click - switch to selected loan
     const handleLoanClick = (loanId: number) => {
@@ -202,6 +229,99 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
     const totalLoanAmount = loans.reduce((sum, l) => sum + l.principal_amount, 0)
     const totalBalance = loans.reduce((sum, l) => sum + l.remaining_amount, 0)
     const activeLoansCount = loans.filter(l => l.status === 'active').length
+
+    // --- Admin handlers for entry edit/delete ---
+    const handleEditEntry = (entry: Transaction) => {
+        setEditingEntry(entry)
+        setEditAmount(String(entry.amount || 0))
+        setEditAsalAmount(String(entry.asal_amount || 0))
+        setEditInterestAmount(String(entry.interest_amount || 0))
+        setEditPaymentMethod(entry.payment_method || 'cash')
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editingEntry) return
+        try {
+            setEditLoading(true)
+            const data: any = {
+                amount: parseFloat(editAmount),
+                payment_method: editPaymentMethod,
+            }
+            if (editAsalAmount) data.asal_amount = parseFloat(editAsalAmount)
+            if (editInterestAmount) data.interest_amount = parseFloat(editInterestAmount)
+            await transactionsApi.update(editingEntry.id, data)
+            setEditingEntry(null)
+            if (selectedLoanId) fetchEntries(selectedLoanId)
+            fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to update entry')
+        } finally {
+            setEditLoading(false)
+        }
+    }
+
+    const handleDeleteEntry = async (id: number) => {
+        try {
+            setDeleteLoading(true)
+            await transactionsApi.delete(id)
+            setDeleteConfirmId(null)
+            if (selectedLoanId) fetchEntries(selectedLoanId)
+            fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete entry')
+        } finally {
+            setDeleteLoading(false)
+        }
+    }
+
+    // --- Admin handlers for loan edit/delete ---
+    const handleEditLoan = (loan: Loan) => {
+        setEditingLoan(loan)
+        setEditLoanPrincipal(String(loan.principal_amount))
+        setEditLoanRate(String(loan.monthly_interest_rate || loan.daily_interest_rate || ''))
+        setEditLoanCycleDay(String(loan.interest_cycle_day || ''))
+        setEditLoanDailyAmount(String(loan.daily_collection_amount || ''))
+        setEditLoanStartDate(loan.start_date || '')
+    }
+
+    const handleSaveLoanEdit = async () => {
+        if (!editingLoan) return
+        try {
+            setEditLoanLoading(true)
+            const data: any = {
+                principal_amount: parseFloat(editLoanPrincipal),
+            }
+            if (editLoanStartDate) data.start_date = editLoanStartDate
+            if (editingLoan.loan_type === 'Monthly Interest Loan') {
+                if (editLoanRate) data.monthly_interest_rate = parseFloat(editLoanRate)
+                if (editLoanCycleDay) data.interest_cycle_day = parseInt(editLoanCycleDay)
+            } else if (editingLoan.loan_type === 'DC Loan') {
+                if (editLoanDailyAmount) data.daily_collection_amount = parseFloat(editLoanDailyAmount)
+            } else if (editingLoan.loan_type === 'DL Loan') {
+                if (editLoanRate) data.daily_interest_rate = parseFloat(editLoanRate)
+            }
+            await loansApi.update(editingLoan.id, data)
+            setEditingLoan(null)
+            fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to update loan')
+        } finally {
+            setEditLoanLoading(false)
+        }
+    }
+
+    const handleDeleteLoan = async (id: number) => {
+        try {
+            setDeleteLoanLoading(true)
+            await loansApi.delete(id)
+            setDeleteLoanConfirmId(null)
+            fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete loan')
+        } finally {
+            setDeleteLoanLoading(false)
+        }
+    }
 
     if (loading) {
         return (
@@ -563,6 +683,23 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                 </button>
                                             </div>
                                         )}
+                                        {/* Admin Edit/Delete Loan buttons */}
+                                        {isOwner && selectedLoanId === loan.id && (
+                                            <div className="mt-2 pt-2 border-t border-border/30 flex gap-2">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleEditLoan(loan) }}
+                                                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border border-blue-500/30 transition-colors flex items-center justify-center gap-1"
+                                                >
+                                                    <Edit2 className="w-3 h-3" /> Edit Loan
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setDeleteLoanConfirmId(loan.id) }}
+                                                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/30 transition-colors flex items-center justify-center gap-1"
+                                                >
+                                                    <Trash2 className="w-3 h-3" /> Delete Loan
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -610,6 +747,7 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                             )}
                                             <th className="text-left py-3 px-4 font-semibold text-foreground">Method</th>
                                             <th className="text-left py-3 px-4 font-semibold text-foreground">Collected By</th>
+                                            {isOwner && <th className="text-center py-3 px-4 font-semibold text-foreground">Actions</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/30">
@@ -654,6 +792,26 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                             {entry.collected_by_name || 'Unknown'}
                                                         </span>
                                                     </td>
+                                                    {isOwner && (
+                                                        <td className="py-3 px-4">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <button
+                                                                    onClick={() => handleEditEntry(entry)}
+                                                                    className="p-1.5 rounded-md hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 transition-colors"
+                                                                    title="Edit Entry"
+                                                                >
+                                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setDeleteConfirmId(entry.id)}
+                                                                    className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors"
+                                                                    title="Delete Entry"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             )
                                         })}
@@ -803,6 +961,151 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                     <XCircle className="w-4 h-4" />
                                 )}
                                 {closeLoading ? 'Closing...' : 'Close Loan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Admin Edit Entry Modal */}
+            {editingEntry && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setEditingEntry(null)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-foreground">Edit Entry</h3>
+                                    <p className="text-sm text-muted-foreground">{new Date(editingEntry.created_at).toLocaleDateString('en-IN')}</p>
+                                </div>
+                                <button onClick={() => setEditingEntry(null)} className="p-1.5 rounded-md hover:bg-muted/50"><X className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Amount (₹)</label>
+                                <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            </div>
+                            {selectedLoan?.loan_type !== 'DC Loan' && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">Principal (Asal) (₹)</label>
+                                        <input type="number" value={editAsalAmount} onChange={(e) => setEditAsalAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">Interest (₹)</label>
+                                        <input type="number" value={editInterestAmount} onChange={(e) => setEditInterestAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    </div>
+                                </>
+                            )}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Payment Method</label>
+                                <div className="flex gap-2">
+                                    {['cash', 'online'].map(method => (
+                                        <button key={method} onClick={() => setEditPaymentMethod(method)} className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors capitalize ${editPaymentMethod === method ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'}`}>{method}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button onClick={() => setEditingEntry(null)} disabled={editLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                            <button onClick={handleSaveEdit} disabled={editLoading || !editAmount} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                {editLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>) : (<><Check className="w-4 h-4" /> Save</>)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Admin Delete Entry Confirmation */}
+            {deleteConfirmId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setDeleteConfirmId(null)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 text-center">
+                            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3"><Trash2 className="w-6 h-6 text-red-500" /></div>
+                            <h3 className="text-lg font-semibold text-foreground mb-1">Delete Entry</h3>
+                            <p className="text-sm text-muted-foreground">This will reverse the payment and update the loan balance.</p>
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button onClick={() => setDeleteConfirmId(null)} disabled={deleteLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                            <button onClick={() => handleDeleteEntry(deleteConfirmId)} disabled={deleteLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                {deleteLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Deleting...</>) : (<><Trash2 className="w-4 h-4" /> Delete</>)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Admin Edit Loan Modal */}
+            {editingLoan && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setEditingLoan(null)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-foreground">Edit Loan</h3>
+                                    <p className="text-sm text-muted-foreground">{editingLoan.loan_type} — {customer.name}</p>
+                                </div>
+                                <button onClick={() => setEditingLoan(null)} className="p-1.5 rounded-md hover:bg-muted/50"><X className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Principal Amount (₹)</label>
+                                <input type="number" value={editLoanPrincipal} onChange={(e) => setEditLoanPrincipal(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                <p className="text-xs text-muted-foreground mt-1">Remaining balance will be recalculated automatically</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Start Date</label>
+                                <input type="date" value={editLoanStartDate} onChange={(e) => setEditLoanStartDate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            </div>
+                            {editingLoan.loan_type === 'Monthly Interest Loan' && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">Monthly Interest Rate (%)</label>
+                                        <input type="number" step="0.1" value={editLoanRate} onChange={(e) => setEditLoanRate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">Interest Cycle Day</label>
+                                        <input type="number" min="1" max="31" value={editLoanCycleDay} onChange={(e) => setEditLoanCycleDay(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    </div>
+                                </>
+                            )}
+                            {editingLoan.loan_type === 'DC Loan' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-1.5">Daily Collection Amount (₹)</label>
+                                    <input type="number" value={editLoanDailyAmount} onChange={(e) => setEditLoanDailyAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                </div>
+                            )}
+                            {editingLoan.loan_type === 'DL Loan' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-1.5">Daily Interest Rate (%)</label>
+                                    <input type="number" step="0.01" value={editLoanRate} onChange={(e) => setEditLoanRate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button onClick={() => setEditingLoan(null)} disabled={editLoanLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                            <button onClick={handleSaveLoanEdit} disabled={editLoanLoading || !editLoanPrincipal} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                {editLoanLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>) : (<><Check className="w-4 h-4" /> Save</>)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Admin Delete Loan Confirmation */}
+            {deleteLoanConfirmId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setDeleteLoanConfirmId(null)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 text-center">
+                            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3"><AlertTriangle className="w-6 h-6 text-red-500" /></div>
+                            <h3 className="text-lg font-semibold text-foreground mb-1">Delete Loan</h3>
+                            <p className="text-sm text-muted-foreground">This will permanently delete the loan and ALL its transactions. This action cannot be undone.</p>
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button onClick={() => setDeleteLoanConfirmId(null)} disabled={deleteLoanLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                            <button onClick={() => handleDeleteLoan(deleteLoanConfirmId)} disabled={deleteLoanLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                {deleteLoanLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Deleting...</>) : (<><Trash2 className="w-4 h-4" /> Delete</>)}
                             </button>
                         </div>
                     </div>
