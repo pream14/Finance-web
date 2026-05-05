@@ -728,7 +728,7 @@ export default function CustomersPage() {
                 <span className="text-sm font-bold text-blue-700">{dcCount}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-                <span className="text-xs font-medium text-green-600">Monthly Interest</span>
+                <span className="text-xs font-medium text-green-600">Monthly Loan</span>
                 <span className="text-sm font-bold text-green-700">{miCount}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20">
