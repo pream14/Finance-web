@@ -247,10 +247,10 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
             setEditLoading(true)
             const data: any = {
                 amount: parseFloat(editAmount),
+                asal_amount: parseFloat(editAsalAmount) || 0,
+                interest_amount: parseFloat(editInterestAmount) || 0,
                 payment_method: editPaymentMethod,
             }
-            if (editAsalAmount) data.asal_amount = parseFloat(editAsalAmount)
-            if (editInterestAmount) data.interest_amount = parseFloat(editInterestAmount)
             await transactionsApi.update(editingEntry.id, data)
             setEditingEntry(null)
             if (selectedLoanId) fetchEntries(selectedLoanId)
@@ -796,7 +796,7 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                             </span>
                                                             {entry.last_edited_by_name && (
                                                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700" title={`Edited by ${entry.last_edited_by_name}${entry.updated_at ? ' on ' + new Date(entry.updated_at).toLocaleString('en-IN') : ''}`}>
-                                                                    ✏️ Edited
+                                                                    ✏️ Edited by {entry.last_edited_by_name.split(' ')[0]}
                                                                 </span>
                                                             )}
                                                         </div>

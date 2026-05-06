@@ -347,6 +347,7 @@ export default function MoneyManagerPage() {
           payment_method: updated.payment_method || 'cash',
           category: updated.category || null,
           category_name: updated.category_name || null,
+          last_edited_by_name: updated.last_edited_by_name || null,
         } : exp
       ))
       setEditingExpense(null)
@@ -440,6 +441,7 @@ export default function MoneyManagerPage() {
           amount: parseFloat(updated.amount),
           source: updated.source,
           payment_method: updated.payment_method || 'cash',
+          last_edited_by_name: updated.last_edited_by_name || null,
         } : inc
       ))
       setEditingIncome(null)

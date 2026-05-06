@@ -215,38 +215,29 @@ class TransactionSerializer(serializers.ModelSerializer):
         from decimal import Decimal
         from datetime import date
 
-        # When updating a transaction, we need to adjust the loan balance
-        old_asal = instance.asal_amount if instance.asal_amount is not None else (instance.amount or 0)
-        new_asal = validated_data.get('asal_amount', instance.asal_amount)
-        if new_asal is None:
-            new_asal = validated_data.get('amount', instance.amount) or 0
-        
-        # Calculate the difference and adjust loan balance
-        difference = new_asal - old_asal
-        if difference != 0:
-            loan = instance.loan
-            # Validate: new asal shouldn't exceed remaining balance + old asal (what was already paid)
-            max_allowed = loan.remaining_amount + Decimal(str(old_asal))
-            if Decimal(str(new_asal)) > max_allowed:
-                from rest_framework import serializers as drf_serializers
-                raise drf_serializers.ValidationError({
-                    'asal_amount': f'Principal amount (₹{new_asal}) exceeds remaining balance (₹{max_allowed}).'
-                })
-            loan.remaining_amount -= difference
-            if loan.remaining_amount <= 0:
-                loan.status = 'settled'
-            elif loan.status == 'settled':
-                loan.status = 'active'
-            loan.save()
-        
+        loan = instance.loan
+
         # Record who edited this transaction
         validated_data['last_edited_by'] = self.context['request'].user
         
         # Save the updated transaction first
         updated = super().update(instance, validated_data)
         
+        # Recompute remaining_amount from scratch: principal - sum(all asal_amounts)
+        # This is more reliable than delta-based logic which breaks with type mismatches
+        all_txns = loan.transactions.all()
+        total_principal_paid = sum(
+            Decimal(str(t.asal_amount or t.amount or 0))
+            for t in all_txns
+        )
+        loan.remaining_amount = max(Decimal('0'), loan.principal_amount - total_principal_paid)
+        if loan.remaining_amount <= 0:
+            loan.status = 'settled'
+        elif loan.status == 'settled':
+            loan.status = 'active'
+        loan.save()
+        
         # Recalculate interest tracking for Monthly Interest and DL loans
-        loan = instance.loan
         if loan.loan_type in ('Monthly Interest Loan', 'DL Loan'):
             self._recalculate_interest_from_transactions(loan)
         

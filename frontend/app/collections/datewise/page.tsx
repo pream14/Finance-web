@@ -305,10 +305,10 @@ export default function DatewiseCollectionsPage() {
       setEditLoading(true)
       const data: any = {
         amount: parseFloat(editAmount),
+        asal_amount: parseFloat(editAsalAmount) || 0,
+        interest_amount: parseFloat(editInterestAmount) || 0,
         payment_method: editPaymentMethod,
       }
-      if (editAsalAmount) data.asal_amount = parseFloat(editAsalAmount)
-      if (editInterestAmount) data.interest_amount = parseFloat(editInterestAmount)
       await transactionsApi.update(editingEntry.id, data)
       setEditingEntry(null)
       fetchEntries()
