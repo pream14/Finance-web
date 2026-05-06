@@ -227,7 +227,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         # This is more reliable than delta-based logic which breaks with type mismatches
         all_txns = loan.transactions.all()
         total_principal_paid = sum(
-            Decimal(str(t.asal_amount or t.amount or 0))
+            Decimal(str(t.asal_amount if t.asal_amount is not None else (t.amount or 0)))
             for t in all_txns
         )
         loan.remaining_amount = max(Decimal('0'), loan.principal_amount - total_principal_paid)

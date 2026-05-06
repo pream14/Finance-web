@@ -232,6 +232,33 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
     const totalBalance = loans.reduce((sum, l) => sum + l.remaining_amount, 0)
     const activeLoansCount = loans.filter(l => l.status === 'active').length
 
+    // Refresh only loan data (remaining_amount, status, etc.) without resetting selection
+    const refreshLoans = async () => {
+        try {
+            const loansData = await loansApi.getAll({ customer_id: customerId })
+            const parsedLoans = Array.isArray(loansData) ? loansData.map((loan: any) => ({
+                id: loan.id,
+                loan_type: loan.loan_type,
+                principal_amount: parseFloat(loan.principal_amount || 0),
+                remaining_amount: parseFloat(loan.remaining_amount || 0),
+                start_date: loan.start_date || '',
+                status: loan.status || 'active',
+                payment_method: loan.payment_method || 'cash',
+                monthly_interest_rate: loan.monthly_interest_rate ? parseFloat(loan.monthly_interest_rate) : undefined,
+                daily_interest_rate: loan.daily_interest_rate ? parseFloat(loan.daily_interest_rate) : undefined,
+                daily_collection_amount: loan.daily_collection_amount ? parseFloat(loan.daily_collection_amount) : undefined,
+                expected_total_days: loan.expected_total_days ? parseInt(loan.expected_total_days) : undefined,
+                interest_cycle_day: loan.interest_cycle_day ? parseInt(loan.interest_cycle_day) : undefined,
+                pending_interest: loan.pending_interest ? parseFloat(loan.pending_interest) : 0,
+                total_pending_interest: loan.total_pending_interest ? parseFloat(loan.total_pending_interest) : 0,
+                expected_interest: loan.expected_interest ? parseFloat(loan.expected_interest) : 0,
+            })) : []
+            setLoans(parsedLoans)
+        } catch (err) {
+            console.error('Failed to refresh loans:', err)
+        }
+    }
+
     // --- Admin handlers for entry edit/delete ---
     const handleEditEntry = (entry: Transaction) => {
         setEditingEntry(entry)
@@ -253,8 +280,9 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
             }
             await transactionsApi.update(editingEntry.id, data)
             setEditingEntry(null)
-            if (selectedLoanId) fetchEntries(selectedLoanId)
-            fetchCustomerData()
+            // Refresh entries and loans sequentially to show updated balance
+            if (selectedLoanId) await fetchEntries(selectedLoanId)
+            await refreshLoans()
         } catch (err: any) {
             alert(err.message || 'Failed to update entry')
         } finally {
@@ -267,8 +295,9 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
             setDeleteLoading(true)
             await transactionsApi.delete(id)
             setDeleteConfirmId(null)
-            if (selectedLoanId) fetchEntries(selectedLoanId)
-            fetchCustomerData()
+            // Refresh entries and loans sequentially to show updated balance
+            if (selectedLoanId) await fetchEntries(selectedLoanId)
+            await refreshLoans()
         } catch (err: any) {
             alert(err.message || 'Failed to delete entry')
         } finally {

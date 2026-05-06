@@ -311,7 +311,7 @@ export default function DatewiseCollectionsPage() {
       }
       await transactionsApi.update(editingEntry.id, data)
       setEditingEntry(null)
-      fetchEntries()
+      await fetchEntries()
     } catch (err: any) {
       alert(err.message || 'Failed to update entry')
     } finally {
@@ -325,7 +325,7 @@ export default function DatewiseCollectionsPage() {
       setDeleteLoading(true)
       await transactionsApi.delete(id)
       setDeleteConfirmId(null)
-      fetchEntries()
+      await fetchEntries()
     } catch (err: any) {
       alert(err.message || 'Failed to delete entry')
     } finally {
