@@ -268,17 +268,49 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
         setEditPaymentMethod(entry.payment_method || 'cash')
     }
 
+    // Auto-compute total when editing asal/interest for Monthly/DL loans
+    const handleEditAsalChange = (value: string) => {
+        setEditAsalAmount(value)
+        if (editingEntry && editingEntry.loan_type !== 'DC Loan') {
+            const asal = parseFloat(value) || 0
+            const interest = parseFloat(editInterestAmount) || 0
+            setEditAmount(String(asal + interest))
+        }
+    }
+
+    const handleEditInterestChange = (value: string) => {
+        setEditInterestAmount(value)
+        if (editingEntry && editingEntry.loan_type !== 'DC Loan') {
+            const asal = parseFloat(editAsalAmount) || 0
+            const interest = parseFloat(value) || 0
+            setEditAmount(String(asal + interest))
+        }
+    }
+
     const handleSaveEdit = async () => {
         if (!editingEntry) return
         try {
             setEditLoading(true)
-            const data: any = {
-                amount: parseFloat(editAmount),
-                asal_amount: parseFloat(editAsalAmount) || 0,
-                interest_amount: parseFloat(editInterestAmount) || 0,
-                payment_method: editPaymentMethod,
+            const loanType = editingEntry.loan_type
+            let updateData: any = { payment_method: editPaymentMethod }
+
+            if (loanType === 'DC Loan') {
+                const amt = parseFloat(editAmount)
+                if (isNaN(amt) || amt <= 0) { alert('Enter a valid amount'); setEditLoading(false); return }
+                updateData.amount = amt
+                updateData.asal_amount = amt
+                updateData.interest_amount = 0
+            } else {
+                // Monthly or DL - separate asal and interest
+                const asal = parseFloat(editAsalAmount) || 0
+                const interest = parseFloat(editInterestAmount) || 0
+                if (asal + interest <= 0) { alert('Enter a valid amount'); setEditLoading(false); return }
+                updateData.asal_amount = asal
+                updateData.interest_amount = interest
+                updateData.amount = asal + interest
             }
-            await transactionsApi.update(editingEntry.id, data)
+
+            await transactionsApi.update(editingEntry.id, updateData)
             setEditingEntry(null)
             // Refresh entries and loans sequentially to show updated balance
             if (selectedLoanId) await fetchEntries(selectedLoanId)
@@ -1019,19 +1051,26 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                             </div>
                         </div>
                         <div className="p-5 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-foreground mb-1.5">Amount (₹)</label>
-                                <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-                            </div>
-                            {selectedLoan?.loan_type !== 'DC Loan' && (
+                            {editingEntry.loan_type === 'DC Loan' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-1.5">Amount (₹)</label>
+                                    <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                </div>
+                            ) : (
                                 <>
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-1.5">Principal (Asal) (₹)</label>
-                                        <input type="number" value={editAsalAmount} onChange={(e) => setEditAsalAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        <input type="number" value={editAsalAmount} onChange={(e) => handleEditAsalChange(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-1.5">Interest (₹)</label>
-                                        <input type="number" value={editInterestAmount} onChange={(e) => setEditInterestAmount(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        <input type="number" value={editInterestAmount} onChange={(e) => handleEditInterestChange(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    </div>
+                                    <div className="bg-muted/30 rounded-lg p-3">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm text-muted-foreground">Total Amount</span>
+                                            <span className="text-lg font-bold text-green-600">₹{(parseFloat(editAmount) || 0).toLocaleString('en-IN')}</span>
+                                        </div>
                                     </div>
                                 </>
                             )}
