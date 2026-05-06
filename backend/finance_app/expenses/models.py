@@ -44,6 +44,13 @@ class Expense(models.Model):
         related_name='expenses_recorded'
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='expenses_edited'
+    )
     
     def __str__(self):
         return f"{self.description[:30]} - {self.amount} - {self.created_at.strftime('%Y-%m-%d')}"
@@ -74,6 +81,13 @@ class Income(models.Model):
         related_name='incomes_recorded'
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='incomes_edited'
+    )
 
     def __str__(self):
         return f"{self.source} - {self.amount} - {self.created_at.strftime('%Y-%m-%d')}"

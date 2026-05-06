@@ -20,6 +20,7 @@ interface Expense {
   category_name: string | null
   date: string
   created_by_name: string
+  last_edited_by_name?: string
 }
 
 interface Income {
@@ -30,6 +31,7 @@ interface Income {
   payment_method: string
   date: string
   created_by_name: string
+  last_edited_by_name?: string
 }
 
 interface Category {
@@ -122,6 +124,7 @@ export default function MoneyManagerPage() {
         category_name: e.category_name || null,
         date: e.created_at ? e.created_at.split('T')[0] : '',
         created_by_name: e.created_by_name || '—',
+        last_edited_by_name: e.last_edited_by_name || null,
       })) : [])
     } catch (err: any) {
       setError(err.message || 'Failed to load expenses')
@@ -148,6 +151,7 @@ export default function MoneyManagerPage() {
         payment_method: i.payment_method || 'cash',
         date: i.created_at ? i.created_at.split('T')[0] : '',
         created_by_name: i.created_by_name || '—',
+        last_edited_by_name: i.last_edited_by_name || null,
       })) : [])
     } catch (err: any) {
       setError(err.message || 'Failed to load incomes')
@@ -1154,7 +1158,16 @@ export default function MoneyManagerPage() {
                         {expenses.map((expense) => (
                           <tr key={expense.id} className="hover:bg-muted/30 transition-colors">
                             <td className="py-3 px-4 text-foreground">{expense.date}</td>
-                            <td className="py-3 px-4 font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{expense.description}</td>
+                            <td className="py-3 px-4 font-medium text-foreground sticky left-0 z-10 bg-card" style={{ boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>
+                              <div className="flex items-center gap-1.5">
+                                {expense.description}
+                                {expense.last_edited_by_name && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 shrink-0" title={`Edited by ${expense.last_edited_by_name}`}>
+                                    ✏️
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="py-3 px-4">
                               {expense.category_name ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-600">
@@ -1250,7 +1263,16 @@ export default function MoneyManagerPage() {
                                 {income.source}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-foreground">{income.description || '—'}</td>
+                            <td className="py-3 px-4 text-foreground">
+                              <div className="flex items-center gap-1.5">
+                                {income.description || '—'}
+                                {income.last_edited_by_name && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 shrink-0" title={`Edited by ${income.last_edited_by_name}`}>
+                                    ✏️
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="py-3 px-4 text-right font-bold text-green-600">
                               ₹{income.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>

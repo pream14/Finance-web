@@ -61,6 +61,8 @@ class LoanViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(loan, data=request.data, partial=partial)
         if serializer.is_valid():
             updated_loan = serializer.save()
+            updated_loan.last_edited_by = request.user
+            updated_loan.save(update_fields=['last_edited_by'])
             
             # If principal changed, adjust remaining_amount
             if new_principal and float(new_principal) != float(old_principal):

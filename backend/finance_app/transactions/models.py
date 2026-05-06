@@ -33,6 +33,12 @@ class Loan(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='loans_edited'
+    )
     
     # Pending interest tracking (for partial interest payments)
     pending_interest = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Unpaid interest from previous cycles")
@@ -217,6 +223,13 @@ class Transaction(models.Model):
         related_name='transactions_recorded'
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='transactions_edited'
+    )
     
     def __str__(self):
         return f"{self.loan.customer.name} - {self.amount} - {self.created_at.strftime('%Y-%m-%d')}"

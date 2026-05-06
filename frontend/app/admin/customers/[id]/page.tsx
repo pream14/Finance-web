@@ -53,6 +53,8 @@ interface Transaction {
     description: string
     collected_by_name: string
     created_at: string
+    updated_at?: string
+    last_edited_by_name?: string
 }
 
 export default function CustomerDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -788,9 +790,16 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
-                                                            {entry.collected_by_name || 'Unknown'}
-                                                        </span>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                                                                {entry.collected_by_name || 'Unknown'}
+                                                            </span>
+                                                            {entry.last_edited_by_name && (
+                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700" title={`Edited by ${entry.last_edited_by_name}${entry.updated_at ? ' on ' + new Date(entry.updated_at).toLocaleString('en-IN') : ''}`}>
+                                                                    ✏️ Edited
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     {isOwner && (
                                                         <td className="py-3 px-4">

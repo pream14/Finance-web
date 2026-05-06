@@ -170,6 +170,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='loan.customer.name', read_only=True)
     customer_id = serializers.IntegerField(source='loan.customer.id', read_only=True)
     collected_by_name = serializers.SerializerMethodField()
+    last_edited_by_name = serializers.SerializerMethodField()
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     
     def get_collected_by_name(self, obj):
@@ -178,12 +179,18 @@ class TransactionSerializer(serializers.ModelSerializer):
             return user.get_full_name()
         return user.username
     
+    def get_last_edited_by_name(self, obj):
+        if obj.last_edited_by:
+            return obj.last_edited_by.get_full_name() or obj.last_edited_by.username
+        return None
+    
     class Meta:
         model = Transaction
         fields = ['id', 'loan', 'loan_type', 'customer_id', 'customer_name', 'amount', 
                  'asal_amount', 'interest_amount', 'payment_method', 'description',
-                 'collected_by_name', 'created_by', 'created_at']
-        read_only_fields = ['created_by', 'created_at']
+                 'collected_by_name', 'created_by', 'created_at',
+                 'updated_at', 'last_edited_by_name']
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'last_edited_by_name']
     
     def validate(self, data):
         # Calculate amount if not provided but asal_amount or interest_amount are
@@ -231,6 +238,9 @@ class TransactionSerializer(serializers.ModelSerializer):
             elif loan.status == 'settled':
                 loan.status = 'active'
             loan.save()
+        
+        # Record who edited this transaction
+        validated_data['last_edited_by'] = self.context['request'].user
         
         # Save the updated transaction first
         updated = super().update(instance, validated_data)
