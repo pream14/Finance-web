@@ -244,6 +244,8 @@ export const transactionsApi = {
     asal_amount?: number;
     interest_amount?: number;
     payment_method: string;
+    cash_amount?: number;
+    online_amount?: number;
     description?: string;
   }) => apiRequest<any>('/transactions/transactions/', {
     method: 'POST',
@@ -255,6 +257,8 @@ export const transactionsApi = {
     asal_amount?: number;
     interest_amount?: number;
     payment_method?: string;
+    cash_amount?: number;
+    online_amount?: number;
     description?: string;
   }) => apiRequest<any>(`/transactions/transactions/${id}/`, {
     method: 'PATCH',

@@ -12,6 +12,7 @@ import { customersApi, loansApi, transactionsApi, authApi } from '@/lib/api'
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
   { value: 'online', label: 'Online' },
+  { value: 'split', label: 'Split' },
 ] as const
 
 interface Loan {
@@ -82,6 +83,8 @@ export default function CollectionsPage() {
       dlInterest?: string;
       dlAsal?: string;
       paymentMethod: string;
+      cashAmount?: string;
+      onlineAmount?: string;
       // Interest calculation fields from API
       expectedInterest?: string;
       totalPendingInterest?: string;
@@ -95,6 +98,8 @@ export default function CollectionsPage() {
   const [editAsalAmount, setEditAsalAmount] = useState('')
   const [editInterestAmount, setEditInterestAmount] = useState('')
   const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
+  const [editCashAmount, setEditCashAmount] = useState('')
+  const [editOnlineAmount, setEditOnlineAmount] = useState('')
 
   // For Monthly Loan
   const [monthlyAsalAmount, setMonthlyAsalAmount] = useState<string>('')
@@ -187,9 +192,43 @@ export default function CollectionsPage() {
       ...prev,
       [loanId]: {
         ...prev[loanId],
-        paymentMethod: method
+        paymentMethod: method,
+        // Clear split amounts when switching away from split
+        cashAmount: method === 'split' ? prev[loanId]?.cashAmount || '' : undefined,
+        onlineAmount: method === 'split' ? prev[loanId]?.onlineAmount || '' : undefined,
       }
     }))
+  }
+
+  // Update split amounts for a specific loan
+  const updateLoanCashAmount = (loanId: number, value: string) => {
+    setLoanPayments(prev => {
+      const totalAmount = parseFloat(prev[loanId]?.amount || '0')
+      const cash = parseFloat(value) || 0
+      return {
+        ...prev,
+        [loanId]: {
+          ...prev[loanId],
+          cashAmount: value,
+          onlineAmount: totalAmount > 0 && cash <= totalAmount ? (totalAmount - cash).toString() : prev[loanId]?.onlineAmount || '',
+        }
+      }
+    })
+  }
+
+  const updateLoanOnlineAmount = (loanId: number, value: string) => {
+    setLoanPayments(prev => {
+      const totalAmount = parseFloat(prev[loanId]?.amount || '0')
+      const online = parseFloat(value) || 0
+      return {
+        ...prev,
+        [loanId]: {
+          ...prev[loanId],
+          onlineAmount: value,
+          cashAmount: totalAmount > 0 && online <= totalAmount ? (totalAmount - online).toString() : prev[loanId]?.cashAmount || '',
+        }
+      }
+    })
   }
 
   const markAsPaid = async (customerId: number, customerName: string, loanId: number) => {
@@ -240,6 +279,18 @@ export default function CollectionsPage() {
         transactionData.interest_amount = parseFloat(payment.dlInterest || '0')
         transactionData.asal_amount = parseFloat(payment.dlAsal || '0')
         transactionData.amount = parseFloat(payment.amount) // Total amount for DL
+      }
+
+      // Add split payment amounts
+      if (payment.paymentMethod === 'split') {
+        transactionData.cash_amount = parseFloat(payment.cashAmount || '0')
+        transactionData.online_amount = parseFloat(payment.onlineAmount || '0')
+      } else if (payment.paymentMethod === 'cash') {
+        transactionData.cash_amount = transactionData.amount
+        transactionData.online_amount = 0
+      } else if (payment.paymentMethod === 'online') {
+        transactionData.cash_amount = 0
+        transactionData.online_amount = transactionData.amount
       }
 
       await transactionsApi.create(transactionData)
@@ -423,6 +474,8 @@ export default function CollectionsPage() {
     setEditAsalAmount(entry.asal_amount?.toString() || '0')
     setEditInterestAmount(entry.interest_amount?.toString() || '0')
     setEditPaymentMethod(entry.payment_method || 'cash')
+    setEditCashAmount(entry.cash_amount?.toString() || '')
+    setEditOnlineAmount(entry.online_amount?.toString() || '')
   }
 
   const cancelEditEntry = () => {
@@ -431,6 +484,8 @@ export default function CollectionsPage() {
     setEditAsalAmount('')
     setEditInterestAmount('')
     setEditPaymentMethod('cash')
+    setEditCashAmount('')
+    setEditOnlineAmount('')
   }
 
   const saveEditEntry = async () => {
@@ -457,7 +512,20 @@ export default function CollectionsPage() {
         updateData.amount = asal + interest
       }
 
-      await transactionsApi.update(editingEntry.id, updateData)
+      await transactionsApi.update(editingEntry.id, {
+        ...updateData,
+        // Add split amounts
+        ...(editPaymentMethod === 'split' ? {
+          cash_amount: parseFloat(editCashAmount) || 0,
+          online_amount: parseFloat(editOnlineAmount) || 0,
+        } : editPaymentMethod === 'cash' ? {
+          cash_amount: updateData.amount,
+          online_amount: 0,
+        } : {
+          cash_amount: 0,
+          online_amount: updateData.amount,
+        }),
+      })
       await fetchTodayEntries()
       await fetchCustomers()
       cancelEditEntry()
@@ -1034,6 +1102,32 @@ export default function CollectionsPage() {
                               </option>
                             ))}
                           </select>
+                          {payment?.paymentMethod === 'split' && !payment?.paid && (
+                            <div className="mt-1 space-y-0.5">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-muted-foreground w-5">₹C</span>
+                                <input
+                                  type="number"
+                                  placeholder="Cash"
+                                  value={payment?.cashAmount || ''}
+                                  onChange={(e) => updateLoanCashAmount(loan.id, e.target.value)}
+                                  className="w-16 text-center text-xs border border-amber-500/30 rounded px-1 py-0.5 bg-background text-foreground"
+                                  min="0"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-muted-foreground w-5">₹O</span>
+                                <input
+                                  type="number"
+                                  placeholder="Online"
+                                  value={payment?.onlineAmount || ''}
+                                  onChange={(e) => updateLoanOnlineAmount(loan.id, e.target.value)}
+                                  className="w-16 text-center text-xs border border-purple-500/30 rounded px-1 py-0.5 bg-background text-foreground"
+                                  min="0"
+                                />
+                              </div>
+                            </div>
+                          )}
                         </td>
                         {/* Action column */}
                         <td className="px-3 py-2 text-center">
@@ -1089,13 +1183,49 @@ export default function CollectionsPage() {
                                       <div className="flex flex-col gap-0.5">
                                         <select
                                           value={editPaymentMethod}
-                                          onChange={(e) => setEditPaymentMethod(e.target.value)}
+                                          onChange={(e) => { setEditPaymentMethod(e.target.value); if (e.target.value !== 'split') { setEditCashAmount(''); setEditOnlineAmount(''); } }}
                                           className="text-xs border border-border rounded px-1 py-1 bg-background text-foreground mb-1"
                                         >
                                           {PAYMENT_METHODS.map((m) => (
                                             <option key={m.value} value={m.value}>{m.label}</option>
                                           ))}
                                         </select>
+                                        {editPaymentMethod === 'split' && (
+                                          <div className="flex flex-col gap-0.5 mb-1">
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[10px] text-muted-foreground w-4">C</span>
+                                              <input
+                                                type="number"
+                                                value={editCashAmount}
+                                                onChange={(e) => {
+                                                  setEditCashAmount(e.target.value)
+                                                  const total = parseFloat(editAmount) || ((parseFloat(editAsalAmount) || 0) + (parseFloat(editInterestAmount) || 0))
+                                                  const cash = parseFloat(e.target.value) || 0
+                                                  if (total > 0 && cash <= total) setEditOnlineAmount((total - cash).toString())
+                                                }}
+                                                className="w-14 text-center text-[10px] border border-amber-500/30 rounded px-1 py-0.5 bg-background text-foreground"
+                                                min="0"
+                                                placeholder="Cash"
+                                              />
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[10px] text-muted-foreground w-4">O</span>
+                                              <input
+                                                type="number"
+                                                value={editOnlineAmount}
+                                                onChange={(e) => {
+                                                  setEditOnlineAmount(e.target.value)
+                                                  const total = parseFloat(editAmount) || ((parseFloat(editAsalAmount) || 0) + (parseFloat(editInterestAmount) || 0))
+                                                  const online = parseFloat(e.target.value) || 0
+                                                  if (total > 0 && online <= total) setEditCashAmount((total - online).toString())
+                                                }}
+                                                className="w-14 text-center text-[10px] border border-purple-500/30 rounded px-1 py-0.5 bg-background text-foreground"
+                                                min="0"
+                                                placeholder="Online"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
                                         <div className="flex gap-1 justify-center">
                                           <button
                                             onClick={saveEditEntry}
@@ -1138,6 +1268,11 @@ export default function CollectionsPage() {
                                     {isCompound && (
                                       <div className="text-[10px] text-muted-foreground">
                                         A:₹{asal} I:₹{interest}
+                                      </div>
+                                    )}
+                                    {todayEntry.payment_method === 'split' && todayEntry.cash_amount && todayEntry.online_amount && (
+                                      <div className="text-[10px] text-amber-600">
+                                        C:₹{parseFloat(todayEntry.cash_amount).toLocaleString()} O:₹{parseFloat(todayEntry.online_amount).toLocaleString()}
                                       </div>
                                     )}
 

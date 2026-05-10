@@ -33,7 +33,7 @@ class LoanSerializer(serializers.ModelSerializer):
                  # DL Loan fields
                  'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Payment method
-                 'payment_method',
+                 'payment_method', 'cash_amount', 'online_amount',
                  # Closure fields
                  'closed_at', 'closure_note',
                  # Calculated fields
@@ -112,6 +112,14 @@ class LoanSerializer(serializers.ModelSerializer):
         # For Monthly Interest Loans, only mark interest as paid if first month was collected
         if validated_data.get('loan_type') == 'Monthly Interest Loan' and first_month_paid:
             validated_data['last_interest_payment_date'] = validated_data.get('start_date', date_cls.today())
+        # Auto-derive payment_method from cash/online amounts
+        cash_amt = validated_data.get('cash_amount') or 0
+        online_amt = validated_data.get('online_amount') or 0
+        if cash_amt > 0 and online_amt > 0:
+            validated_data['payment_method'] = 'split'
+        elif online_amt > 0:
+            validated_data['payment_method'] = 'online'
+        # else keep default 'cash' or whatever was passed
         return super().create(validated_data)
 
 
@@ -136,7 +144,7 @@ class LoanDetailSerializer(serializers.ModelSerializer):
                  # DL Loan fields
                  'daily_interest_rate', 'max_days', 'last_interest_payment_date',
                  # Payment method
-                 'payment_method',
+                 'payment_method', 'cash_amount', 'online_amount',
                  # Closure fields
                  'closed_at', 'closure_note',
                  # Calculated fields
@@ -194,7 +202,8 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'loan', 'loan_type', 'customer_id', 'customer_name', 'amount', 
-                 'asal_amount', 'interest_amount', 'remaining_amount', 'payment_method', 'description',
+                 'asal_amount', 'interest_amount', 'remaining_amount', 'payment_method',
+                 'cash_amount', 'online_amount', 'description',
                  'collected_by_name', 'created_by', 'created_at',
                  'updated_at', 'last_edited_by_name']
         read_only_fields = ['created_by', 'created_at', 'updated_at', 'last_edited_by_name']
@@ -216,6 +225,14 @@ class TransactionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context['request'].user
         validated_data['created_by'] = user
+        # Auto-derive payment_method from cash/online amounts
+        cash_amt = validated_data.get('cash_amount') or 0
+        online_amt = validated_data.get('online_amount') or 0
+        if cash_amt > 0 and online_amt > 0:
+            validated_data['payment_method'] = 'split'
+        elif online_amt > 0 and cash_amt == 0:
+            validated_data['payment_method'] = 'online'
+        # else keep whatever was passed (default 'cash')
         return super().create(validated_data)
     
     def update(self, instance, validated_data):

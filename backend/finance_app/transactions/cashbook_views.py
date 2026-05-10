@@ -2,6 +2,7 @@ import io
 from datetime import date, timedelta
 from decimal import Decimal
 from django.db.models import Sum, Q
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -58,23 +59,23 @@ def compute_opening_balance(target_date, org_id=None):
     # Aggregate all cash flows from anchor_date (inclusive) to target_date (exclusive)
     date_range_q = Q(created_at__date__gte=anchor_date, created_at__date__lt=target_date)
 
-    # Cash IN
+    # Cash IN - include split payments' cash portion
     cash_collections = Transaction.objects.filter(
-        date_range_q, payment_method='cash', **txn_org
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        date_range_q, Q(payment_method='cash') | Q(payment_method='split'), **txn_org
+    ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('amount')))['total'] or Decimal('0')
 
     cash_income = Income.objects.filter(
         date_range_q, payment_method='cash', **income_org
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-    # Cash OUT
+    # Cash OUT - include split payments' cash portion
     cash_loans_given = Loan.objects.filter(
-        date_range_q, payment_method='cash', **loan_org
-    ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+        date_range_q, Q(payment_method='cash') | Q(payment_method='split'), **loan_org
+    ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
     # DC deduction for cash DC loans stays in hand (not actually given out)
     cash_dc_deduction = Loan.objects.filter(
-        date_range_q, payment_method='cash',
+        date_range_q, Q(payment_method='cash') | Q(payment_method='split'),
         loan_type='DC Loan', dc_deduction_amount__gt=0, **loan_org
     ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
@@ -144,23 +145,23 @@ class DailyCashBookView(APIView):
         """Aggregate cashbook data across a date range."""
         date_filter = Q(created_at__date__gte=start_dt, created_at__date__lte=end_dt)
 
-        # Collections
+        # Collections - use cash_amount/online_amount for split support
         cash_collections = Transaction.objects.filter(
-            date_filter, payment_method='cash', **txn_filter
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            date_filter, Q(payment_method='cash') | Q(payment_method='split'), **txn_filter
+        ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('amount')))['total'] or Decimal('0')
 
         online_collections = Transaction.objects.filter(
-            date_filter, payment_method='online', **txn_filter
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            date_filter, Q(payment_method='online') | Q(payment_method='split'), **txn_filter
+        ).aggregate(total=Coalesce(Sum('online_amount'), Sum('amount')))['total'] or Decimal('0')
 
-        # Loans given
+        # Loans given - use cash_amount/online_amount for split support
         cash_loans_given = Loan.objects.filter(
-            date_filter, payment_method='cash', **loan_filter
-        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+            date_filter, Q(payment_method='cash') | Q(payment_method='split'), **loan_filter
+        ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         online_loans_given = Loan.objects.filter(
-            date_filter, payment_method='online', **loan_filter
-        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+            date_filter, Q(payment_method='online') | Q(payment_method='split'), **loan_filter
+        ).aggregate(total=Coalesce(Sum('online_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         # Expenses
         try:
@@ -280,29 +281,29 @@ class DailyCashBookView(APIView):
 
         opening_balance = cashbook_entry.opening_balance
 
-        # Today's cash collections (customer repayments via cash)
+        # Today's cash collections (customer repayments via cash) - include split
         cash_collections = Transaction.objects.filter(
             created_at__date=target_date,
-            payment_method='cash', **txn_filter
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            Q(payment_method='cash') | Q(payment_method='split'), **txn_filter
+        ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('amount')))['total'] or Decimal('0')
 
-        # Today's online collections
+        # Today's online collections - include split
         online_collections = Transaction.objects.filter(
             created_at__date=target_date,
-            payment_method='online', **txn_filter
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            Q(payment_method='online') | Q(payment_method='split'), **txn_filter
+        ).aggregate(total=Coalesce(Sum('online_amount'), Sum('amount')))['total'] or Decimal('0')
 
-        # New cash loans given today (money going out)
+        # New cash loans given today (money going out) - include split
         cash_loans_given = Loan.objects.filter(
             created_at__date=target_date,
-            payment_method='cash', **loan_filter
-        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+            Q(payment_method='cash') | Q(payment_method='split'), **loan_filter
+        ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
-        # New online loans given today
+        # New online loans given today - include split
         online_loans_given = Loan.objects.filter(
             created_at__date=target_date,
-            payment_method='online', **loan_filter
-        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+            Q(payment_method='online') | Q(payment_method='split'), **loan_filter
+        ).aggregate(total=Coalesce(Sum('online_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         # Today's expenses split by payment method
         try:
@@ -668,20 +669,20 @@ class CashBookPDFDownloadView(APIView):
         opening_balance = cashbook_entry.opening_balance
 
         cash_collections = Transaction.objects.filter(
-            created_at__date=target_date, payment_method='cash', **txn_filter
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            created_at__date=target_date, Q(payment_method='cash') | Q(payment_method='split'), **txn_filter
+        ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('amount')))['total'] or Decimal('0')
 
         online_collections = Transaction.objects.filter(
-            created_at__date=target_date, payment_method='online', **txn_filter
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            created_at__date=target_date, Q(payment_method='online') | Q(payment_method='split'), **txn_filter
+        ).aggregate(total=Coalesce(Sum('online_amount'), Sum('amount')))['total'] or Decimal('0')
 
         cash_loans_given = Loan.objects.filter(
-            created_at__date=target_date, payment_method='cash', **loan_filter
-        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+            created_at__date=target_date, Q(payment_method='cash') | Q(payment_method='split'), **loan_filter
+        ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         online_loans_given = Loan.objects.filter(
-            created_at__date=target_date, payment_method='online', **loan_filter
-        ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
+            created_at__date=target_date, Q(payment_method='online') | Q(payment_method='split'), **loan_filter
+        ).aggregate(total=Coalesce(Sum('online_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         try:
             cash_expenses = Expense.objects.filter(
@@ -711,10 +712,10 @@ class CashBookPDFDownloadView(APIView):
 
         other_income_total = cash_income + online_income
 
-        # DC deduction for cash DC loans stays in hand
+        # DC deduction for cash DC loans stays in hand - include split
         cash_dc_deduction = Loan.objects.filter(
             created_at__date=target_date,
-            payment_method='cash',
+            Q(payment_method='cash') | Q(payment_method='split'),
             loan_type='DC Loan',
             dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')

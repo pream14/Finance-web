@@ -358,8 +358,14 @@ class PaymentAnalyticsView(APIView):
         ).order_by('-total_amount')
         
         total_disbursement = loans.aggregate(total=Sum('principal_amount'))['total'] or 0
-        cash_disbursement = loans.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or 0
-        online_disbursement = loans.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or 0
+        # Use cash_amount/online_amount fields for accurate split handling
+        from django.db.models.functions import Coalesce
+        cash_disbursement = loans.aggregate(total=Coalesce(Sum('cash_amount'), 0))['total'] or 0
+        online_disbursement = loans.aggregate(total=Coalesce(Sum('online_amount'), 0))['total'] or 0
+        # Fallback for old data without split fields
+        if cash_disbursement == 0 and online_disbursement == 0 and total_disbursement > 0:
+            cash_disbursement = loans.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or 0
+            online_disbursement = loans.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or 0
         
         # CUSTOMER REPAYMENT ANALYTICS
         repayment_totals = transactions.values('payment_method').annotate(
@@ -368,8 +374,13 @@ class PaymentAnalyticsView(APIView):
         ).order_by('-total_amount')
         
         total_repaid = transactions.aggregate(total=Sum('amount'))['total'] or 0
-        cash_repaid = transactions.filter(payment_method='cash').aggregate(total=Sum('amount'))['total'] or 0
-        online_repaid = transactions.filter(payment_method='online').aggregate(total=Sum('amount'))['total'] or 0
+        # Use cash_amount/online_amount fields for accurate split handling
+        cash_repaid = transactions.aggregate(total=Coalesce(Sum('cash_amount'), 0))['total'] or 0
+        online_repaid = transactions.aggregate(total=Coalesce(Sum('online_amount'), 0))['total'] or 0
+        # Fallback for old data without split fields
+        if cash_repaid == 0 and online_repaid == 0 and total_repaid > 0:
+            cash_repaid = transactions.filter(payment_method='cash').aggregate(total=Sum('amount'))['total'] or 0
+            online_repaid = transactions.filter(payment_method='online').aggregate(total=Sum('amount'))['total'] or 0
         
         # Cash Flow Analysis
         net_cash_flow = cash_disbursement - cash_repaid

@@ -130,6 +130,11 @@ export default function CustomersPage() {
   // Payment method fields
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [newPaymentMethod, setNewPaymentMethod] = useState('cash')
+  // Split payment amounts (for loan disbursement)
+  const [cashAmount, setCashAmount] = useState('')
+  const [onlineAmount, setOnlineAmount] = useState('')
+  const [newCashAmount, setNewCashAmount] = useState('')
+  const [newOnlineAmount, setNewOnlineAmount] = useState('')
 
   // For existing customer loan creation
   const [newMonthlyInterestRate, setNewMonthlyInterestRate] = useState('')
@@ -357,6 +362,18 @@ export default function CustomersPage() {
           payment_method: paymentMethod,
         }
 
+        // Add split payment amounts
+        if (paymentMethod === 'split') {
+          loanData.cash_amount = parseFloat(cashAmount) || 0
+          loanData.online_amount = parseFloat(onlineAmount) || 0
+        } else if (paymentMethod === 'cash') {
+          loanData.cash_amount = principal
+          loanData.online_amount = 0
+        } else {
+          loanData.cash_amount = 0
+          loanData.online_amount = principal
+        }
+
         // Add loan-specific fields
         if (firstLoanType === 'Monthly Interest Loan') {
           loanData.monthly_interest_rate = parseFloat(monthlyInterestRate)
@@ -403,6 +420,8 @@ export default function CustomersPage() {
       setFirstLoanType(LOAN_TYPES[0])
       setFirstLoanPrincipal('')
       setPaymentMethod('cash')
+      setCashAmount('')
+      setOnlineAmount('')
       setMonthlyInterestRate('')
       setInterestCycleDay(new Date().getDate().toString())
       setFirstMonthInterestPaid(true)
@@ -474,6 +493,18 @@ export default function CustomersPage() {
         payment_method: newPaymentMethod,
       }
 
+      // Add split payment amounts
+      if (newPaymentMethod === 'split') {
+        loanData.cash_amount = parseFloat(newCashAmount) || 0
+        loanData.online_amount = parseFloat(newOnlineAmount) || 0
+      } else if (newPaymentMethod === 'cash') {
+        loanData.cash_amount = principal
+        loanData.online_amount = 0
+      } else {
+        loanData.cash_amount = 0
+        loanData.online_amount = principal
+      }
+
       // Add loan-specific fields
       if (newLoanType === 'Monthly Interest Loan') {
         loanData.monthly_interest_rate = parseFloat(newMonthlyInterestRate)
@@ -518,6 +549,8 @@ export default function CustomersPage() {
       setNewLoanPrincipal('')
       setNewLoanType(LOAN_TYPES[0])
       setNewPaymentMethod('cash')
+      setNewCashAmount('')
+      setNewOnlineAmount('')
       setNewMonthlyInterestRate('')
       setNewInterestCycleDay(new Date().getDate().toString())
       setNewFirstMonthInterestPaid(true)
@@ -961,16 +994,72 @@ export default function CustomersPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Payment Method</label>
-                    <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                    <Select value={newPaymentMethod} onValueChange={(v) => { setNewPaymentMethod(v); setNewCashAmount(''); setNewOnlineAmount(''); }}>
                       <SelectTrigger className="border-border/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cash">Cash</SelectItem>
                         <SelectItem value="online">Online Transfer</SelectItem>
+                        <SelectItem value="split">Split (Cash + Online)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {newPaymentMethod === 'split' && (
+                    <div className="space-y-3 p-3 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5">
+                      <p className="text-xs font-medium text-amber-600">Split Amount Breakdown</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Cash (₹)</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={newCashAmount}
+                            onChange={(e) => {
+                              setNewCashAmount(e.target.value)
+                              const principal = parseFloat(newLoanPrincipal) || 0
+                              const cash = parseFloat(e.target.value) || 0
+                              if (principal > 0 && cash <= principal) {
+                                setNewOnlineAmount((principal - cash).toString())
+                              }
+                            }}
+                            className="border-amber-500/30"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Online (₹)</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={newOnlineAmount}
+                            onChange={(e) => {
+                              setNewOnlineAmount(e.target.value)
+                              const principal = parseFloat(newLoanPrincipal) || 0
+                              const online = parseFloat(e.target.value) || 0
+                              if (principal > 0 && online <= principal) {
+                                setNewCashAmount((principal - online).toString())
+                              }
+                            }}
+                            className="border-amber-500/30"
+                          />
+                        </div>
+                      </div>
+                      {newLoanPrincipal && (() => {
+                        const total = (parseFloat(newCashAmount) || 0) + (parseFloat(newOnlineAmount) || 0)
+                        const principal = parseFloat(newLoanPrincipal) || 0
+                        const match = Math.abs(total - principal) < 0.01
+                        return (
+                          <p className={`text-xs ${match ? 'text-green-600' : 'text-red-500'}`}>
+                            Total: ₹{total.toLocaleString()} {match ? '✓ Matches principal' : `≠ Principal ₹${principal.toLocaleString()}`}
+                          </p>
+                        )
+                      })()}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Principal amount (₹)</label>
                     <Input
@@ -1216,16 +1305,73 @@ export default function CustomersPage() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium text-foreground">Payment Method</label>
-                          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                          <Select value={paymentMethod} onValueChange={(v) => { setPaymentMethod(v); setCashAmount(''); setOnlineAmount(''); }}>
                             <SelectTrigger className="border-border/50">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="cash">Cash</SelectItem>
                               <SelectItem value="online">Online Transfer</SelectItem>
+                              <SelectItem value="split">Split (Cash + Online)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                      {paymentMethod === 'split' && (
+                        <div className="space-y-3 p-3 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5">
+                          <p className="text-xs font-medium text-amber-600">Split Amount Breakdown</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs text-muted-foreground">Cash (₹)</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="0"
+                                value={cashAmount}
+                                onChange={(e) => {
+                                  setCashAmount(e.target.value)
+                                  const principal = parseFloat(firstLoanPrincipal) || 0
+                                  const cash = parseFloat(e.target.value) || 0
+                                  if (principal > 0 && cash <= principal) {
+                                    setOnlineAmount((principal - cash).toString())
+                                  }
+                                }}
+                                className="border-amber-500/30"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-muted-foreground">Online (₹)</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="0"
+                                value={onlineAmount}
+                                onChange={(e) => {
+                                  setOnlineAmount(e.target.value)
+                                  const principal = parseFloat(firstLoanPrincipal) || 0
+                                  const online = parseFloat(e.target.value) || 0
+                                  if (principal > 0 && online <= principal) {
+                                    setCashAmount((principal - online).toString())
+                                  }
+                                }}
+                                className="border-amber-500/30"
+                              />
+                            </div>
+                          </div>
+                          {firstLoanPrincipal && (() => {
+                            const total = (parseFloat(cashAmount) || 0) + (parseFloat(onlineAmount) || 0)
+                            const principal = parseFloat(firstLoanPrincipal) || 0
+                            const match = Math.abs(total - principal) < 0.01
+                            return (
+                              <p className={`text-xs ${match ? 'text-green-600' : 'text-red-500'}`}>
+                                Total: ₹{total.toLocaleString()} {match ? '✓ Matches principal' : `≠ Principal ₹${principal.toLocaleString()}`}
+                              </p>
+                            )
+                          })()}
+                        </div>
+                      )}
                         <div className="space-y-2">
                           <label className="text-sm font-medium text-foreground">Principal amount (₹)</label>
                           <Input

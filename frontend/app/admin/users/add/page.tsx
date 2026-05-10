@@ -122,6 +122,7 @@ export default function EmployerManagementPage() {
             email: user.email || '',
             role: user.role,
             password: '',
+            organization_id: '',
         })
         setFormError(null)
         setIsDialogOpen(true)

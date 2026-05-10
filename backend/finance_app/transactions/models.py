@@ -67,7 +67,10 @@ class Loan(models.Model):
     payment_method = models.CharField(max_length=10, choices=[
         ('cash', 'Cash'),
         ('online', 'Online Transfer'),
+        ('split', 'Split (Cash + Online)'),
     ], default='cash', help_text="How the loan amount was disbursed")
+    cash_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, default=0, help_text="Amount disbursed in cash")
+    online_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, default=0, help_text="Amount disbursed via online transfer")
     
     # Loan closure fields
     closed_at = models.DateTimeField(null=True, blank=True, help_text="When the loan was manually closed/written off")
@@ -211,6 +214,7 @@ class Transaction(models.Model):
     PAYMENT_METHOD_CHOICES = (
         ('cash', 'Cash'),
         ('online', 'Online'),
+        ('split', 'Split (Cash + Online)'),
     )
     
     loan = models.ForeignKey(
@@ -222,6 +226,8 @@ class Transaction(models.Model):
     asal_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, null=True, blank=True)
     interest_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, null=True, blank=True)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash')
+    cash_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, default=0, help_text="Amount received in cash")
+    online_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, default=0, help_text="Amount received via online transfer")
     description = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
