@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 urlpatterns = [
     path('sysadmin/', admin.site.urls),
+    path('api/organizations/', include('organizations.urls')),
     path('api/customers/', include('customers.url')),
     path('api/transactions/', include('transactions.url')),
     path('api/users/', include('users.urls')),

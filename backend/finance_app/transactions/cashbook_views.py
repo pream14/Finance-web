@@ -9,9 +9,10 @@ from rest_framework import permissions, status
 
 from .models import Loan, Transaction, DailyCashBook
 from expenses.models import Expense, Income
+from .dashboard_views import _get_org_filters
 
 
-def invalidate_cashbook_from(affected_date):
+def invalidate_cashbook_from(affected_date, org_id=None):
     """
     Delete cached DailyCashBook entries AFTER the affected date so that
     opening balances are recomputed dynamically on next view.
@@ -20,11 +21,14 @@ def invalidate_cashbook_from(affected_date):
     and its closing is recalculated live when viewed). Only subsequent
     days' anchors become stale and need to be cleared.
     """
-    DailyCashBook.objects.filter(date__gt=affected_date).delete()
+    qs = DailyCashBook.objects.filter(date__gt=affected_date)
+    if org_id:
+        qs = qs.filter(organization_id=org_id)
+    qs.delete()
 
 
 
-def compute_opening_balance(target_date):
+def compute_opening_balance(target_date, org_id=None):
     """
     Dynamically compute the opening balance for a given date.
     Finds the most recent DailyCashBook anchor and aggregates all cash
@@ -34,9 +38,10 @@ def compute_opening_balance(target_date):
     cashbook for several days, all intermediate transactions are accounted for.
     """
     # Find the most recent anchor entry (any previous DailyCashBook record)
-    anchor = DailyCashBook.objects.filter(
-        date__lt=target_date
-    ).order_by('-date').first()
+    anchor_qs = DailyCashBook.objects.filter(date__lt=target_date)
+    if org_id:
+        anchor_qs = anchor_qs.filter(organization_id=org_id)
+    anchor = anchor_qs.order_by('-date').first()
 
     if not anchor:
         return Decimal('0')
@@ -44,37 +49,42 @@ def compute_opening_balance(target_date):
     anchor_opening = anchor.opening_balance
     anchor_date = anchor.date
 
+    # Build org filter for each model type
+    loan_org = {'organization_id': org_id} if org_id else {}
+    txn_org = {'loan__organization_id': org_id} if org_id else {}
+    expense_org = {'organization_id': org_id} if org_id else {}
+    income_org = {'organization_id': org_id} if org_id else {}
+
     # Aggregate all cash flows from anchor_date (inclusive) to target_date (exclusive)
-    # This covers anchor_day + all skipped days up to yesterday
     date_range_q = Q(created_at__date__gte=anchor_date, created_at__date__lt=target_date)
 
     # Cash IN
     cash_collections = Transaction.objects.filter(
-        date_range_q, payment_method='cash'
+        date_range_q, payment_method='cash', **txn_org
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
     cash_income = Income.objects.filter(
-        date_range_q, payment_method='cash'
+        date_range_q, payment_method='cash', **income_org
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
     # Cash OUT
     cash_loans_given = Loan.objects.filter(
-        date_range_q, payment_method='cash'
+        date_range_q, payment_method='cash', **loan_org
     ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
     # DC deduction for cash DC loans stays in hand (not actually given out)
     cash_dc_deduction = Loan.objects.filter(
         date_range_q, payment_method='cash',
-        loan_type='DC Loan', dc_deduction_amount__gt=0
+        loan_type='DC Loan', dc_deduction_amount__gt=0, **loan_org
     ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
     try:
         cash_expenses = Expense.objects.filter(
-            date_range_q, payment_method='cash'
+            date_range_q, payment_method='cash', **expense_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
     except Exception:
         cash_expenses = Expense.objects.filter(
-            created_at__date__gte=anchor_date, created_at__date__lt=target_date
+            created_at__date__gte=anchor_date, created_at__date__lt=target_date, **expense_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
     return anchor_opening + cash_collections + cash_income - cash_loans_given + cash_dc_deduction - cash_expenses
@@ -108,75 +118,90 @@ class DailyCashBookView(APIView):
         else:
             start_dt = end_dt = date.today()
 
+        # Resolve org filters
+        loan_filter, txn_filter = _get_org_filters(request)
+        # Build per-model org filters
+        expense_org = {}
+        income_org = {}
+        org_id = None
+        if 'organization_id' in loan_filter:
+            org_id = loan_filter['organization_id']
+            expense_org = {'organization_id': org_id}
+            income_org = {'organization_id': org_id}
+        elif 'organization_id__in' in loan_filter:
+            org_ids = loan_filter['organization_id__in']
+            expense_org = {'organization_id__in': org_ids}
+            income_org = {'organization_id__in': org_ids}
+
         is_range = start_dt != end_dt
 
         if is_range:
-            return self._get_range(request, start_dt, end_dt)
+            return self._get_range(request, start_dt, end_dt, loan_filter, txn_filter, expense_org, income_org)
         else:
-            return self._get_single_day(request, end_dt)
+            return self._get_single_day(request, end_dt, loan_filter, txn_filter, expense_org, income_org, org_id)
 
-    def _get_range(self, request, start_dt, end_dt):
+    def _get_range(self, request, start_dt, end_dt, loan_filter, txn_filter, expense_org, income_org):
         """Aggregate cashbook data across a date range."""
         date_filter = Q(created_at__date__gte=start_dt, created_at__date__lte=end_dt)
 
         # Collections
         cash_collections = Transaction.objects.filter(
-            date_filter, payment_method='cash'
+            date_filter, payment_method='cash', **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         online_collections = Transaction.objects.filter(
-            date_filter, payment_method='online'
+            date_filter, payment_method='online', **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         # Loans given
         cash_loans_given = Loan.objects.filter(
-            date_filter, payment_method='cash'
+            date_filter, payment_method='cash', **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         online_loans_given = Loan.objects.filter(
-            date_filter, payment_method='online'
+            date_filter, payment_method='online', **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         # Expenses
         try:
             cash_expenses = Expense.objects.filter(
-                date_filter, payment_method='cash'
+                date_filter, payment_method='cash', **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             online_expenses = Expense.objects.filter(
-                date_filter, payment_method='online'
+                date_filter, payment_method='online', **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             expenses_total = cash_expenses + online_expenses
         except Exception:
             expenses_total = Expense.objects.filter(
-                date_filter
+                date_filter, **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             cash_expenses = expenses_total
             online_expenses = Decimal('0')
 
         # Income
         cash_income = Income.objects.filter(
-            date_filter, payment_method='cash'
+            date_filter, payment_method='cash', **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
         online_income = Income.objects.filter(
-            date_filter, payment_method='online'
+            date_filter, payment_method='online', **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
         other_income_total = cash_income + online_income
 
         # Revenue
         dc_deduction_revenue = Loan.objects.filter(
-            date_filter, loan_type='DC Loan', dc_deduction_amount__gt=0
+            date_filter, loan_type='DC Loan', dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
         monthly_interest = Transaction.objects.filter(
-            date_filter, loan__loan_type='Monthly Interest Loan', interest_amount__gt=0
+            date_filter, loan__loan_type='Monthly Interest Loan', interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dl_interest = Transaction.objects.filter(
-            date_filter, loan__loan_type='DL Loan', interest_amount__gt=0
+            date_filter, loan__loan_type='DL Loan', interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dc_interest = Transaction.objects.filter(
-            date_filter, loan__loan_type='DC Loan', interest_amount__gt=0
+            date_filter, loan__loan_type='DC Loan', interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         total_interest_collected = monthly_interest + dl_interest + dc_interest
@@ -185,21 +210,21 @@ class DailyCashBookView(APIView):
         # Detail lists
         try:
             expense_list = list(Expense.objects.filter(
-                date_filter
+                date_filter, **expense_org
             ).values('id', 'description', 'amount', 'payment_method', 'created_at'))
         except Exception:
             expense_list = list(Expense.objects.filter(
-                date_filter
+                date_filter, **expense_org
             ).values('id', 'description', 'amount', 'created_at'))
             for exp in expense_list:
                 exp['payment_method'] = 'cash'
 
         income_list = list(Income.objects.filter(
-            date_filter
+            date_filter, **income_org
         ).values('id', 'description', 'source', 'amount', 'payment_method', 'created_at'))
 
         new_loans_list = list(Loan.objects.filter(
-            date_filter
+            date_filter, **loan_filter
         ).select_related('customer').order_by('created_at').values(
             'id', 'customer__name', 'loan_type', 'principal_amount',
             'payment_method', 'dc_deduction_amount', 'created_at'
@@ -237,17 +262,20 @@ class DailyCashBookView(APIView):
             },
         })
 
-    def _get_single_day(self, request, target_date):
+    def _get_single_day(self, request, target_date, loan_filter, txn_filter, expense_org, income_org, org_id):
         """Get cashbook data for a single day (original behavior)."""
         # Get or calculate opening balance (iruppu)
+        cb_lookup = {'date': target_date}
+        if org_id:
+            cb_lookup['organization_id'] = org_id
         cashbook_entry, created = DailyCashBook.objects.get_or_create(
-            date=target_date,
+            **cb_lookup,
             defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
         )
 
         if created or cashbook_entry.opening_balance == 0:
             # New record OR stale record with 0 — dynamically compute from anchor + all cash flows
-            cashbook_entry.opening_balance = compute_opening_balance(target_date)
+            cashbook_entry.opening_balance = compute_opening_balance(target_date, org_id=org_id)
             cashbook_entry.save()
 
         opening_balance = cashbook_entry.opening_balance
@@ -255,43 +283,43 @@ class DailyCashBookView(APIView):
         # Today's cash collections (customer repayments via cash)
         cash_collections = Transaction.objects.filter(
             created_at__date=target_date,
-            payment_method='cash'
+            payment_method='cash', **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         # Today's online collections
         online_collections = Transaction.objects.filter(
             created_at__date=target_date,
-            payment_method='online'
+            payment_method='online', **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         # New cash loans given today (money going out)
         cash_loans_given = Loan.objects.filter(
             created_at__date=target_date,
-            payment_method='cash'
+            payment_method='cash', **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         # New online loans given today
         online_loans_given = Loan.objects.filter(
             created_at__date=target_date,
-            payment_method='online'
+            payment_method='online', **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         # Today's expenses split by payment method
         try:
             cash_expenses = Expense.objects.filter(
                 created_at__date=target_date,
-                payment_method='cash'
+                payment_method='cash', **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
             online_expenses = Expense.objects.filter(
                 created_at__date=target_date,
-                payment_method='online'
+                payment_method='online', **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
             expenses_total = cash_expenses + online_expenses
         except Exception:
             expenses_total = Expense.objects.filter(
-                created_at__date=target_date
+                created_at__date=target_date, **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             cash_expenses = expenses_total
             online_expenses = Decimal('0')
@@ -299,12 +327,12 @@ class DailyCashBookView(APIView):
         # Other income (rent, etc.) split by payment method
         cash_income = Income.objects.filter(
             created_at__date=target_date,
-            payment_method='cash'
+            payment_method='cash', **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         online_income = Income.objects.filter(
             created_at__date=target_date,
-            payment_method='online'
+            payment_method='online', **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         other_income_total = cash_income + online_income
@@ -313,7 +341,7 @@ class DailyCashBookView(APIView):
         dc_deduction_revenue = Loan.objects.filter(
             created_at__date=target_date,
             loan_type='DC Loan',
-            dc_deduction_amount__gt=0
+            dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
         # DC deduction for cash DC loans (stays in cash box, not given to customer)
@@ -321,26 +349,26 @@ class DailyCashBookView(APIView):
             created_at__date=target_date,
             payment_method='cash',
             loan_type='DC Loan',
-            dc_deduction_amount__gt=0
+            dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
         # Interest revenue collected today broken down by loan type
         monthly_interest = Transaction.objects.filter(
             created_at__date=target_date,
             loan__loan_type='Monthly Interest Loan',
-            interest_amount__gt=0
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dl_interest = Transaction.objects.filter(
             created_at__date=target_date,
             loan__loan_type='DL Loan',
-            interest_amount__gt=0
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dc_interest = Transaction.objects.filter(
             created_at__date=target_date,
             loan__loan_type='DC Loan',
-            interest_amount__gt=0
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         total_interest_collected = monthly_interest + dl_interest + dc_interest
@@ -360,23 +388,23 @@ class DailyCashBookView(APIView):
         # Get expense details
         try:
             expense_list = list(Expense.objects.filter(
-                created_at__date=target_date
+                created_at__date=target_date, **expense_org
             ).values('id', 'description', 'amount', 'payment_method'))
         except Exception:
             expense_list = list(Expense.objects.filter(
-                created_at__date=target_date
+                created_at__date=target_date, **expense_org
             ).values('id', 'description', 'amount'))
             for exp in expense_list:
                 exp['payment_method'] = 'cash'
 
         # Get income details
         income_list = list(Income.objects.filter(
-            created_at__date=target_date
+            created_at__date=target_date, **income_org
         ).values('id', 'description', 'source', 'amount', 'payment_method'))
 
         # Get new loans given today
         new_loans_list = list(Loan.objects.filter(
-            created_at__date=target_date
+            created_at__date=target_date, **loan_filter
         ).select_related('customer').order_by('created_at').values(
             'id', 'customer__name', 'loan_type', 'principal_amount',
             'payment_method', 'dc_deduction_amount'
@@ -497,65 +525,69 @@ class RevenueReportView(APIView):
             start_date = today
             end_date = today
 
+        # Resolve org filters
+        loan_filter, txn_filter = _get_org_filters(request)
+        expense_org = {}
+        income_org = {}
+        if 'organization_id' in loan_filter:
+            expense_org = {'organization_id': loan_filter['organization_id']}
+            income_org = {'organization_id': loan_filter['organization_id']}
+        elif 'organization_id__in' in loan_filter:
+            expense_org = {'organization_id__in': loan_filter['organization_id__in']}
+            income_org = {'organization_id__in': loan_filter['organization_id__in']}
+
+        date_q = Q(created_at__date__gte=start_date, created_at__date__lte=end_date)
+
         # DC deduction revenue
         dc_deduction_revenue = Loan.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date,
+            date_q,
             loan_type='DC Loan',
-            dc_deduction_amount__gt=0
+            dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
         # Interest collected (from transactions)
         interest_collected = Transaction.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date,
-            interest_amount__gt=0
+            date_q,
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         # Break down interest by loan type
         dc_interest = Transaction.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date,
+            date_q,
             loan__loan_type='DC Loan',
-            interest_amount__gt=0
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         monthly_interest = Transaction.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date,
+            date_q,
             loan__loan_type='Monthly Interest Loan',
-            interest_amount__gt=0
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dl_interest = Transaction.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date,
+            date_q,
             loan__loan_type='DL Loan',
-            interest_amount__gt=0
+            interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         # Other income
         other_income = Income.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            date_q, **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         # Total collections
         total_collections = Transaction.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            date_q, **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         # Total loans given
         total_loans_given = Loan.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            date_q, **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         # Total expenses
         total_expenses = Expense.objects.filter(
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            date_q, **expense_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         total_revenue = dc_deduction_revenue + interest_collected + other_income
@@ -597,57 +629,84 @@ class CashBookPDFDownloadView(APIView):
             target_date = date.today()
 
         # ---- Fetch the same data as DailyCashBookView ----
+        # Resolve org filters
+        loan_filter, txn_filter = _get_org_filters(request)
+        expense_org = {}
+        income_org = {}
+        cashbook_org = {}
+        if 'organization_id' in loan_filter:
+            expense_org = {'organization_id': loan_filter['organization_id']}
+            income_org = {'organization_id': loan_filter['organization_id']}
+            cashbook_org = {'organization_id': loan_filter['organization_id']}
+        elif 'organization_id__in' in loan_filter:
+            expense_org = {'organization_id__in': loan_filter['organization_id__in']}
+            income_org = {'organization_id__in': loan_filter['organization_id__in']}
+            cashbook_org = {'organization_id__in': loan_filter['organization_id__in']}
+
+        # Determine org_id for compute_opening_balance
+        org_id = None
+        if 'organization_id' in loan_filter:
+            org_id = loan_filter['organization_id']
+
         from .models import DailyCashBook
-        cashbook_entry, created = DailyCashBook.objects.get_or_create(
-            date=target_date,
-            defaults={'opening_balance': Decimal('0'), 'closing_balance': Decimal('0')}
-        )
-        if created or cashbook_entry.opening_balance == 0:
-            cashbook_entry.opening_balance = compute_opening_balance(target_date)
+        cb_filter = {'date': target_date}
+        cb_filter.update(cashbook_org)
+        cashbook_qs = DailyCashBook.objects.filter(**cb_filter)
+        if cashbook_qs.exists():
+            cashbook_entry = cashbook_qs.first()
+        else:
+            cashbook_entry = DailyCashBook.objects.create(
+                date=target_date,
+                opening_balance=Decimal('0'),
+                closing_balance=Decimal('0'),
+                organization_id=org_id
+            )
+        if cashbook_entry.opening_balance == 0:
+            cashbook_entry.opening_balance = compute_opening_balance(target_date, org_id=org_id)
             cashbook_entry.save()
 
         opening_balance = cashbook_entry.opening_balance
 
         cash_collections = Transaction.objects.filter(
-            created_at__date=target_date, payment_method='cash'
+            created_at__date=target_date, payment_method='cash', **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         online_collections = Transaction.objects.filter(
-            created_at__date=target_date, payment_method='online'
+            created_at__date=target_date, payment_method='online', **txn_filter
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         cash_loans_given = Loan.objects.filter(
-            created_at__date=target_date, payment_method='cash'
+            created_at__date=target_date, payment_method='cash', **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         online_loans_given = Loan.objects.filter(
-            created_at__date=target_date, payment_method='online'
+            created_at__date=target_date, payment_method='online', **loan_filter
         ).aggregate(total=Sum('principal_amount'))['total'] or Decimal('0')
 
         try:
             cash_expenses = Expense.objects.filter(
-                created_at__date=target_date, payment_method='cash'
+                created_at__date=target_date, payment_method='cash', **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
             online_expenses = Expense.objects.filter(
-                created_at__date=target_date, payment_method='online'
+                created_at__date=target_date, payment_method='online', **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
             expenses_total = cash_expenses + online_expenses
         except Exception:
             expenses_total = Expense.objects.filter(
-                created_at__date=target_date
+                created_at__date=target_date, **expense_org
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
             cash_expenses = expenses_total
             online_expenses = Decimal('0')
 
         # Other income
         cash_income = Income.objects.filter(
-            created_at__date=target_date, payment_method='cash'
+            created_at__date=target_date, payment_method='cash', **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         online_income = Income.objects.filter(
-            created_at__date=target_date, payment_method='online'
+            created_at__date=target_date, payment_method='online', **income_org
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         other_income_total = cash_income + online_income
@@ -657,7 +716,7 @@ class CashBookPDFDownloadView(APIView):
             created_at__date=target_date,
             payment_method='cash',
             loan_type='DC Loan',
-            dc_deduction_amount__gt=0
+            dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
         # Closing balance: DC deduction added back since it was never given out
@@ -665,19 +724,19 @@ class CashBookPDFDownloadView(APIView):
 
         # Revenue
         dc_deduction = Loan.objects.filter(
-            created_at__date=target_date, loan_type='DC Loan', dc_deduction_amount__gt=0
+            created_at__date=target_date, loan_type='DC Loan', dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
 
         monthly_interest = Transaction.objects.filter(
-            created_at__date=target_date, loan__loan_type='Monthly Interest Loan', interest_amount__gt=0
+            created_at__date=target_date, loan__loan_type='Monthly Interest Loan', interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dl_interest = Transaction.objects.filter(
-            created_at__date=target_date, loan__loan_type='DL Loan', interest_amount__gt=0
+            created_at__date=target_date, loan__loan_type='DL Loan', interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         dc_interest = Transaction.objects.filter(
-            created_at__date=target_date, loan__loan_type='DC Loan', interest_amount__gt=0
+            created_at__date=target_date, loan__loan_type='DC Loan', interest_amount__gt=0, **txn_filter
         ).aggregate(total=Sum('interest_amount'))['total'] or Decimal('0')
 
         total_revenue = dc_deduction + monthly_interest + dl_interest + dc_interest + other_income_total
@@ -685,21 +744,21 @@ class CashBookPDFDownloadView(APIView):
         # Details
         try:
             expense_list = list(Expense.objects.filter(
-                created_at__date=target_date
+                created_at__date=target_date, **expense_org
             ).values('id', 'description', 'amount', 'payment_method'))
         except Exception:
             expense_list = list(Expense.objects.filter(
-                created_at__date=target_date
+                created_at__date=target_date, **expense_org
             ).values('id', 'description', 'amount'))
             for exp in expense_list:
                 exp['payment_method'] = 'cash'
 
         income_list = list(Income.objects.filter(
-            created_at__date=target_date
+            created_at__date=target_date, **income_org
         ).values('id', 'description', 'source', 'amount', 'payment_method'))
 
         new_loans = list(Loan.objects.filter(
-            created_at__date=target_date
+            created_at__date=target_date, **loan_filter
         ).select_related('customer').order_by('created_at').values(
             'id', 'customer__name', 'loan_type', 'principal_amount',
             'payment_method', 'dc_deduction_amount'

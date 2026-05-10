@@ -22,7 +22,24 @@ export function removeAuthToken() {
   }
 }
 
-// Retry helper for transient server errors (only for GET requests)
+// ─── Organization Selection ──────────────────────────────────────────
+// The selected org ID (or 'all') is stored in localStorage.
+// Every API request automatically injects ?org=<value>.
+
+export function getSelectedOrg(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('selected_org') || null;
+}
+
+export function setSelectedOrg(orgIdOrAll: string) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('selected_org', orgIdOrAll);
+    // Dispatch a custom event so components can react to org changes
+    window.dispatchEvent(new CustomEvent('org-changed', { detail: orgIdOrAll }));
+  }
+}
+
+// ─── Retry helper ────────────────────────────────────────────────────
 const RETRYABLE_STATUS_CODES = [502, 503, 429];
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 500;
@@ -59,7 +76,7 @@ async function fetchWithRetry(
   return fetch(url, options);
 }
 
-// API request helper
+// ─── API request helper ──────────────────────────────────────────────
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -73,7 +90,15 @@ async function apiRequest<T>(
     ...(token ? { Authorization: `Token ${token}` } : {}),
   };
 
-  const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
+  // Auto-inject org parameter unless the endpoint already has one
+  let url = `${API_BASE_URL}${endpoint}`;
+  const selectedOrg = getSelectedOrg();
+  if (selectedOrg && !url.includes('org=')) {
+    const separator = url.includes('?') ? '&' : '?';
+    url = `${url}${separator}org=${selectedOrg}`;
+  }
+
+  const response = await fetchWithRetry(url, {
     ...options,
     headers,
   });
@@ -111,6 +136,24 @@ async function apiRequest<T>(
 
   return response.json();
 }
+
+// ─── Organizations API ───────────────────────────────────────────────
+export const organizationsApi = {
+  getAll: () => apiRequest<any[]>('/organizations/'),
+  getById: (id: number) => apiRequest<any>(`/organizations/${id}/`),
+  create: (data: { name: string; address?: string; phone?: string }) =>
+    apiRequest<any>('/organizations/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: number, data: any) =>
+    apiRequest<any>(`/organizations/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: number) =>
+    apiRequest<void>(`/organizations/${id}/`, { method: 'DELETE' }),
+};
 
 // Customers API
 export const customersApi = {
@@ -319,7 +362,12 @@ export const authApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  create: (data: any) => apiRequest<any>('/users/register/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
   getAll: () => apiRequest<any[]>('/users/'),
+  getAllGlobal: () => apiRequest<any[]>('/users/?global=true'),
   update: (id: number, data: any) => apiRequest<any>(`/users/${id}/`, {
     method: 'PATCH', // Helper method for partial updates
     body: JSON.stringify(data),

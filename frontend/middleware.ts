@@ -33,9 +33,17 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Collector routes: only allow collector role
+  // Super Admin routes: only allow owner role
+  if (pathname.startsWith('/superadmin')) {
+    if (userRole !== 'owner') {
+      const adminUrl = new URL('/admin/dashboard', request.url);
+      return NextResponse.redirect(adminUrl);
+    }
+  }
+
+  // Collector routes: only allow employee/collector role
   if (pathname.startsWith('/collector')) {
-    if (userRole !== 'collector') {
+    if (userRole !== 'employee' && userRole !== 'collector') {
       const adminUrl = new URL('/admin/dashboard', request.url);
       return NextResponse.redirect(adminUrl);
     }

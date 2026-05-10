@@ -5,13 +5,16 @@ from rest_framework.views import APIView
 from .models import Loan, Transaction
 from .serializers import LoanSerializer, LoanDetailSerializer, TransactionSerializer
 from customers.models import Customer
+from organizations.mixins import OrgMixin
 
-class LoanViewSet(viewsets.ModelViewSet):
+
+class LoanViewSet(OrgMixin, viewsets.ModelViewSet):
     serializer_class = LoanSerializer
     permission_classes = [permissions.IsAuthenticated]
+    queryset = Loan.objects.all()
     
     def get_queryset(self):
-        queryset = Loan.objects.all()
+        queryset = super().get_queryset()  # OrgMixin applies org filter
         customer_id = self.request.query_params.get('customer_id', None)
         loan_type = self.request.query_params.get('loan_type', None)
         status_filter = self.request.query_params.get('status', None)
@@ -23,7 +26,7 @@ class LoanViewSet(viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
-        return queryset.select_related('customer', 'created_by')
+        return queryset.select_related('customer', 'created_by', 'organization')
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -33,7 +36,8 @@ class LoanViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            org = self._resolve_org_for_create()
+            serializer.save(organization=org)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -166,11 +170,46 @@ class LoanViewSet(viewsets.ModelViewSet):
         })
 
 class TransactionViewSet(viewsets.ModelViewSet):
+    """Transaction ViewSet — org filtering happens via loan__organization."""
     serializer_class = TransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    queryset = Transaction.objects.all()
+    
+    # Transactions don't have their own org FK — they inherit from loan
+    org_field = 'loan__organization_id'
+    
+    def _get_user_org_ids(self):
+        return list(
+            self.request.user.organizations.values_list('id', flat=True)
+        )
+    
+    def _get_org_filter(self):
+        """Build org filter for transactions (via loan relationship)."""
+        user_org_ids = self._get_user_org_ids()
+        if not user_org_ids:
+            return {'loan__organization_id': -1}
+        
+        org_param = self.request.query_params.get('org')
+        if org_param and org_param != 'all':
+            try:
+                org_id = int(org_param)
+            except (ValueError, TypeError):
+                return {'loan__organization_id': -1}
+            if org_id in user_org_ids:
+                return {'loan__organization_id': org_id}
+            return {'loan__organization_id': -1}
+        
+        if len(user_org_ids) == 1:
+            return {'loan__organization_id': user_org_ids[0]}
+        
+        return {'loan__organization_id__in': user_org_ids}
     
     def get_queryset(self):
         queryset = Transaction.objects.all()
+        
+        # Apply org filter
+        queryset = queryset.filter(**self._get_org_filter())
+        
         customer_id = self.request.query_params.get('customer_id', None)
         loan_id = self.request.query_params.get('loan_id', None)
         start_date = self.request.query_params.get('start_date', None)
@@ -250,7 +289,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         # Invalidate cached cashbook entries after the transaction date
         from transactions.cashbook_views import invalidate_cashbook_from
-        invalidate_cashbook_from(txn_date)
+        invalidate_cashbook_from(txn_date, org_id=loan.organization_id)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -263,33 +302,56 @@ class PaymentAnalyticsView(APIView):
         from django.db.models import Sum, Count, Q
         from datetime import date, timedelta, datetime
         
+        # Get org filter
+        user_org_ids = list(request.user.organizations.values_list('id', flat=True))
+        org_param = request.query_params.get('org')
+        
+        if org_param and org_param != 'all':
+            try:
+                org_id = int(org_param)
+                if org_id in user_org_ids:
+                    org_filter_loan = {'organization_id': org_id}
+                    org_filter_txn = {'loan__organization_id': org_id}
+                else:
+                    org_filter_loan = {'organization_id': -1}
+                    org_filter_txn = {'loan__organization_id': -1}
+            except (ValueError, TypeError):
+                org_filter_loan = {'organization_id': -1}
+                org_filter_txn = {'loan__organization_id': -1}
+        elif len(user_org_ids) == 1:
+            org_filter_loan = {'organization_id': user_org_ids[0]}
+            org_filter_txn = {'loan__organization_id': user_org_ids[0]}
+        else:
+            org_filter_loan = {'organization_id__in': user_org_ids}
+            org_filter_txn = {'loan__organization_id__in': user_org_ids}
+        
         # Get date range from query params
         start_date_param = request.query_params.get('start_date')
         end_date_param = request.query_params.get('end_date')
         days = int(request.query_params.get('days', 30))
         
         if start_date_param and end_date_param:
-            # Custom date range
             start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date()
         else:
-            # Default to last N days
             end_date = date.today()
             start_date = end_date - timedelta(days=days)
         
-        # Filter loans by date range
+        # Filter loans by date range AND org
         loans = Loan.objects.filter(
             created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            created_at__date__lte=end_date,
+            **org_filter_loan
         )
         
-        # Filter transactions by date range
+        # Filter transactions by date range AND org
         transactions = Transaction.objects.filter(
             created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            created_at__date__lte=end_date,
+            **org_filter_txn
         )
         
-        # LOAN DISBURSEMENT ANALYTICS (How you give money)
+        # LOAN DISBURSEMENT ANALYTICS
         disbursement_totals = loans.values('payment_method').annotate(
             total_amount=Sum('principal_amount'),
             count=Count('id')
@@ -299,7 +361,7 @@ class PaymentAnalyticsView(APIView):
         cash_disbursement = loans.filter(payment_method='cash').aggregate(total=Sum('principal_amount'))['total'] or 0
         online_disbursement = loans.filter(payment_method='online').aggregate(total=Sum('principal_amount'))['total'] or 0
         
-        # CUSTOMER REPAYMENT ANALYTICS (How customers pay you back)
+        # CUSTOMER REPAYMENT ANALYTICS
         repayment_totals = transactions.values('payment_method').annotate(
             total_amount=Sum('amount'),
             count=Count('id')

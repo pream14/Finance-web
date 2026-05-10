@@ -7,6 +7,12 @@ class Customer(models.Model):
     alternate_phone = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField()
     area = models.CharField(max_length=50, db_index=True)
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='customers',
+        null=True,  # Will be set to False after data migration
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

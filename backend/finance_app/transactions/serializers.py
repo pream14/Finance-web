@@ -18,11 +18,14 @@ class LoanSerializer(serializers.ModelSerializer):
     has_transactions = serializers.SerializerMethodField()
     amount_given_to_customer = serializers.SerializerMethodField()
     first_month_interest_paid = serializers.BooleanField(write_only=True, required=False, default=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True, default=None)
     
     class Meta:
         model = Loan
         fields = ['id', 'customer', 'loan_type', 'principal_amount', 'remaining_amount',
                  'start_date', 'status', 'pending_interest', 'created_at', 'updated_at',
+                 # Organization
+                 'organization', 'organization_name',
                  # Monthly Interest Loan fields
                  'monthly_interest_rate', 'interest_cycle_day',
                  # DC Loan fields
@@ -38,7 +41,7 @@ class LoanSerializer(serializers.ModelSerializer):
                  'amount_given_to_customer',
                  # Write-only fields
                  'first_month_interest_paid']
-        read_only_fields = ['remaining_amount', 'pending_interest', 'status', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ['remaining_amount', 'pending_interest', 'status', 'created_by', 'created_at', 'updated_at', 'organization']
     
     def get_has_transactions(self, obj):
         """Check if loan has any transactions"""
@@ -118,11 +121,14 @@ class LoanDetailSerializer(serializers.ModelSerializer):
     total_pending_interest = serializers.SerializerMethodField()
     days_since_start = serializers.SerializerMethodField()
     amount_given_to_customer = serializers.SerializerMethodField()
+    organization_name = serializers.CharField(source='organization.name', read_only=True, default=None)
     
     class Meta:
         model = Loan
         fields = ['id', 'customer', 'loan_type', 'principal_amount', 'remaining_amount', 
                  'start_date', 'status', 'pending_interest', 'created_at', 'updated_at',
+                 # Organization
+                 'organization', 'organization_name',
                  # Monthly Interest Loan fields
                  'monthly_interest_rate', 'interest_cycle_day',
                  # DC Loan fields
@@ -243,7 +249,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         
         # Invalidate cached cashbook entries after the transaction date
         from transactions.cashbook_views import invalidate_cashbook_from
-        invalidate_cashbook_from(instance.created_at.date())
+        invalidate_cashbook_from(instance.created_at.date(), org_id=loan.organization_id)
         
         return updated
     

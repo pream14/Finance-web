@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input'
 import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key, Menu } from 'lucide-react'
 import { transactionsApi, expensesApi, incomeApi, authApi, dashboardApi } from '@/lib/api'
+import OrgSelector from '@/components/org-selector'
 
 function getMonthRange(ym: string) {
   const [y, m] = ym.split('-').map(Number)
@@ -126,6 +127,7 @@ export default function AdminDashboard() {
   const [expandedInterestDue, setExpandedInterestDue] = useState(true)
   const [expandedOverdue, setExpandedOverdue] = useState(false)
   const [expandedAlmostPaid, setExpandedAlmostPaid] = useState(false)
+  const [isSuperUser, setIsSuperUser] = useState(false)
 
   // Collection dialog state
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
@@ -183,6 +185,10 @@ export default function AdminDashboard() {
     }
     fetchData()
     fetchDashboardStats()
+    // Check if user is superuser
+    authApi.getCurrentUser().then(u => {
+      if (u && !cancelled) setIsSuperUser(!!u.is_superuser)
+    }).catch(() => {})
     return () => { cancelled = true }
   }, [start, end])
 
@@ -333,10 +339,13 @@ export default function AdminDashboard() {
       {/* Header */}
       <header className="border-b border-border sticky top-0 bg-card/95 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate max-w-[200px] sm:max-w-none">Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground mt-1">Welcome back, Admin</p>
           </div>
+          <OrgSelector />
+        </div>
 
           {/* Mobile Navigation */}
           <div className="flex md:hidden items-center gap-2">
@@ -351,6 +360,7 @@ export default function AdminDashboard() {
                   <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-4">
+                  <OrgSelector />
                   <SheetClose asChild>
                     <Button asChild className="w-full justify-start bg-primary hover:bg-primary/90 text-primary-foreground">
                       <Link href="/collections">Add Collection</Link>
@@ -379,6 +389,15 @@ export default function AdminDashboard() {
 
                   <div className="h-px bg-border my-2" />
 
+                  {isSuperUser && (
+                    <SheetClose asChild>
+                      <Button variant="ghost" asChild className="w-full justify-start">
+                        <Link href="/superadmin" className="flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-amber-500" /> Super Admin
+                        </Link>
+                      </Button>
+                    </SheetClose>
+                  )}
                   <SheetClose asChild>
                     <Button variant="ghost" asChild className="w-full justify-start">
                       <Link href="/admin/users/add" className="flex items-center gap-2">
@@ -427,6 +446,14 @@ export default function AdminDashboard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {isSuperUser && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/superadmin" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-amber-500" />
+                      Super Admin
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
                   <Link href="/admin/users/add" className="flex items-center gap-2">
                     <UserPlus className="h-4 w-4" />

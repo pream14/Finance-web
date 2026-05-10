@@ -18,7 +18,13 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { authApi } from '@/lib/api'
-import { ArrowLeft, Loader2, Plus, Pencil, Ban, CheckCircle, Search } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Pencil, Ban, CheckCircle, Search, Building2 } from 'lucide-react'
+
+interface Organization {
+    id: number
+    name: string
+    code: string
+}
 
 interface User {
     id: number
@@ -52,7 +58,11 @@ export default function EmployerManagementPage() {
         email: '',
         role: 'employee',
         password: '', // Optional for edit, auto-generated (phone) for create
+        organization_id: '', // Which org to assign employee to
     })
+
+    // Owner's organizations
+    const [ownerOrgs, setOwnerOrgs] = useState<Organization[]>([])
 
     const fetchUsers = async () => {
         setLoading(true)
@@ -70,7 +80,19 @@ export default function EmployerManagementPage() {
 
     useEffect(() => {
         fetchUsers()
+        fetchOwnerOrgs()
     }, [])
+
+    async function fetchOwnerOrgs() {
+        try {
+            const user = await authApi.getCurrentUser()
+            if (user?.organizations) {
+                setOwnerOrgs(user.organizations)
+            }
+        } catch (err) {
+            console.error('Failed to fetch orgs:', err)
+        }
+    }
 
     const resetForm = () => {
         setFormData({
@@ -80,6 +102,7 @@ export default function EmployerManagementPage() {
             email: '',
             role: 'employee',
             password: '',
+            organization_id: ownerOrgs.length === 1 ? String(ownerOrgs[0].id) : '',
         })
         setEditingUser(null)
         setFormError(null)
@@ -120,6 +143,11 @@ export default function EmployerManagementPage() {
                 // Create
                 const createData: any = { ...formData }
                 if (!createData.password) delete createData.password
+                // Pass org IDs
+                if (createData.organization_id) {
+                    createData.organization_ids = [parseInt(createData.organization_id)]
+                }
+                delete createData.organization_id
                 await authApi.register(createData)
             }
 
@@ -334,6 +362,31 @@ export default function EmployerManagementPage() {
 
 
                         {/* Role is always employee, hidden from UI */}
+
+                        {/* Org Selector — shown only for owners with 2+ orgs, on create only */}
+                        {!editingUser && ownerOrgs.length > 1 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="org">Assign to Organization *</Label>
+                                <Select
+                                    value={formData.organization_id}
+                                    onValueChange={(val) => setFormData({ ...formData, organization_id: val })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select organization" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ownerOrgs.map(org => (
+                                            <SelectItem key={org.id} value={String(org.id)}>
+                                                <div className="flex items-center gap-2">
+                                                    <Building2 className="h-3 w-3" />
+                                                    {org.name}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
                         {!editingUser && (
                             <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">

@@ -22,6 +22,32 @@ def _effective_cycle_day(cycle_day, dt):
     return min(cycle_day, last_day)
 
 
+def _get_org_filters(request):
+    """Build org filter dicts for Loan and Transaction querysets.
+    
+    Returns (loan_filter, txn_filter) dicts.
+    """
+    user_org_ids = list(request.user.organizations.values_list('id', flat=True))
+    org_param = request.query_params.get('org')
+
+    if org_param and org_param != 'all':
+        try:
+            org_id = int(org_param)
+            if org_id in user_org_ids:
+                return {'organization_id': org_id}, {'loan__organization_id': org_id}
+        except (ValueError, TypeError):
+            pass
+        return {'organization_id': -1}, {'loan__organization_id': -1}
+
+    if len(user_org_ids) == 1:
+        return {'organization_id': user_org_ids[0]}, {'loan__organization_id': user_org_ids[0]}
+
+    if user_org_ids:
+        return {'organization_id__in': user_org_ids}, {'loan__organization_id__in': user_org_ids}
+
+    return {'organization_id': -1}, {'loan__organization_id': -1}
+
+
 class DashboardStatsView(APIView):
     """
     Dashboard statistics API endpoint providing:
@@ -39,9 +65,12 @@ class DashboardStatsView(APIView):
         today_day = today.day
         last_day = _last_day_of_month(today)
         is_last_day = today_day == last_day
+
+        # Get org filters
+        loan_filter, txn_filter = _get_org_filters(request)
         
-        # Get all active loans
-        active_loans = Loan.objects.filter(status='active').select_related('customer')
+        # Get all active loans filtered by org
+        active_loans = Loan.objects.filter(status='active', **loan_filter).select_related('customer')
         
         # 1. Monthly Interest Due Today
         # Match loans whose effective cycle day is today.
@@ -159,8 +188,10 @@ class DashboardStatsView(APIView):
             'dl_loan': str(outstanding_by_type['dl'] or Decimal('0')),
         }
         
-        # 5. Recent Activity Feed (last 10 transactions)
-        recent_transactions = Transaction.objects.select_related(
+        # 5. Recent Activity Feed (last 10 transactions, org-filtered)
+        recent_transactions = Transaction.objects.filter(
+            **txn_filter
+        ).select_related(
             'loan', 'loan__customer', 'created_by'
         ).order_by('-created_at')[:10]
         
@@ -187,7 +218,8 @@ class DashboardStatsView(APIView):
         # Average collection per day (last 30 days)
         thirty_days_ago = today - timedelta(days=30)
         daily_collections = Transaction.objects.filter(
-            created_at__date__gte=thirty_days_ago
+            created_at__date__gte=thirty_days_ago,
+            **txn_filter
         ).values('created_at__date').annotate(
             daily_total=Sum('amount')
         )
@@ -201,7 +233,8 @@ class DashboardStatsView(APIView):
         # New loans this month
         month_start = today.replace(day=1)
         new_loans_this_month = Loan.objects.filter(
-            created_at__date__gte=month_start
+            created_at__date__gte=month_start,
+            **loan_filter
         ).select_related('customer').order_by('-created_at')[:10]
         
         new_loans_list = [{

@@ -12,6 +12,7 @@ from rest_framework import permissions, status
 from .models import Loan, Transaction
 from customers.models import Customer
 from expenses.models import Expense
+from .dashboard_views import _get_org_filters
 
 
 def _get_report_data(request):
@@ -22,15 +23,24 @@ def _get_report_data(request):
     loan_type = request.query_params.get('loan_type')
     report_type = request.query_params.get('report_type', 'summary')
 
-    print(f"Report request: start_date={start_date}, end_date={end_date}, area={area}, loan_type={loan_type}, report_type={report_type}")
-
     if not start_date or not end_date:
         return None, {'error': 'start_date and end_date are required'}
 
-    # Base querysets
-    loans_qs = Loan.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
-    transactions_qs = Transaction.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
-    expenses_qs = Expense.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+    # Org filtering
+    loan_filter, txn_filter = _get_org_filters(request)
+    expense_org = {}
+    customer_org = {}
+    if 'organization_id' in loan_filter:
+        expense_org = {'organization_id': loan_filter['organization_id']}
+        customer_org = {'organization_id': loan_filter['organization_id']}
+    elif 'organization_id__in' in loan_filter:
+        expense_org = {'organization_id__in': loan_filter['organization_id__in']}
+        customer_org = {'organization_id__in': loan_filter['organization_id__in']}
+
+    # Base querysets with org filter
+    loans_qs = Loan.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date, **loan_filter)
+    transactions_qs = Transaction.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date, **txn_filter)
+    expenses_qs = Expense.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date, **expense_org)
 
     # Additional filters
     collected_by = request.query_params.get('collected_by')
@@ -101,8 +111,8 @@ def _get_report_data(request):
         # Count customers and loans per area
         for row in area_data:
             a = row['area_name'] or 'Unknown'
-            cust_count = Customer.objects.filter(area__iexact=a, loans__transactions__created_at__date__gte=start_date, loans__transactions__created_at__date__lte=end_date).distinct().count()
-            loan_count = Loan.objects.filter(customer__area__iexact=a, transactions__created_at__date__gte=start_date, transactions__created_at__date__lte=end_date).distinct().count()
+            cust_count = Customer.objects.filter(area__iexact=a, loans__transactions__created_at__date__gte=start_date, loans__transactions__created_at__date__lte=end_date, **customer_org).distinct().count()
+            loan_count = Loan.objects.filter(customer__area__iexact=a, transactions__created_at__date__gte=start_date, transactions__created_at__date__lte=end_date, **loan_filter).distinct().count()
             breakdown.append({
                 'area': a,
                 'customers': cust_count,
@@ -127,7 +137,7 @@ def _get_report_data(request):
         )
         for row in loan_data:
             lt = row['type'] or 'Unknown'
-            loan_count = Loan.objects.filter(loan_type=lt, transactions__created_at__date__gte=start_date, transactions__created_at__date__lte=end_date).distinct().count()
+            loan_count = Loan.objects.filter(loan_type=lt, transactions__created_at__date__gte=start_date, transactions__created_at__date__lte=end_date, **loan_filter).distinct().count()
             breakdown.append({
                 'loan_type': lt,
                 'loans': loan_count,
@@ -193,6 +203,7 @@ def _get_report_data(request):
             created_at__date__gte=start_date,
             created_at__date__lte=end_date,
             dc_deduction_amount__gt=0,
+            **loan_filter
         )
         if area:
             dc_loans_in_period = dc_loans_in_period.filter(customer__area__iexact=area)
@@ -200,7 +211,7 @@ def _get_report_data(request):
 
     # Get distinct areas for filter dropdown
     all_areas = list(
-        Customer.objects.values_list('area', flat=True).distinct().order_by('area')
+        Customer.objects.filter(**customer_org).values_list('area', flat=True).distinct().order_by('area')
     )
 
     result = {
@@ -628,6 +639,9 @@ class CustomerReportDownloadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, customer_id):
+        # Org filtering
+        loan_filter, txn_filter = _get_org_filters(request)
+
         try:
             customer = Customer.objects.get(id=customer_id)
         except Customer.DoesNotExist:
@@ -635,8 +649,8 @@ class CustomerReportDownloadView(APIView):
 
         loan_id = request.query_params.get('loan_id')
 
-        # Get loans for this customer
-        loans_qs = Loan.objects.filter(customer=customer)
+        # Get loans for this customer, filtered by org
+        loans_qs = Loan.objects.filter(customer=customer, **loan_filter)
         if loan_id:
             loans_qs = loans_qs.filter(id=loan_id)
 
@@ -646,7 +660,7 @@ class CustomerReportDownloadView(APIView):
             return Response({'error': 'No loans found for this customer'}, status=status.HTTP_404_NOT_FOUND)
 
         # Get transactions
-        transactions_qs = Transaction.objects.filter(loan__customer=customer)
+        transactions_qs = Transaction.objects.filter(loan__customer=customer, **txn_filter)
         if loan_id:
             transactions_qs = transactions_qs.filter(loan_id=loan_id)
         transactions = list(transactions_qs.order_by('-created_at'))

@@ -29,7 +29,8 @@ export default function LoginPage() {
       const role = String(user?.role || '').toLowerCase()
       // Set user_role cookie so Next.js middleware can enforce route access
       const isAdmin = role === 'owner' || role === 'admin'
-      document.cookie = `user_role=${isAdmin ? 'admin' : 'collector'}; path=/; max-age=86400; samesite=lax`
+      // Store the actual role so middleware can distinguish owner (for /superadmin)
+      document.cookie = `user_role=${role}; path=/; max-age=86400; samesite=lax`
       if (isAdmin) {
         router.push('/admin/dashboard')
       } else {

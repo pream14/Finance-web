@@ -10,6 +10,12 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     area = models.CharField(max_length=50, blank=True, null=True)
+    organizations = models.ManyToManyField(
+        'organizations.Organization',
+        blank=True,
+        related_name='users',
+        help_text='Organizations this user has access to'
+    )
     
     def __str__(self):
         return f"{self.get_full_name()} ({self.username})"
@@ -17,4 +23,4 @@ class User(AbstractUser):
     class Meta:
         db_table = 'users_user'
         verbose_name = 'User'
-        verbose_name_plural = 'Users'
+        verbose_name_plural = 'Users'

@@ -4,7 +4,13 @@ from django.conf import settings
 
 class ExpenseCategory(models.Model):
     """Categories for expenses (e.g., Shop Expense, House Expense)"""
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='expense_categories',
+        null=True,  # Will be set to False after data migration
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -20,6 +26,7 @@ class ExpenseCategory(models.Model):
         verbose_name = 'Expense Category'
         verbose_name_plural = 'Expense Categories'
         ordering = ['name']
+        unique_together = [('name', 'organization')]
 
 
 class Expense(models.Model):
@@ -37,6 +44,12 @@ class Expense(models.Model):
         null=True,
         blank=True,
         related_name='expenses'
+    )
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='expenses',
+        null=True,  # Will be set to False after data migration
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -75,6 +88,12 @@ class Income(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     source = models.CharField(max_length=200, help_text="Source of income (e.g., House Rent, Shop Rent)")
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHOD_CHOICES, default='cash')
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='incomes',
+        null=True,  # Will be set to False after data migration
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

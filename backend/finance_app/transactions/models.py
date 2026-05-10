@@ -17,6 +17,12 @@ class Loan(models.Model):
         on_delete=models.CASCADE,
         related_name='loans'
     )
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='loans',
+        null=True,  # Will be set to False after data migration
+    )
     loan_type = models.CharField(max_length=25, choices=LOAN_TYPE_CHOICES)
     principal_amount = models.DecimalField(max_digits=12, decimal_places=2)
     remaining_amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -312,7 +318,13 @@ class Transaction(models.Model):
 
 class DailyCashBook(models.Model):
     """Stores daily cash book entries with opening and closing balances (iruppu)"""
-    date = models.DateField(unique=True, db_index=True)
+    date = models.DateField(db_index=True)
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE,
+        related_name='cashbook_entries',
+        null=True,  # Will be set to False after data migration
+    )
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Iruppu - cash in hand at start of day")
     closing_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Cash in hand at end of day")
     notes = models.TextField(blank=True, null=True)
@@ -333,3 +345,4 @@ class DailyCashBook(models.Model):
         verbose_name = 'Daily Cash Book'
         verbose_name_plural = 'Daily Cash Book Entries'
         ordering = ['-date']
+        unique_together = [('date', 'organization')]
