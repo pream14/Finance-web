@@ -177,6 +177,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     customer_id = serializers.IntegerField(source='loan.customer.id', read_only=True)
     collected_by_name = serializers.SerializerMethodField()
     last_edited_by_name = serializers.SerializerMethodField()
+    remaining_amount = serializers.DecimalField(source='loan.remaining_amount', max_digits=12, decimal_places=2, read_only=True)
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     
     def get_collected_by_name(self, obj):
@@ -193,7 +194,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'loan', 'loan_type', 'customer_id', 'customer_name', 'amount', 
-                 'asal_amount', 'interest_amount', 'payment_method', 'description',
+                 'asal_amount', 'interest_amount', 'remaining_amount', 'payment_method', 'description',
                  'collected_by_name', 'created_by', 'created_at',
                  'updated_at', 'last_edited_by_name']
         read_only_fields = ['created_by', 'created_at', 'updated_at', 'last_edited_by_name']

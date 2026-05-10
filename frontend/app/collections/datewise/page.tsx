@@ -188,26 +188,8 @@ export default function DatewiseCollectionsPage() {
 
       const data = await transactionsApi.getAll(params)
 
-      // Fetch loan data to get balance information
-      const entriesWithBalance = await Promise.all(
-        data.map(async (entry: any) => {
-          let remainingAmount = ''
-          if (entry.loan) {
-            try {
-              const loanData = await loansApi.getById(entry.loan)
-              remainingAmount = loanData.remaining_amount || '0'
-            } catch (err) {
-              console.warn('Failed to fetch loan balance for transaction:', entry.id)
-            }
-          }
-          return {
-            ...entry,
-            remaining_amount: remainingAmount
-          }
-        })
-      )
-
-      setEntries(entriesWithBalance)
+      // remaining_amount is now included in each transaction from the backend
+      setEntries(data)
     } catch (err: any) {
       setError(err.message || 'Failed to fetch entries')
       console.error('Error fetching entries:', err)
