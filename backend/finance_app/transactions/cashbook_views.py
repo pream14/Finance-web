@@ -283,25 +283,25 @@ class DailyCashBookView(APIView):
 
         # Today's cash collections (customer repayments via cash) - include split
         cash_collections = Transaction.objects.filter(
-            created_at__date=target_date,
+            Q(created_at__date=target_date),
             Q(payment_method='cash') | Q(payment_method='split'), **txn_filter
         ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('amount')))['total'] or Decimal('0')
 
         # Today's online collections - include split
         online_collections = Transaction.objects.filter(
-            created_at__date=target_date,
+            Q(created_at__date=target_date),
             Q(payment_method='online') | Q(payment_method='split'), **txn_filter
         ).aggregate(total=Coalesce(Sum('online_amount'), Sum('amount')))['total'] or Decimal('0')
 
         # New cash loans given today (money going out) - include split
         cash_loans_given = Loan.objects.filter(
-            created_at__date=target_date,
+            Q(created_at__date=target_date),
             Q(payment_method='cash') | Q(payment_method='split'), **loan_filter
         ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         # New online loans given today - include split
         online_loans_given = Loan.objects.filter(
-            created_at__date=target_date,
+            Q(created_at__date=target_date),
             Q(payment_method='online') | Q(payment_method='split'), **loan_filter
         ).aggregate(total=Coalesce(Sum('online_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
@@ -347,8 +347,8 @@ class DailyCashBookView(APIView):
 
         # DC deduction for cash DC loans (stays in cash box, not given to customer)
         cash_dc_deduction = Loan.objects.filter(
-            created_at__date=target_date,
-            payment_method='cash',
+            Q(created_at__date=target_date),
+            Q(payment_method='cash') | Q(payment_method='split'),
             loan_type='DC Loan',
             dc_deduction_amount__gt=0, **loan_filter
         ).aggregate(total=Sum('dc_deduction_amount'))['total'] or Decimal('0')
@@ -669,19 +669,19 @@ class CashBookPDFDownloadView(APIView):
         opening_balance = cashbook_entry.opening_balance
 
         cash_collections = Transaction.objects.filter(
-            created_at__date=target_date, Q(payment_method='cash') | Q(payment_method='split'), **txn_filter
+            Q(created_at__date=target_date), Q(payment_method='cash') | Q(payment_method='split'), **txn_filter
         ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('amount')))['total'] or Decimal('0')
 
         online_collections = Transaction.objects.filter(
-            created_at__date=target_date, Q(payment_method='online') | Q(payment_method='split'), **txn_filter
+            Q(created_at__date=target_date), Q(payment_method='online') | Q(payment_method='split'), **txn_filter
         ).aggregate(total=Coalesce(Sum('online_amount'), Sum('amount')))['total'] or Decimal('0')
 
         cash_loans_given = Loan.objects.filter(
-            created_at__date=target_date, Q(payment_method='cash') | Q(payment_method='split'), **loan_filter
+            Q(created_at__date=target_date), Q(payment_method='cash') | Q(payment_method='split'), **loan_filter
         ).aggregate(total=Coalesce(Sum('cash_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         online_loans_given = Loan.objects.filter(
-            created_at__date=target_date, Q(payment_method='online') | Q(payment_method='split'), **loan_filter
+            Q(created_at__date=target_date), Q(payment_method='online') | Q(payment_method='split'), **loan_filter
         ).aggregate(total=Coalesce(Sum('online_amount'), Sum('principal_amount')))['total'] or Decimal('0')
 
         try:
@@ -714,7 +714,7 @@ class CashBookPDFDownloadView(APIView):
 
         # DC deduction for cash DC loans stays in hand - include split
         cash_dc_deduction = Loan.objects.filter(
-            created_at__date=target_date,
+            Q(created_at__date=target_date),
             Q(payment_method='cash') | Q(payment_method='split'),
             loan_type='DC Loan',
             dc_deduction_amount__gt=0, **loan_filter
