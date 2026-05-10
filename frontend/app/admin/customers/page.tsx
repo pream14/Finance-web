@@ -1316,6 +1316,19 @@ export default function CustomersPage() {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Principal amount (₹)</label>
+                          <Input
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            placeholder="e.g. 50000"
+                            value={firstLoanPrincipal}
+                            onChange={(e) => setFirstLoanPrincipal(e.target.value)}
+                            className="border-border/50"
+                            required={addLoanWithCustomer}
+                          />
+                        </div>
                       </div>
                       {paymentMethod === 'split' && (
                         <div className="space-y-3 p-3 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5">
@@ -1372,20 +1385,6 @@ export default function CustomersPage() {
                           })()}
                         </div>
                       )}
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground">Principal amount (₹)</label>
-                          <Input
-                            type="number"
-                            min="1"
-                            step="0.01"
-                            placeholder="e.g. 50000"
-                            value={firstLoanPrincipal}
-                            onChange={(e) => setFirstLoanPrincipal(e.target.value)}
-                            className="border-border/50"
-                            required={addLoanWithCustomer}
-                          />
-                        </div>
-                      </div>
 
                       {/* Monthly Interest Loan Fields */}
                       {firstLoanType === 'Monthly Interest Loan' && (
