@@ -68,13 +68,13 @@ export default function OrgBadge() {
   if (loading || !orgName) return null
 
   return (
-    <div className="org-badge flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/8 border border-primary/15 text-xs sm:text-sm font-medium text-primary transition-all hover:bg-primary/12">
+    <div className="org-badge flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/8 border border-primary/15 text-xs sm:text-sm font-medium text-primary transition-all hover:bg-primary/12 max-w-[180px] sm:max-w-[250px] overflow-hidden">
       {isAll ? (
         <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0 opacity-70" />
       ) : (
         <Building2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0 opacity-70" />
       )}
-      <span className="truncate max-w-[120px] sm:max-w-[200px]">{orgName}</span>
+      <span className="truncate">{orgName}</span>
     </div>
   )
 }

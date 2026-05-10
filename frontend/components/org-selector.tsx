@@ -68,22 +68,22 @@ export default function OrgSelector() {
   if (loading || orgs.length <= 1) return null
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 min-w-0">
       <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <Select value={selectedValue} onValueChange={handleChange}>
-        <SelectTrigger className="w-[140px] sm:w-[180px] h-8 text-xs sm:text-sm border-primary/30 bg-primary/5">
-          <SelectValue placeholder="Select org..." />
+        <SelectTrigger className="min-w-[120px] max-w-[160px] sm:max-w-[220px] h-8 text-xs sm:text-sm border-primary/30 bg-primary/5 overflow-hidden">
+          <span className="truncate block text-left"><SelectValue placeholder="Select org..." /></span>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-w-[280px] sm:max-w-[350px]">
           <SelectItem value="all">
             <span className="font-semibold">All Organizations</span>
           </SelectItem>
           {orgs.map(org => (
             <SelectItem key={org.id} value={org.id.toString()}>
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                {org.name}
-                <span className="text-muted-foreground text-xs">({org.code})</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                <span className="truncate">{org.name}</span>
+                <span className="text-muted-foreground text-xs flex-shrink-0">({org.code})</span>
               </span>
             </SelectItem>
           ))}
