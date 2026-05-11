@@ -1266,25 +1266,26 @@ export default function CustomersPage() {
                         You have <span className="font-semibold">&quot;All Organizations&quot;</span> selected. Please choose which organization to add this customer to.
                       </p>
                     </div>
-                    <Select value={''} onValueChange={(v) => {
-                      const org = userOrgs.find(o => o.id.toString() === v)
-                      if (org) setSelectedOrgForCreate(org)
-                    }}>
-                      <SelectTrigger className="border-border/50 h-12">
-                        <SelectValue placeholder="Select an organization..." />
-                      </SelectTrigger>
-                      <SelectContent>
+                    <div className="space-y-1.5">
+                      <label htmlFor="org-select-create" className="text-sm font-medium text-foreground">Organization</label>
+                      <select
+                        id="org-select-create"
+                        name="organization"
+                        className="w-full h-12 px-3 rounded-md border border-border/50 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        defaultValue=""
+                        onChange={(e) => {
+                          const org = userOrgs.find(o => o.id.toString() === e.target.value)
+                          if (org) setSelectedOrgForCreate(org)
+                        }}
+                      >
+                        <option value="" disabled>Select an organization...</option>
                         {userOrgs.map(org => (
-                          <SelectItem key={org.id} value={org.id.toString()}>
-                            <span className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                              <span className="font-medium">{org.name}</span>
-                              <span className="text-muted-foreground text-xs">({org.code})</span>
-                            </span>
-                          </SelectItem>
+                          <option key={org.id} value={org.id.toString()}>
+                            {org.name} ({org.code})
+                          </option>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </select>
+                    </div>
                   </div>
                 )}
 
