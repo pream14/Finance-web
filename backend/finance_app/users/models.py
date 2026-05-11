@@ -10,6 +10,10 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     area = models.CharField(max_length=50, blank=True, null=True)
+    must_change_password = models.BooleanField(
+        default=True,
+        help_text='Force user to change password on next login'
+    )
     organizations = models.ManyToManyField(
         'organizations.Organization',
         blank=True,

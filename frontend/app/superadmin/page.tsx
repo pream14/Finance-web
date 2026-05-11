@@ -166,7 +166,7 @@ export default function SuperAdminPage() {
   }
 
   const handleCreateOwner = async () => {
-    if (!ownerForm.first_name.trim() || !ownerForm.phone_number.trim()) return
+    if (!ownerForm.first_name.trim() || !ownerForm.phone_number.trim() || !ownerForm.password.trim()) return
     setOwnerSaving(true)
     try {
       const orgIds = ownerForm.organization_id ? [parseInt(ownerForm.organization_id)] : []
@@ -174,7 +174,7 @@ export default function SuperAdminPage() {
         first_name: ownerForm.first_name.trim(),
         last_name: ownerForm.last_name.trim(),
         phone_number: ownerForm.phone_number.trim(),
-        password: ownerForm.password || ownerForm.phone_number.trim(),
+        password: ownerForm.password.trim(),
         role: 'owner',
         organization_ids: orgIds,
       })
@@ -588,19 +588,22 @@ export default function SuperAdminPage() {
             <div>
               <label className="text-sm font-medium mb-1 block">Phone Number *</label>
               <Input
-                placeholder="Phone number (also used as default password)"
+                placeholder="Phone number"
                 value={ownerForm.phone_number}
                 onChange={e => setOwnerForm(prev => ({ ...prev, phone_number: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Password</label>
+              <label className="text-sm font-medium mb-1 block">Password *</label>
               <Input
                 type="password"
-                placeholder="Leave blank to use phone number"
+                placeholder="Min 8 characters, not entirely numeric"
                 value={ownerForm.password}
                 onChange={e => setOwnerForm(prev => ({ ...prev, password: e.target.value }))}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Must be at least 8 characters and not entirely numeric.
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Assign to Organization</label>
@@ -625,7 +628,7 @@ export default function SuperAdminPage() {
             <Button variant="outline" onClick={() => setAddOwnerOpen(false)}>Cancel</Button>
             <Button
               onClick={handleCreateOwner}
-              disabled={ownerSaving || !ownerForm.first_name.trim() || !ownerForm.phone_number.trim()}
+              disabled={ownerSaving || !ownerForm.first_name.trim() || !ownerForm.phone_number.trim() || !ownerForm.password.trim()}
             >
               {ownerSaving ? 'Creating...' : 'Create Owner'}
             </Button>

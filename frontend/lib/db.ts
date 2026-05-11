@@ -1,29 +1,19 @@
-import { Pool } from 'pg';
+// ──────────────────────────────────────────────────────────────
+// DEPRECATED: This file is NOT used in the current architecture.
+// Database access is handled by Django's backend ORM.
+// This file previously contained a direct PostgreSQL connection
+// with credentials, which is a security risk in a frontend bundle.
+//
+// These stubs exist only to prevent build errors from legacy API
+// route files that import from this module.
+// ──────────────────────────────────────────────────────────────
 
-// Create a connection pool for PostgreSQL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/finance_collection',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
-
-pool.on('error', (err) => {
-  console.error('Unexpected pool error:', err);
-});
-
-export async function query(text: string, params?: any[]) {
-  try {
-    const result = await pool.query(text, params);
-    return result;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
+// Stub: query — always throws (unused)
+export async function query(_text: string, _params?: any[]) {
+  throw new Error('DEPRECATED: Direct database access from frontend is disabled. Use Django API instead.');
 }
 
+// Stub: getClient — always throws (unused)
 export async function getClient() {
-  return pool.connect();
+  throw new Error('DEPRECATED: Direct database access from frontend is disabled. Use Django API instead.');
 }
-
-export default pool;

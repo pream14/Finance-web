@@ -9,9 +9,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
 # Basic settings
-# Basic settings  
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-SECRET_KEY = os.getenv('SECRET_KEY', 'your-dev-secret-key')  # Use a proper key in production
+
+# Security: SECRET_KEY must be set in production via environment variable.
+# In development (DEBUG=True), a dev-only key is used as fallback.
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ValueError(
+            "SECURITY ERROR: SECRET_KEY environment variable is not set! "
+            "This is required in production. Generate one with: "
+            "python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
+        )
+    SECRET_KEY = 'dev-only-insecure-key-do-not-use-in-production'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 # Security settings for Railway/Production
@@ -72,7 +82,17 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-    ],}
+    ],
+    # Rate limiting to prevent brute-force attacks
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',     # Unauthenticated requests (login attempts, etc.)
+        'user': '120/minute',    # Authenticated user requests
+    },
+}
 
 
 # Templates configuration
@@ -130,6 +150,25 @@ else:
 # Custom user model
 AUTH_USER_MODEL = 'users.User'
 
+# Password validation — enforces strong passwords for new accounts & password changes.
+# NOTE: This does NOT affect existing users or their current passwords.
+# It only applies when a password is SET or CHANGED.
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
 
 
 # Internationalization
@@ -145,3 +184,25 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ─── Production Security Headers ─────────────────────────────────────────────
+# These are only active when DEBUG=False (production).
+# They protect against MITM attacks, cookie hijacking, clickjacking, and XSS.
+if not DEBUG:
+    # HSTS: Tell browsers to always use HTTPS (for 1 year)
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Redirect all HTTP requests to HTTPS
+    SECURE_SSL_REDIRECT = True
+
+    # Cookies: only sent over HTTPS
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Prevent browsers from MIME-type sniffing
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    # Clickjacking protection
+    X_FRAME_OPTIONS = 'DENY'

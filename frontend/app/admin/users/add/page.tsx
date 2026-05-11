@@ -361,6 +361,23 @@ export default function EmployerManagementPage() {
                             />
                         </div>
 
+                        {!editingUser && (
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password *</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    required
+                                    placeholder="Min 8 characters"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Must be at least 8 characters and not entirely numeric.
+                                </p>
+                            </div>
+                        )}
+
 
                         {/* Role is always employee, hidden from UI */}
 
@@ -391,7 +408,7 @@ export default function EmployerManagementPage() {
 
                         {!editingUser && (
                             <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                                <p><strong>Note:</strong> The <strong>First Name</strong> will be used as the login Username, and the <strong>Phone Number</strong> will be the initial Password.</p>
+                                <p><strong>Note:</strong> The <strong>First Name</strong> will be used as the login Username.</p>
                             </div>
                         )}
 

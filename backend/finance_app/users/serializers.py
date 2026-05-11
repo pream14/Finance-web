@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import User
 from organizations.serializers import OrganizationMinimalSerializer
 
@@ -54,6 +56,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         # Set default password as phone_number if not provided
         password = validated_data.get('password') or phone_number
+
+        # Validate password strength using Django's AUTH_PASSWORD_VALIDATORS
+        try:
+            validate_password(password)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({'password': list(e.messages)})
         
         user = User.objects.create_user(
             username=username,

@@ -30,6 +30,7 @@ def current_user(request):
         'full_name': user.get_full_name() or user.username,
         'role': getattr(user, 'role', 'employee'),
         'is_superuser': user.is_superuser,
+        'must_change_password': getattr(user, 'must_change_password', False),
         'organizations': OrganizationMinimalSerializer(orgs, many=True).data,
     })
 
@@ -82,6 +83,9 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_password(request):
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
     user = request.user
     old_password = request.data.get('old_password')
     new_password = request.data.get('new_password')
@@ -89,6 +93,13 @@ def change_password(request):
     if not user.check_password(old_password):
         return Response({'old_password': ['Wrong password.']}, status=400)
     
+    # Validate the new password meets strength requirements
+    try:
+        validate_password(new_password, user=user)
+    except DjangoValidationError as e:
+        return Response({'new_password': list(e.messages)}, status=400)
+    
     user.set_password(new_password)
+    user.must_change_password = False
     user.save()
     return Response({'status': 'password set'}, status=200)

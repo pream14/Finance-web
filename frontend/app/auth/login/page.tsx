@@ -31,6 +31,13 @@ export default function LoginPage() {
       const isAdmin = role === 'owner' || role === 'admin'
       // Store the actual role so middleware can distinguish owner (for /superadmin)
       document.cookie = `user_role=${role}; path=/; max-age=86400; samesite=lax`
+
+      // First login: force password change before accessing anything
+      if (user?.must_change_password) {
+        router.push('/auth/change-password')
+        return
+      }
+
       if (isAdmin) {
         router.push('/admin/dashboard')
       } else {
