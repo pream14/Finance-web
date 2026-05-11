@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Image from 'next/image'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { authApi } from '@/lib/api'
-import { Lock, Loader2, CheckCircle, AlertTriangle, XCircle } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 
 export default function InvitePage() {
     const router = useRouter()
@@ -64,154 +68,153 @@ export default function InvitePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-primary/10 to-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
-                {/* Logo / App Name */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
-                        <Lock className="w-8 h-8 text-white" />
+                {/* Logo — same as login page */}
+                <div className="mb-8 text-center">
+                    <div className="inline-flex items-center justify-center mb-4">
+                        <Image src="/logo.png" alt="Sri Sendhur Sri Lakshmi Finance" width={96} height={96} priority unoptimized className="rounded-xl object-contain" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white">Finance Manager</h1>
-                    <p className="text-slate-400 mt-1">Set up your account</p>
+                    <h1 className="text-3xl font-bold text-foreground">Sri Sendhur | Sri Lakshmi</h1>
+                    <p className="text-muted-foreground mt-2">Finance Collection Management</p>
                 </div>
 
-                {/* Card */}
-                <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                {/* Loading State */}
+                {status === 'loading' && (
+                    <Card className="border-border/40 shadow-2xl backdrop-blur-xl bg-card/95">
+                        <CardContent className="py-12 text-center">
+                            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+                            <p className="text-muted-foreground">Verifying your invite link...</p>
+                        </CardContent>
+                    </Card>
+                )}
 
-                    {/* Loading State */}
-                    {status === 'loading' && (
-                        <div className="text-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-                            <p className="text-slate-300">Verifying your invite link...</p>
-                        </div>
-                    )}
-
-                    {/* Error State */}
-                    {status === 'error' && (
-                        <div className="text-center py-12">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-4">
-                                <XCircle className="w-8 h-8 text-red-400" />
+                {/* Error State */}
+                {status === 'error' && (
+                    <Card className="border-border/40 shadow-2xl backdrop-blur-xl bg-card/95">
+                        <CardHeader className="text-center">
+                            <div className="mx-auto mb-2">
+                                <XCircle className="w-12 h-12 text-destructive" />
                             </div>
-                            <h2 className="text-xl font-semibold text-white mb-2">Link Invalid</h2>
-                            <p className="text-slate-400 mb-6">{errorMessage}</p>
-                            <button
+                            <CardTitle className="text-xl">Link Invalid</CardTitle>
+                            <CardDescription>{errorMessage}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="text-center pb-6">
+                            <Button
                                 onClick={() => router.push('/auth/login')}
-                                className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm font-medium"
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                             >
                                 Go to Login
-                            </button>
-                        </div>
-                    )}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
 
-                    {/* Success State */}
-                    {status === 'success' && (
-                        <div className="text-center py-12">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mb-4">
-                                <CheckCircle className="w-8 h-8 text-green-400" />
+                {/* Success State */}
+                {status === 'success' && (
+                    <Card className="border-border/40 shadow-2xl backdrop-blur-xl bg-card/95">
+                        <CardHeader className="text-center">
+                            <div className="mx-auto mb-2">
+                                <CheckCircle className="w-12 h-12 text-green-500" />
                             </div>
-                            <h2 className="text-xl font-semibold text-white mb-2">Password Set!</h2>
-                            <p className="text-slate-400 mb-2">Your account is ready.</p>
-                            <p className="text-sm text-slate-500 mb-1">
-                                Your username: <span className="text-white font-mono font-semibold">{username}</span>
-                            </p>
-                            <p className="text-sm text-slate-500 mb-6">Redirecting to login...</p>
-                            <button
+                            <CardTitle className="text-xl">Password Set Successfully!</CardTitle>
+                            <CardDescription>Your account is ready to use.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="text-center space-y-4 pb-6">
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                                <p className="text-sm text-muted-foreground">Your username</p>
+                                <p className="text-lg font-mono font-bold text-foreground">{username}</p>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Redirecting to login...</p>
+                            <Button
                                 onClick={() => router.push('/auth/login')}
-                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm font-medium"
+                                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 rounded-lg transition-all active:scale-[0.98]"
                             >
                                 Login Now
-                            </button>
-                        </div>
-                    )}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
 
-                    {/* Set Password Form */}
-                    {status === 'valid' && (
-                        <>
-                            <div className="text-center mb-6">
-                                <h2 className="text-xl font-semibold text-white">
-                                    Welcome, {userName}!
-                                </h2>
-                                <p className="text-slate-400 text-sm mt-1">
-                                    Create a password to activate your account
-                                </p>
-                            </div>
-
+                {/* Set Password Form */}
+                {status === 'valid' && (
+                    <Card className="border-border/40 shadow-2xl backdrop-blur-xl bg-card/95">
+                        <CardHeader className="space-y-1 text-center">
+                            <CardTitle className="text-2xl tracking-tight">
+                                Welcome, {userName}!
+                            </CardTitle>
+                            <CardDescription>
+                                Create a password to activate your account
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4 pt-4">
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {submitError && (
-                                    <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                                        <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                                        <p className="text-sm text-red-300">{submitError}</p>
+                                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                                        {submitError}
                                     </div>
                                 )}
 
-                                {/* Show username for reference */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Your Username
-                                    </label>
-                                    <div className="px-3 py-2.5 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white font-mono text-sm">
-                                        {username}
+                                {/* Username display */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Your Username</label>
+                                    <div className="flex items-center px-3 h-10 rounded-md border border-border/50 bg-muted/30">
+                                        <span className="font-mono font-semibold text-foreground">{username}</span>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">Use this to login</p>
+                                    <p className="text-xs text-muted-foreground">Remember this — you&apos;ll use it to login</p>
                                 </div>
 
-                                <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        New Password
-                                    </label>
-                                    <input
-                                        id="password"
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">New Password</label>
+                                    <Input
                                         type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
                                         minLength={8}
                                         placeholder="Min 8 characters"
-                                        className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                                        className="border-border/50"
+                                        disabled={submitting}
                                     />
-                                    <p className="text-xs text-slate-500 mt-1">
+                                    <p className="text-xs text-muted-foreground">
                                         Must be at least 8 characters and not entirely numeric
                                     </p>
                                 </div>
 
-                                <div>
-                                    <label htmlFor="confirm_password" className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Confirm Password
-                                    </label>
-                                    <input
-                                        id="confirm_password"
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Confirm Password</label>
+                                    <Input
                                         type="password"
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         required
                                         minLength={8}
                                         placeholder="Re-enter your password"
-                                        className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                                        className="border-border/50"
+                                        disabled={submitting}
                                     />
                                 </div>
 
-                                <button
+                                <Button
                                     type="submit"
+                                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 rounded-lg transition-all active:scale-[0.98]"
                                     disabled={submitting || !password || !confirmPassword}
-                                    className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {submitting ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                                             Setting Password...
-                                        </>
-                                    ) : (
-                                        'Set Password & Activate Account'
-                                    )}
-                                </button>
+                                        </div>
+                                    ) : 'Set Password & Activate Account'}
+                                </Button>
                             </form>
-                        </>
-                    )}
-                </div>
+                        </CardContent>
+                    </Card>
+                )}
 
-                {/* Footer */}
-                <p className="text-center text-xs text-slate-600 mt-6">
-                    This link expires after 48 hours
+                {/* Footer note */}
+                <p className="text-center text-xs text-muted-foreground/50 mt-6">
+                    This invite link expires after 48 hours
                 </p>
             </div>
         </div>
