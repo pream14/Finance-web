@@ -385,6 +385,37 @@ export const authApi = {
     body: JSON.stringify(data),
   }),
 
+  // ─── Invite Token Methods ──────────────────────────────────────────
+  // These use fetch() directly because invite endpoints don't require auth tokens.
+
+  validateInvite: async (token: string) => {
+    const response = await fetch(`${API_BASE_URL}/users/invite/${token}/`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Invalid invite link');
+    return data;
+  },
+
+  acceptInvite: async (token: string, password: string) => {
+    const response = await fetch(`${API_BASE_URL}/users/invite/${token}/accept/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      // Password validation errors come as { password: [...] }
+      const msg = data.password
+        ? data.password.join(' ')
+        : data.error || 'Failed to set password';
+      throw new Error(msg);
+    }
+    return data;
+  },
+
+  resendInvite: (userId: number) => apiRequest<any>(`/users/${userId}/resend-invite/`, {
+    method: 'POST',
+  }),
+
   logout: async () => {
     // Call server-side logout to clear httpOnly session cookie + user_role cookie
     try {

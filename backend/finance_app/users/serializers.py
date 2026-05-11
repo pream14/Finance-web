@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from .models import User
+from .models import User, InviteToken
 from organizations.serializers import OrganizationMinimalSerializer
 
 
@@ -11,14 +11,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
         child=serializers.IntegerField(), write_only=True, required=False,
         help_text='List of organization IDs to assign the user to'
     )
+    # Read-only fields returned after creation
+    invite_token = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['username', 'phone_number', 'first_name', 'last_name', 'email', 'role', 'password', 'organization_ids']
+        fields = ['id', 'username', 'phone_number', 'first_name', 'last_name', 'email', 'role', 'password', 'organization_ids', 'invite_token']
         extra_kwargs = {
             'username': {'required': False},  # We set this automatically
             'phone_number': {'required': True},
         }
+
+    def get_invite_token(self, obj):
+        """Return the latest valid invite token for this user."""
+        token = obj.invite_tokens.filter(used_at__isnull=True).first()
+        if token and token.is_valid:
+            return token.token
+        return None
 
     def validate(self, attrs):
         if not attrs.get('phone_number'):
@@ -35,12 +44,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
              raise serializers.ValidationError({"first_name": "First name is required for username generation."})
 
         # Check phone number uniqueness — only block if same phone exists for a non-employee
-        # (allows same person to be employee in one org and owner in another is handled by org assignment)
         existing_by_phone = User.objects.filter(phone_number=phone_number)
         if existing_by_phone.exists():
             existing_user = existing_by_phone.first()
-            # If the existing user is NOT an employee, block creation
-            # (two owners/admins with same phone = conflict)
             if existing_user.role != 'employee' and role != 'employee':
                 raise serializers.ValidationError({
                     "phone_number": f"A user with this phone number already exists ({existing_user.first_name}, role: {existing_user.role})."
@@ -54,24 +60,43 @@ class UserCreateSerializer(serializers.ModelSerializer):
             username = f"{base_username}{counter}"
             counter += 1
 
-        # Set default password as phone_number if not provided
-        password = validated_data.get('password') or phone_number
+        # Check if a password was explicitly provided
+        password = validated_data.get('password', '').strip()
 
-        # Validate password strength using Django's AUTH_PASSWORD_VALIDATORS
-        try:
-            validate_password(password)
-        except DjangoValidationError as e:
-            raise serializers.ValidationError({'password': list(e.messages)})
-        
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            phone_number=phone_number,
-            first_name=first_name,
-            last_name=validated_data.get('last_name', ''),
-            email=validated_data.get('email', ''),
-            role=role
-        )
+        if password:
+            # Validate password strength if one was provided
+            try:
+                validate_password(password)
+            except DjangoValidationError as e:
+                raise serializers.ValidationError({'password': list(e.messages)})
+            
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                phone_number=phone_number,
+                first_name=first_name,
+                last_name=validated_data.get('last_name', ''),
+                email=validated_data.get('email', ''),
+                role=role,
+                must_change_password=False,  # They set a password, no need to change
+            )
+        else:
+            # No password → create with unusable password + invite token
+            user = User.objects.create_user(
+                username=username,
+                password=None,  # Will call set_unusable_password()
+                phone_number=phone_number,
+                first_name=first_name,
+                last_name=validated_data.get('last_name', ''),
+                email=validated_data.get('email', ''),
+                role=role,
+                must_change_password=True,
+            )
+            user.set_unusable_password()
+            user.save()
+
+            # Create invite token (48hr expiry)
+            InviteToken.create_for_user(user)
 
         # Assign organizations
         if organization_ids:

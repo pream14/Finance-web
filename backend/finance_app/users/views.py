@@ -103,3 +103,126 @@ def change_password(request):
     user.must_change_password = False
     user.save()
     return Response({'status': 'password set'}, status=200)
+
+
+# ─── Invite Token Endpoints ──────────────────────────────────────────────────
+from rest_framework.permissions import AllowAny
+from .models import InviteToken
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def validate_invite(request, token):
+    """Check if an invite token is valid. Returns user info if valid.
+    
+    No authentication required — the token IS the authentication.
+    """
+    try:
+        invite = InviteToken.objects.select_related('user').get(token=token)
+    except InviteToken.DoesNotExist:
+        return Response(
+            {'error': 'Invalid invite link. Please contact your manager.'},
+            status=404
+        )
+
+    if invite.is_used:
+        return Response(
+            {'error': 'This invite link has already been used. Please login with your password.'},
+            status=410  # 410 Gone
+        )
+
+    if invite.is_expired:
+        return Response(
+            {'error': 'This invite link has expired. Please contact your manager for a new one.'},
+            status=410
+        )
+
+    user = invite.user
+    return Response({
+        'valid': True,
+        'user': {
+            'username': user.username,
+            'first_name': user.first_name,
+            'full_name': user.get_full_name() or user.username,
+        }
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def accept_invite(request, token):
+    """Accept an invite: set the user's password and mark token as used.
+    
+    No authentication required — the token IS the authentication.
+    """
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    try:
+        invite = InviteToken.objects.select_related('user').get(token=token)
+    except InviteToken.DoesNotExist:
+        return Response(
+            {'error': 'Invalid invite link. Please contact your manager.'},
+            status=404
+        )
+
+    if invite.is_used:
+        return Response(
+            {'error': 'This invite link has already been used.'},
+            status=410
+        )
+
+    if invite.is_expired:
+        return Response(
+            {'error': 'This invite link has expired. Please contact your manager for a new one.'},
+            status=410
+        )
+
+    new_password = request.data.get('password', '').strip()
+    if not new_password:
+        return Response({'error': 'Password is required.'}, status=400)
+
+    # Validate password strength
+    user = invite.user
+    try:
+        validate_password(new_password, user=user)
+    except DjangoValidationError as e:
+        return Response({'password': list(e.messages)}, status=400)
+
+    # Set the password and activate the account
+    user.set_password(new_password)
+    user.must_change_password = False
+    user.is_active = True
+    user.save()
+
+    # Mark token as used
+    invite.mark_used()
+
+    return Response({
+        'status': 'success',
+        'message': 'Password set successfully! You can now login.',
+        'username': user.username,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsOwnerOrSuperUser])
+def resend_invite(request, user_id):
+    """Regenerate an invite token for a user. Owner/SuperAdmin only.
+    
+    Used when the original invite expired or needs to be re-sent.
+    """
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found.'}, status=404)
+
+    # Create new token (automatically invalidates old ones)
+    invite = InviteToken.create_for_user(target_user)
+
+    return Response({
+        'invite_token': invite.token,
+        'username': target_user.username,
+        'expires_at': invite.expires_at.isoformat(),
+    })
+

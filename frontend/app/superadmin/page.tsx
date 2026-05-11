@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Building2, Users, Plus, Pencil, Trash2, ArrowLeft,
-  Shield, Phone, MapPin, ChevronDown, ChevronUp, UserPlus, X
+  Shield, Phone, MapPin, ChevronDown, ChevronUp, UserPlus, X,
+  MessageCircle, Mail, Copy, Link2, CheckCircle
 } from 'lucide-react'
 import { organizationsApi, authApi } from '@/lib/api'
 
@@ -61,8 +62,11 @@ export default function SuperAdminPage() {
 
   // Add Owner dialog
   const [addOwnerOpen, setAddOwnerOpen] = useState(false)
-  const [ownerForm, setOwnerForm] = useState({ first_name: '', last_name: '', phone_number: '', password: '', organization_id: '' })
+  const [ownerForm, setOwnerForm] = useState({ first_name: '', last_name: '', phone_number: '', email: '', password: '', organization_id: '' })
   const [ownerSaving, setOwnerSaving] = useState(false)
+  const [ownerInviteResult, setOwnerInviteResult] = useState<{
+    username: string; firstName: string; phone: string; email: string; inviteToken: string;
+  } | null>(null)
 
   // Expanded org cards
   const [expandedOrgId, setExpandedOrgId] = useState<number | null>(null)
@@ -166,25 +170,60 @@ export default function SuperAdminPage() {
   }
 
   const handleCreateOwner = async () => {
-    if (!ownerForm.first_name.trim() || !ownerForm.phone_number.trim() || !ownerForm.password.trim()) return
+    if (!ownerForm.first_name.trim() || !ownerForm.phone_number.trim()) return
     setOwnerSaving(true)
     try {
       const orgIds = ownerForm.organization_id ? [parseInt(ownerForm.organization_id)] : []
-      await authApi.create({
+      const result = await authApi.create({
         first_name: ownerForm.first_name.trim(),
         last_name: ownerForm.last_name.trim(),
         phone_number: ownerForm.phone_number.trim(),
-        password: ownerForm.password.trim(),
         role: 'owner',
         organization_ids: orgIds,
       })
       setAddOwnerOpen(false)
+      // Show invite share dialog
+      setOwnerInviteResult({
+        username: result.username,
+        firstName: result.first_name || ownerForm.first_name,
+        phone: ownerForm.phone_number,
+        email: ownerForm.email || '',
+        inviteToken: result.invite_token,
+      })
       await loadData()
     } catch (err: any) {
       alert('Failed: ' + (err.message || 'Unknown error'))
     } finally {
       setOwnerSaving(false)
     }
+  }
+
+  // ─── Invite Share Helpers ──────────────────────────────────────
+  const getInviteUrl = (token: string) => {
+    const base = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${base}/auth/invite/${token}`
+  }
+
+  const shareViaWhatsApp = (name: string, username: string, token: string, phone: string) => {
+    const url = getInviteUrl(token)
+    const message = `Hi ${name},\n\nYour owner account has been created on Finance Manager.\n\n\ud83d\udc64 Username: ${username}\n\ud83d\udd17 Set your password: ${url}\n\nThis link expires in 48 hours.`
+    const waUrl = phone
+      ? `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`
+    window.open(waUrl, '_blank')
+  }
+
+  const shareViaEmail = (name: string, username: string, token: string, email: string) => {
+    const url = getInviteUrl(token)
+    const subject = 'Your Finance Manager Owner Account'
+    const body = `Hi ${name},\n\nYour owner account has been created.\n\nUsername: ${username}\nSet your password: ${url}\n\nThis link expires in 48 hours.`
+    window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+  }
+
+  const copyInviteLink = async (token: string) => {
+    const url = getInviteUrl(token)
+    await navigator.clipboard.writeText(url)
+    alert('Invite link copied!')
   }
 
   // ─── Helpers ────────────────────────────────────────────────
@@ -594,16 +633,13 @@ export default function SuperAdminPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Password *</label>
+              <label className="text-sm font-medium mb-1 block">Email (Optional)</label>
               <Input
-                type="password"
-                placeholder="Min 8 characters, not entirely numeric"
-                value={ownerForm.password}
-                onChange={e => setOwnerForm(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Email address"
+                type="email"
+                value={ownerForm.email}
+                onChange={e => setOwnerForm(prev => ({ ...prev, email: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Must be at least 8 characters and not entirely numeric.
-              </p>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Assign to Organization</label>
@@ -623,14 +659,86 @@ export default function SuperAdminPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+              <div className="flex items-start gap-2">
+                <Link2 className="w-4 h-4 mt-0.5 shrink-0" />
+                <p className="text-xs">An invite link will be generated for the owner to set their own password.</p>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOwnerOpen(false)}>Cancel</Button>
             <Button
               onClick={handleCreateOwner}
-              disabled={ownerSaving || !ownerForm.first_name.trim() || !ownerForm.phone_number.trim() || !ownerForm.password.trim()}
+              disabled={ownerSaving || !ownerForm.first_name.trim() || !ownerForm.phone_number.trim()}
             >
               {ownerSaving ? 'Creating...' : 'Create Owner'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Owner Invite Share Dialog ─────────────────────────── */}
+      <Dialog open={!!ownerInviteResult} onOpenChange={(open) => { if (!open) setOwnerInviteResult(null) }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              Owner Created!
+            </DialogTitle>
+            <DialogDescription>
+              Share the invite link so {ownerInviteResult?.firstName} can set their password.
+            </DialogDescription>
+          </DialogHeader>
+
+          {ownerInviteResult && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
+                <p><strong>Username:</strong> <span className="font-mono">{ownerInviteResult.username}</span></p>
+                <p><strong>Invite Link:</strong></p>
+                <code className="block p-2 bg-background rounded border text-xs break-all">
+                  {getInviteUrl(ownerInviteResult.inviteToken)}
+                </code>
+                <p className="text-xs text-muted-foreground">⏰ Expires in 48 hours</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                {ownerInviteResult.phone && (
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => shareViaWhatsApp(ownerInviteResult.firstName, ownerInviteResult.username, ownerInviteResult.inviteToken, ownerInviteResult.phone)}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Share via WhatsApp
+                  </Button>
+                )}
+
+                {ownerInviteResult.email && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => shareViaEmail(ownerInviteResult.firstName, ownerInviteResult.username, ownerInviteResult.inviteToken, ownerInviteResult.email)}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Share via Email
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => copyInviteLink(ownerInviteResult.inviteToken)}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Invite Link
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOwnerInviteResult(null)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

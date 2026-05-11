@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { authApi } from '@/lib/api'
-import { ArrowLeft, Loader2, Plus, Pencil, Ban, CheckCircle, Search, Building2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Pencil, Ban, CheckCircle, Search, Building2, MessageCircle, Mail, Copy, RefreshCw, Link2 } from 'lucide-react'
 
 interface Organization {
     id: number
@@ -49,6 +49,15 @@ export default function EmployerManagementPage() {
     const [editingUser, setEditingUser] = useState<User | null>(null)
     const [formLoading, setFormLoading] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
+
+    // Invite success state
+    const [inviteResult, setInviteResult] = useState<{
+        username: string
+        firstName: string
+        phone: string
+        email: string
+        inviteToken: string
+    } | null>(null)
 
     // Form Data
     const [formData, setFormData] = useState({
@@ -106,6 +115,7 @@ export default function EmployerManagementPage() {
         })
         setEditingUser(null)
         setFormError(null)
+        setInviteResult(null)
     }
 
     const handleOpenAdd = () => {
@@ -140,25 +150,74 @@ export default function EmployerManagementPage() {
                 if (!updateData.password) delete updateData.password // Don't send empty password
 
                 await authApi.update(editingUser.id, updateData)
+                setIsDialogOpen(false)
+                fetchUsers()
             } else {
-                // Create
+                // Create — no password needed, invite link will be generated
                 const createData: any = { ...formData }
-                if (!createData.password) delete createData.password
+                delete createData.password
                 // Pass org IDs
                 if (createData.organization_id) {
                     createData.organization_ids = [parseInt(createData.organization_id)]
                 }
                 delete createData.organization_id
-                await authApi.register(createData)
-            }
+                const result = await authApi.register(createData)
 
-            setIsDialogOpen(false)
-            fetchUsers() // Refresh list
+                // Show invite share dialog
+                setInviteResult({
+                    username: result.username,
+                    firstName: result.first_name || formData.first_name,
+                    phone: formData.phone_number,
+                    email: formData.email,
+                    inviteToken: result.invite_token,
+                })
+                fetchUsers()
+            }
         } catch (err: any) {
             console.error('Failed to save user:', err)
             setFormError(err.message || 'Failed to save user')
         } finally {
             setFormLoading(false)
+        }
+    }
+
+    // ─── Share Helpers ──────────────────────────────────────────────────
+    const getInviteUrl = (token: string) => {
+        const base = typeof window !== 'undefined' ? window.location.origin : ''
+        return `${base}/auth/invite/${token}`
+    }
+
+    const shareViaWhatsApp = (name: string, username: string, token: string) => {
+        const url = getInviteUrl(token)
+        const message = `Hi ${name},\n\nYour account has been created on Finance Manager.\n\n👤 Username: ${username}\n🔗 Set your password: ${url}\n\nThis link expires in 48 hours.`
+        const phone = inviteResult?.phone || ''
+        const waUrl = phone
+            ? `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
+            : `https://wa.me/?text=${encodeURIComponent(message)}`
+        window.open(waUrl, '_blank')
+    }
+
+    const shareViaEmail = (name: string, username: string, token: string, email: string) => {
+        const url = getInviteUrl(token)
+        const subject = 'Your Finance Manager Account'
+        const body = `Hi ${name},\n\nYour account has been created.\n\nUsername: ${username}\nSet your password: ${url}\n\nThis link expires in 48 hours.`
+        window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+    }
+
+    const copyInviteLink = async (token: string) => {
+        const url = getInviteUrl(token)
+        await navigator.clipboard.writeText(url)
+        alert('Invite link copied!')
+    }
+
+    const handleResendInvite = async (userId: number) => {
+        try {
+            const result = await authApi.resendInvite(userId)
+            const url = getInviteUrl(result.invite_token)
+            await navigator.clipboard.writeText(url)
+            alert(`New invite link generated and copied!\n\nExpires: ${new Date(result.expires_at).toLocaleString()}`)
+        } catch (err: any) {
+            alert('Failed to resend invite: ' + (err.message || 'Unknown error'))
         }
     }
 
@@ -267,7 +326,16 @@ export default function EmployerManagementPage() {
                                                     </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right space-x-2">
+                                                <TableCell className="text-right space-x-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    title="Resend Invite"
+                                                    onClick={() => handleResendInvite(user.id)}
+                                                >
+                                                    <RefreshCw className="w-4 h-4" />
+                                                    <span className="sr-only">Resend Invite</span>
+                                                </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleOpenEdit(user)}>
                                                     <Pencil className="w-4 h-4" />
                                                     <span className="sr-only">Edit</span>
@@ -339,7 +407,7 @@ export default function EmployerManagementPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="phone">Phone Number (Login Password) *</Label>
+                            <Label htmlFor="phone">Phone Number *</Label>
                             <Input
                                 id="phone"
                                 type="tel"
@@ -360,23 +428,6 @@ export default function EmployerManagementPage() {
                                 placeholder="e.g. john@example.com"
                             />
                         </div>
-
-                        {!editingUser && (
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password *</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    required
-                                    placeholder="Min 8 characters"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Must be at least 8 characters and not entirely numeric.
-                                </p>
-                            </div>
-                        )}
 
 
                         {/* Role is always employee, hidden from UI */}
@@ -407,8 +458,17 @@ export default function EmployerManagementPage() {
                         )}
 
                         {!editingUser && (
-                            <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                                <p><strong>Note:</strong> The <strong>First Name</strong> will be used as the login Username.</p>
+                            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                                <div className="flex items-start gap-2">
+                                    <Link2 className="w-4 h-4 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="font-medium">Invite Link will be generated</p>
+                                        <p className="text-xs mt-1 opacity-80">
+                                            The employee will receive a link to set their own password.
+                                            No password needed here. Username is auto-generated from the first name.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -422,6 +482,75 @@ export default function EmployerManagementPage() {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── Invite Share Dialog ─────────────────────────────────── */}
+            <Dialog open={!!inviteResult} onOpenChange={(open) => { if (!open) setInviteResult(null) }}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                            Employee Created!
+                        </DialogTitle>
+                        <DialogDescription>
+                            Share the invite link so {inviteResult?.firstName} can set their password.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {inviteResult && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
+                                <p><strong>Username:</strong> <span className="font-mono">{inviteResult.username}</span></p>
+                                <p><strong>Invite Link:</strong></p>
+                                <code className="block p-2 bg-background rounded border text-xs break-all">
+                                    {getInviteUrl(inviteResult.inviteToken)}
+                                </code>
+                                <p className="text-xs text-muted-foreground">⏰ Expires in 48 hours</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2">
+                                {/* WhatsApp */}
+                                {inviteResult.phone && (
+                                    <Button
+                                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                        onClick={() => shareViaWhatsApp(inviteResult.firstName, inviteResult.username, inviteResult.inviteToken)}
+                                    >
+                                        <MessageCircle className="w-4 h-4 mr-2" />
+                                        Share via WhatsApp
+                                    </Button>
+                                )}
+
+                                {/* Email */}
+                                {inviteResult.email && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => shareViaEmail(inviteResult.firstName, inviteResult.username, inviteResult.inviteToken, inviteResult.email)}
+                                    >
+                                        <Mail className="w-4 h-4 mr-2" />
+                                        Share via Email
+                                    </Button>
+                                )}
+
+                                {/* Copy Link */}
+                                <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => copyInviteLink(inviteResult.inviteToken)}
+                                >
+                                    <Copy className="w-4 h-4 mr-2" />
+                                    Copy Invite Link
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setInviteResult(null)}>
+                            Done
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
