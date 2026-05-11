@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download, Menu, AlertTriangle, XCircle, Edit2, Trash2, X, Check } from 'lucide-react'
+import { ArrowLeft, User, Phone, MapPin, Wallet, Calendar, RefreshCw, Download, Menu, AlertTriangle, XCircle, Edit2, Trash2, X, Check, Plus } from 'lucide-react'
 import { customersApi, loansApi, transactionsApi, customerReportApi, authApi } from '@/lib/api'
+import { Input } from '@/components/ui/input'
 
 interface Loan {
     id: number
@@ -101,6 +102,29 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
     const [editLoanLoading, setEditLoanLoading] = useState(false)
     const [deleteLoanConfirmId, setDeleteLoanConfirmId] = useState<number | null>(null)
     const [deleteLoanLoading, setDeleteLoanLoading] = useState(false)
+
+    // Edit customer state
+    const [showEditCustomer, setShowEditCustomer] = useState(false)
+    const [editCustomerData, setEditCustomerData] = useState({ name: '', phone: '', alternate_phone: '', city: '', address: '' })
+    const [editCustomerLoading, setEditCustomerLoading] = useState(false)
+
+    // Add new loan state
+    const [showAddLoan, setShowAddLoan] = useState(false)
+    const [newLoanType, setNewLoanType] = useState<string>('DC Loan')
+    const [newLoanPrincipal, setNewLoanPrincipal] = useState('')
+    const [newLoanPaymentMethod, setNewLoanPaymentMethod] = useState('cash')
+    const [newLoanCashAmount, setNewLoanCashAmount] = useState('')
+    const [newLoanOnlineAmount, setNewLoanOnlineAmount] = useState('')
+    const [newLoanMonthlyRate, setNewLoanMonthlyRate] = useState('')
+    const [newLoanCycleDay, setNewLoanCycleDay] = useState(new Date().getDate().toString())
+    const [newLoanFirstInterestPaid, setNewLoanFirstInterestPaid] = useState(true)
+    const [newLoanDailyCollection, setNewLoanDailyCollection] = useState('')
+    const [newLoanExpectedDays, setNewLoanExpectedDays] = useState('')
+    const [newLoanDcDeduction, setNewLoanDcDeduction] = useState('')
+    const [newLoanDcDeductionEdited, setNewLoanDcDeductionEdited] = useState(false)
+    const [newLoanDailyRate, setNewLoanDailyRate] = useState('')
+    const [newLoanMaxDays, setNewLoanMaxDays] = useState('')
+    const [addLoanLoading, setAddLoanLoading] = useState(false)
 
     // Fetch customer data
     const fetchCustomerData = async () => {
@@ -386,6 +410,141 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
         }
     }
 
+    // --- Edit Customer ---
+    const handleOpenEditCustomer = () => {
+        if (!customer) return
+        setEditCustomerData({
+            name: customer.name,
+            phone: customer.phone,
+            alternate_phone: customer.alternate_phone || '',
+            city: customer.city,
+            address: customer.address,
+        })
+        setShowEditCustomer(true)
+    }
+
+    const handleSaveEditCustomer = async () => {
+        if (!customer) return
+        if (!editCustomerData.name.trim() || !editCustomerData.phone.trim()) {
+            alert('Name and Phone are required')
+            return
+        }
+        try {
+            setEditCustomerLoading(true)
+            await customersApi.update(customer.id, {
+                name: editCustomerData.name.trim(),
+                phone_number: editCustomerData.phone.trim(),
+                alternate_phone: editCustomerData.alternate_phone.trim() || undefined,
+                address: editCustomerData.address.trim(),
+                area: editCustomerData.city.trim(),
+            })
+            setShowEditCustomer(false)
+            await fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to update customer')
+        } finally {
+            setEditCustomerLoading(false)
+        }
+    }
+
+    // --- Add New Loan ---
+    const calculateDcDeduction = (principal: string) => {
+        const amount = parseFloat(principal)
+        if (!isNaN(amount) && amount > 0) return Math.round(amount * 0.15).toString()
+        return ''
+    }
+
+    const handleAddNewLoan = async () => {
+        if (!customer) return
+        const principal = parseFloat(newLoanPrincipal)
+        if (isNaN(principal) || principal <= 0) {
+            alert('Enter a valid principal amount')
+            return
+        }
+        // Validate type-specific fields
+        if (newLoanType === 'Monthly Interest Loan') {
+            if (!newLoanMonthlyRate || !newLoanCycleDay) { alert('Monthly Interest Loan requires interest rate and cycle day'); return }
+            if (isNaN(parseFloat(newLoanMonthlyRate)) || parseFloat(newLoanMonthlyRate) <= 0) { alert('Enter a valid interest rate'); return }
+        } else if (newLoanType === 'DC Loan') {
+            if (!newLoanDailyCollection) { alert('DC Loan requires daily collection amount'); return }
+        } else if (newLoanType === 'DL Loan') {
+            if (!newLoanDailyRate) { alert('DL Loan requires daily interest rate'); return }
+        }
+
+        try {
+            setAddLoanLoading(true)
+            const loanData: any = {
+                customer: customer.id,
+                loan_type: newLoanType,
+                principal_amount: principal,
+                payment_method: newLoanPaymentMethod,
+            }
+            if (newLoanPaymentMethod === 'split') {
+                loanData.cash_amount = parseFloat(newLoanCashAmount) || 0
+                loanData.online_amount = parseFloat(newLoanOnlineAmount) || 0
+            } else if (newLoanPaymentMethod === 'cash') {
+                loanData.cash_amount = principal
+                loanData.online_amount = 0
+            } else {
+                loanData.cash_amount = 0
+                loanData.online_amount = principal
+            }
+            if (newLoanType === 'Monthly Interest Loan') {
+                loanData.monthly_interest_rate = parseFloat(newLoanMonthlyRate)
+                loanData.interest_cycle_day = parseInt(newLoanCycleDay)
+                loanData.first_month_interest_paid = newLoanFirstInterestPaid
+            } else if (newLoanType === 'DC Loan') {
+                loanData.daily_collection_amount = parseFloat(newLoanDailyCollection)
+                if (newLoanExpectedDays) loanData.expected_total_days = parseInt(newLoanExpectedDays)
+                if (newLoanDcDeductionEdited) {
+                    loanData.dc_deduction_amount = parseFloat(newLoanDcDeduction) || 0
+                } else {
+                    const deduction = calculateDcDeduction(newLoanPrincipal)
+                    if (deduction) loanData.dc_deduction_amount = parseFloat(deduction)
+                }
+            } else if (newLoanType === 'DL Loan') {
+                loanData.daily_interest_rate = parseFloat(newLoanDailyRate)
+                if (newLoanMaxDays) loanData.max_days = parseInt(newLoanMaxDays)
+            }
+
+            const createdLoan = await loansApi.create(loanData)
+
+            // If ML loan and first month interest collected, create transaction
+            if (newLoanType === 'Monthly Interest Loan' && newLoanFirstInterestPaid && createdLoan?.id) {
+                const interestAmt = (principal * parseFloat(newLoanMonthlyRate)) / 100
+                await transactionsApi.create({
+                    loan: createdLoan.id,
+                    amount: interestAmt,
+                    interest_amount: interestAmt,
+                    payment_method: newLoanPaymentMethod,
+                    description: 'First month interest collected at loan creation',
+                })
+            }
+
+            // Reset and refresh
+            setShowAddLoan(false)
+            setNewLoanType('DC Loan')
+            setNewLoanPrincipal('')
+            setNewLoanPaymentMethod('cash')
+            setNewLoanCashAmount('')
+            setNewLoanOnlineAmount('')
+            setNewLoanMonthlyRate('')
+            setNewLoanCycleDay(new Date().getDate().toString())
+            setNewLoanFirstInterestPaid(true)
+            setNewLoanDailyCollection('')
+            setNewLoanExpectedDays('')
+            setNewLoanDcDeduction('')
+            setNewLoanDcDeductionEdited(false)
+            setNewLoanDailyRate('')
+            setNewLoanMaxDays('')
+            await fetchCustomerData()
+        } catch (err: any) {
+            alert(err.message || 'Failed to add loan')
+        } finally {
+            setAddLoanLoading(false)
+        }
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -453,6 +612,11 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                 <Link href="/collections">Add Collection</Link>
                             </Button>
                         </div>
+                        {isOwner && (
+                            <Button variant="outline" size="sm" onClick={handleOpenEditCustomer} title="Edit Customer">
+                                <Edit2 className="w-4 h-4 mr-1" /> Edit
+                            </Button>
+                        )}
                         {/* Mobile Navigation */}
                         <div className="flex md:hidden">
                             <Sheet>
@@ -579,19 +743,28 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                                     <CardTitle className="text-base">Loans</CardTitle>
                                     <p className="text-xs text-muted-foreground mt-1">Click a loan to filter entries</p>
                                 </div>
-                                <div className="flex gap-1">
-                                    {(['active', 'settled', 'closed'] as const).map(st => (
-                                        <button
-                                            key={st}
-                                            onClick={() => setLoanStatusFilter(st)}
-                                            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors capitalize ${loanStatusFilter === st
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                                }`}
-                                        >
-                                            {st}
-                                        </button>
-                                    ))}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex gap-1">
+                                        {(['active', 'settled', 'closed'] as const).map(st => (
+                                            <button
+                                                key={st}
+                                                onClick={() => setLoanStatusFilter(st)}
+                                                className={`px-3 py-1 text-xs font-medium rounded-full transition-colors capitalize ${loanStatusFilter === st
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                    }`}
+                                            >
+                                                {st}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => setShowAddLoan(true)}
+                                        className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                                        title="Add New Loan"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1183,6 +1356,189 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                             <button onClick={() => setDeleteLoanConfirmId(null)} disabled={deleteLoanLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
                             <button onClick={() => handleDeleteLoan(deleteLoanConfirmId)} disabled={deleteLoanLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
                                 {deleteLoanLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Deleting...</>) : (<><Trash2 className="w-4 h-4" /> Delete</>)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Customer Modal */}
+            {showEditCustomer && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowEditCustomer(false)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-foreground">Edit Customer</h3>
+                                    <p className="text-sm text-muted-foreground">Update customer details</p>
+                                </div>
+                                <button onClick={() => setShowEditCustomer(false)} className="p-1.5 rounded-md hover:bg-muted/50"><X className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
+                                <input type="text" value={editCustomerData.name} onChange={(e) => setEditCustomerData({ ...editCustomerData, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" required />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-1.5">Phone</label>
+                                    <input type="text" value={editCustomerData.phone} onChange={(e) => setEditCustomerData({ ...editCustomerData, phone: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-1.5">Alternate Phone</label>
+                                    <input type="text" value={editCustomerData.alternate_phone} onChange={(e) => setEditCustomerData({ ...editCustomerData, alternate_phone: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">City / Area</label>
+                                <input type="text" value={editCustomerData.city} onChange={(e) => setEditCustomerData({ ...editCustomerData, city: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Address</label>
+                                <input type="text" value={editCustomerData.address} onChange={(e) => setEditCustomerData({ ...editCustomerData, address: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            </div>
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button onClick={() => setShowEditCustomer(false)} disabled={editCustomerLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                            <button onClick={handleSaveEditCustomer} disabled={editCustomerLoading || !editCustomerData.name.trim()} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                {editCustomerLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>) : (<><Check className="w-4 h-4" /> Save Changes</>)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add New Loan Modal */}
+            {showAddLoan && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowAddLoan(false)}>
+                    <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg my-8" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-foreground">Add New Loan</h3>
+                                    <p className="text-sm text-muted-foreground">{customer?.name}</p>
+                                </div>
+                                <button onClick={() => setShowAddLoan(false)} className="p-1.5 rounded-md hover:bg-muted/50"><X className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                            {/* Loan Type */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Loan Type</label>
+                                <div className="flex gap-2">
+                                    {['DC Loan', 'Monthly Interest Loan', 'DL Loan'].map(type => (
+                                        <button key={type} onClick={() => setNewLoanType(type)} className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${newLoanType === type ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'}`}>
+                                            {type.replace(' Loan', '')}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Principal Amount */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Principal Amount (₹)</label>
+                                <input type="number" min="1" step="0.01" placeholder="e.g. 50000" value={newLoanPrincipal} onChange={(e) => setNewLoanPrincipal(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            </div>
+
+                            {/* Payment Method */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Payment Method</label>
+                                <div className="flex gap-2">
+                                    {[{ v: 'cash', l: 'Cash' }, { v: 'online', l: 'Online' }, { v: 'split', l: 'Split' }].map(({ v, l }) => (
+                                        <button key={v} onClick={() => { setNewLoanPaymentMethod(v); setNewLoanCashAmount(''); setNewLoanOnlineAmount('') }} className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${newLoanPaymentMethod === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'}`}>
+                                            {l}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Split Amounts */}
+                            {newLoanPaymentMethod === 'split' && (
+                                <div className="p-3 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 space-y-3">
+                                    <p className="text-xs font-medium text-amber-600">Split Amount Breakdown</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-muted-foreground">Cash (₹)</label>
+                                            <input type="number" min="0" placeholder="0" value={newLoanCashAmount} onChange={(e) => { setNewLoanCashAmount(e.target.value); const p = parseFloat(newLoanPrincipal) || 0; const c = parseFloat(e.target.value) || 0; if (p > 0 && c <= p) setNewLoanOnlineAmount((p - c).toString()) }} className="w-full px-3 py-2 rounded-lg border border-amber-500/30 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-muted-foreground">Online (₹)</label>
+                                            <input type="number" min="0" placeholder="0" value={newLoanOnlineAmount} onChange={(e) => { setNewLoanOnlineAmount(e.target.value); const p = parseFloat(newLoanPrincipal) || 0; const o = parseFloat(e.target.value) || 0; if (p > 0 && o <= p) setNewLoanCashAmount((p - o).toString()) }} className="w-full px-3 py-2 rounded-lg border border-amber-500/30 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+                                        </div>
+                                    </div>
+                                    {newLoanPrincipal && (() => { const total = (parseFloat(newLoanCashAmount) || 0) + (parseFloat(newLoanOnlineAmount) || 0); const p = parseFloat(newLoanPrincipal) || 0; const match = Math.abs(total - p) < 0.01; return <p className={`text-xs ${match ? 'text-green-600' : 'text-red-500'}`}>Total: ₹{total.toLocaleString()} {match ? '✓ Matches' : `≠ ₹${p.toLocaleString()}`}</p> })()}
+                                </div>
+                            )}
+
+                            {/* Monthly Interest Loan Fields */}
+                            {newLoanType === 'Monthly Interest Loan' && (
+                                <div className="space-y-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-foreground mb-1">Monthly Interest Rate (%)</label>
+                                            <input type="number" min="0.1" step="0.1" placeholder="e.g. 5" value={newLoanMonthlyRate} onChange={(e) => setNewLoanMonthlyRate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-foreground mb-1">Interest Cycle Day</label>
+                                            <input type="number" min="1" max="31" placeholder="e.g. 5" value={newLoanCycleDay} onChange={(e) => setNewLoanCycleDay(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        </div>
+                                    </div>
+                                    {newLoanMonthlyRate && newLoanPrincipal && (
+                                        <p className="text-xs text-green-600">Expected interest: ₹{((parseFloat(newLoanPrincipal) || 0) * (parseFloat(newLoanMonthlyRate) || 0) / 100).toLocaleString('en-IN')}/month</p>
+                                    )}
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked={newLoanFirstInterestPaid} onChange={(e) => setNewLoanFirstInterestPaid(e.target.checked)} className="rounded border-border" />
+                                        <span className="text-sm text-foreground">First month interest collected</span>
+                                    </label>
+                                </div>
+                            )}
+
+                            {/* DC Loan Fields */}
+                            {newLoanType === 'DC Loan' && (
+                                <div className="space-y-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                                    <div>
+                                        <label className="block text-xs font-medium text-foreground mb-1">Daily Collection Amount (₹)</label>
+                                        <input type="number" min="1" placeholder="e.g. 1000" value={newLoanDailyCollection} onChange={(e) => setNewLoanDailyCollection(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-foreground mb-1">Expected Total Days</label>
+                                            <input type="number" min="1" placeholder="Optional" value={newLoanExpectedDays} onChange={(e) => setNewLoanExpectedDays(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-foreground mb-1">DC Deduction (₹)</label>
+                                            <input type="number" min="0" placeholder={calculateDcDeduction(newLoanPrincipal) || '0'} value={newLoanDcDeductionEdited ? newLoanDcDeduction : calculateDcDeduction(newLoanPrincipal)} onChange={(e) => { setNewLoanDcDeduction(e.target.value); setNewLoanDcDeductionEdited(true) }} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        </div>
+                                    </div>
+                                    {newLoanPrincipal && (
+                                        <p className="text-xs text-blue-600">
+                                            Customer receives: ₹{((parseFloat(newLoanPrincipal) || 0) - (parseFloat(newLoanDcDeductionEdited ? newLoanDcDeduction : calculateDcDeduction(newLoanPrincipal)) || 0)).toLocaleString('en-IN')}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* DL Loan Fields */}
+                            {newLoanType === 'DL Loan' && (
+                                <div className="space-y-4 p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-foreground mb-1">Daily Interest Rate (%)</label>
+                                            <input type="number" min="0.01" step="0.01" placeholder="e.g. 0.2" value={newLoanDailyRate} onChange={(e) => setNewLoanDailyRate(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-foreground mb-1">Max Days (Optional)</label>
+                                            <input type="number" min="1" placeholder="Optional" value={newLoanMaxDays} onChange={(e) => setNewLoanMaxDays(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3">
+                            <button onClick={() => setShowAddLoan(false)} disabled={addLoanLoading} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                            <button onClick={handleAddNewLoan} disabled={addLoanLoading || !newLoanPrincipal} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                {addLoanLoading ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Adding...</>) : (<><Plus className="w-4 h-4" /> Add Loan</>)}
                             </button>
                         </div>
                     </div>
