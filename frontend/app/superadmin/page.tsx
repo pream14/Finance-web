@@ -165,7 +165,7 @@ export default function SuperAdminPage() {
 
   // ─── Add Owner ──────────────────────────────────────────────
   const openAddOwner = () => {
-    setOwnerForm({ first_name: '', last_name: '', phone_number: '', password: '', organization_id: '' })
+    setOwnerForm({ first_name: '', last_name: '', phone_number: '', email: '', password: '', organization_id: '' })
     setAddOwnerOpen(true)
   }
 
