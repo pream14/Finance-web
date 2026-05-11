@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { Users, Plus, Trash2, Edit3, Wallet, Eye, X, Filter, ChevronDown, ChevronUp, Menu } from 'lucide-react'
-import { customersApi, loansApi, transactionsApi, authApi } from '@/lib/api'
+import { Users, Plus, Trash2, Edit3, Wallet, Eye, X, Filter, ChevronDown, ChevronUp, Menu, Building2, AlertTriangle } from 'lucide-react'
+import { customersApi, loansApi, transactionsApi, authApi, getSelectedOrg } from '@/lib/api'
 
 const LOAN_TYPES = ['DC Loan', 'Monthly Interest Loan', 'DL Loan'] as const
 
@@ -98,6 +98,12 @@ export default function CustomersPage() {
   const [editFormData, setEditFormData] = useState<Partial<Customer>>({})
   const [addFormData, setAddFormData] = useState({ name: '', phone: '', alternate_phone: '', address: '', city: '' })
   const [existingCities, setExistingCities] = useState<string[]>([])
+
+  // Organization confirmation state
+  interface UserOrg { id: number; name: string; code: string }
+  const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
+  const [showOrgConfirm, setShowOrgConfirm] = useState(false)
+  const [selectedOrgForCreate, setSelectedOrgForCreate] = useState<UserOrg | null>(null)
   const [citySuggestions, setCitySuggestions] = useState<string[]>([])
   const [showCitySuggestions, setShowCitySuggestions] = useState(false)
   const [editCitySuggestions, setEditCitySuggestions] = useState<string[]>([])
@@ -195,7 +201,12 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers()
-    authApi.getCurrentUser().then(user => setCurrentUser(user))
+    authApi.getCurrentUser().then(user => {
+      setCurrentUser(user)
+      if (user?.organizations && user.organizations.length > 0) {
+        setUserOrgs(user.organizations)
+      }
+    })
   }, [])
 
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -295,6 +306,17 @@ export default function CustomersPage() {
     }
   }
 
+  // Resolve which org to use for customer creation
+  const resolveOrgForCreate = (): UserOrg | null => {
+    if (userOrgs.length === 1) return userOrgs[0]
+    const selectedOrg = getSelectedOrg()
+    if (selectedOrg && selectedOrg !== 'all') {
+      const org = userOrgs.find(o => o.id.toString() === selectedOrg)
+      if (org) return org
+    }
+    return null // means "all" or unknown — need user to pick
+  }
+
   const handleAddCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!addFormData.name.trim() || !addFormData.phone.trim() || !addFormData.address.trim() || !addFormData.city) {
@@ -343,15 +365,28 @@ export default function CustomersPage() {
       }
     }
 
+    // For multi-org users, show confirmation dialog
+    if (userOrgs.length > 1 && !showOrgConfirm) {
+      const resolved = resolveOrgForCreate()
+      setSelectedOrgForCreate(resolved)
+      setShowOrgConfirm(true)
+      return
+    }
+
     try {
       setSubmitting(true)
-      const created = await customersApi.create({
+      const createData: any = {
         name: addFormData.name.trim(),
         phone_number: addFormData.phone.trim(),
         alternate_phone: addFormData.alternate_phone.trim() || undefined,
         address: addFormData.address.trim(),
         area: addFormData.city,
-      })
+      }
+      // Pass explicit org when multi-org user
+      if (selectedOrgForCreate) {
+        createData.organization = selectedOrgForCreate.id
+      }
+      const created = await customersApi.create(createData)
 
       const newId = created?.id
       if (addLoanWithCustomer && newId && !isNaN(principal) && principal > 0) {
@@ -433,11 +468,14 @@ export default function CustomersPage() {
       setMaxDays('')
       setAllowAsalPaymentAnytime(true)
       setShowForm(false)
+      setShowOrgConfirm(false)
+      setSelectedOrgForCreate(null)
       await fetchCustomers()
     } catch (err: any) {
       alert(err.message || 'Failed to add customer')
     } finally {
       setSubmitting(false)
+      setShowOrgConfirm(false)
     }
   }
 
@@ -1187,6 +1225,98 @@ export default function CustomersPage() {
                     </Button>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Organization Confirmation Dialog */}
+        {showOrgConfirm && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => { setShowOrgConfirm(false) }}>
+            <Card className="w-full max-w-md border-border/50 shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-primary/10">
+                    <Building2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Confirm Organization</CardTitle>
+                    <CardDescription>This customer will be added to:</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {selectedOrgForCreate ? (
+                  /* Specific org selected — show confirmation */
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
+                    <div className="p-3 rounded-lg bg-primary/15">
+                      <Building2 className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-lg font-bold text-foreground truncate">{selectedOrgForCreate.name}</p>
+                      <p className="text-sm text-muted-foreground">Code: {selectedOrgForCreate.code}</p>
+                    </div>
+                  </div>
+                ) : (
+                  /* "All orgs" selected — ask user to pick one */
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                      <p className="text-sm text-amber-700 dark:text-amber-400">
+                        You have <span className="font-semibold">&quot;All Organizations&quot;</span> selected. Please choose which organization to add this customer to.
+                      </p>
+                    </div>
+                    <Select value={''} onValueChange={(v) => {
+                      const org = userOrgs.find(o => o.id.toString() === v)
+                      if (org) setSelectedOrgForCreate(org)
+                    }}>
+                      <SelectTrigger className="border-border/50 h-12">
+                        <SelectValue placeholder="Select an organization..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {userOrgs.map(org => (
+                          <SelectItem key={org.id} value={org.id.toString()}>
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                              <span className="font-medium">{org.name}</span>
+                              <span className="text-muted-foreground text-xs">({org.code})</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Customer summary */}
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/30 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer Details</p>
+                  <p className="text-sm font-semibold text-foreground">{addFormData.name}</p>
+                  <p className="text-xs text-muted-foreground">{addFormData.phone} · {addFormData.city}</p>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <Button
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11"
+                    disabled={!selectedOrgForCreate || submitting}
+                    onClick={() => {
+                      // Trigger the actual submit by calling handleAddCustomer again
+                      // showOrgConfirm is already true, so it will skip the dialog check
+                      const fakeEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>
+                      handleAddCustomer(fakeEvent)
+                    }}
+                  >
+                    <Building2 className="w-4 h-4 mr-2" />
+                    {submitting ? 'Adding...' : 'Confirm & Add'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-11"
+                    onClick={() => { setShowOrgConfirm(false); setSelectedOrgForCreate(null) }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
