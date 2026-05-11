@@ -1252,10 +1252,19 @@ export default function CustomersPage() {
                     <div className="p-3 rounded-lg bg-primary/15">
                       <Building2 className="w-8 h-8 text-primary" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-lg font-bold text-foreground truncate">{selectedOrgForCreate.name}</p>
                       <p className="text-sm text-muted-foreground">Code: {selectedOrgForCreate.code}</p>
                     </div>
+                    {userOrgs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrgForCreate(null)}
+                        className="text-xs font-medium text-primary hover:text-primary/80 underline underline-offset-2 flex-shrink-0 transition-colors"
+                      >
+                        Change
+                      </button>
+                    )}
                   </div>
                 ) : (
                   /* "All orgs" selected — ask user to pick one */
