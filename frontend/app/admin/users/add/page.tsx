@@ -17,6 +17,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { authApi } from '@/lib/api'
 import { ArrowLeft, Loader2, Plus, Pencil, Ban, CheckCircle, Search, Building2, MessageCircle, Mail, Copy, RefreshCw, Link2 } from 'lucide-react'
 
@@ -57,6 +58,7 @@ export default function EmployerManagementPage() {
         phone: string
         email: string
         inviteToken: string
+        role: string
     } | null>(null)
 
     // Form Data
@@ -72,8 +74,9 @@ export default function EmployerManagementPage() {
     // Selected org IDs for multi-org assignment
     const [selectedOrgIds, setSelectedOrgIds] = useState<number[]>([])
 
-    // Owner's organizations
+    // Owner's organizations and primary owner status
     const [ownerOrgs, setOwnerOrgs] = useState<Organization[]>([])
+    const [isPrimaryOwner, setIsPrimaryOwner] = useState(false)
 
     const fetchUsers = async () => {
         setLoading(true)
@@ -100,6 +103,8 @@ export default function EmployerManagementPage() {
             if (user?.organizations) {
                 setOwnerOrgs(user.organizations)
             }
+            // Check if this owner is a primary owner (can add other owners)
+            setIsPrimaryOwner(user?.is_primary_owner || user?.is_superuser || false)
         } catch (err) {
             console.error('Failed to fetch orgs:', err)
         }
@@ -172,6 +177,7 @@ export default function EmployerManagementPage() {
                     phone: formData.phone_number,
                     email: formData.email,
                     inviteToken: result.invite_token,
+                    role: formData.role,
                 })
                 fetchUsers()
             }
@@ -432,7 +438,29 @@ export default function EmployerManagementPage() {
                         </div>
 
 
-                        {/* Role is always employee, hidden from UI */}
+                        {/* Role selector — only shown to primary owners who can add other owners */}
+                        {!editingUser && isPrimaryOwner && (
+                            <div className="space-y-2">
+                                <Label>Role *</Label>
+                                <Select
+                                    value={formData.role}
+                                    onValueChange={(val) => setFormData({ ...formData, role: val })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="employee">Employee</SelectItem>
+                                        <SelectItem value="owner">Owner</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {formData.role === 'owner' && (
+                                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                                        ⚠️ This owner will be able to add employees but not other owners.
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Org Selector — shown only for owners with 2+ orgs, on create only */}
                         {!editingUser && ownerOrgs.length > 1 && (
@@ -489,7 +517,7 @@ export default function EmployerManagementPage() {
                             </Button>
                             <Button type="submit" disabled={formLoading || (!editingUser && ownerOrgs.length > 1 && selectedOrgIds.length === 0)}>
                                 {formLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                {editingUser ? 'Save Changes' : 'Create Employer'}
+                                {editingUser ? 'Save Changes' : formData.role === 'owner' ? 'Create Owner' : 'Create Employee'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -502,7 +530,7 @@ export default function EmployerManagementPage() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <CheckCircle className="w-5 h-5 text-green-500" />
-                            Employee Created!
+                            {inviteResult?.role === 'owner' ? 'Owner Created!' : 'Employee Created!'}
                         </DialogTitle>
                         <DialogDescription>
                             Share the invite link so {inviteResult?.firstName} can set their password.

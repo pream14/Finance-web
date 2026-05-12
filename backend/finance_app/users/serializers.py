@@ -55,6 +55,18 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not attrs.get('first_name'):
             raise serializers.ValidationError({"first_name": "First name is required for username generation."})
+
+        # Enforce owner-creation permissions
+        role = attrs.get('role', 'employee')
+        request = self.context.get('request')
+        if role == 'owner' and request and request.user.is_authenticated:
+            creator = request.user
+            # Only superusers and primary owners can create owners
+            if not creator.is_superuser and not getattr(creator, 'is_primary_owner', False):
+                raise serializers.ValidationError({
+                    "role": "You don't have permission to add owners. Only primary owners can add other owners."
+                })
+
         return attrs
 
     def create(self, validated_data):
@@ -62,6 +74,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
         first_name = validated_data.get('first_name')
         organization_ids = validated_data.pop('organization_ids', [])
         role = validated_data.get('role', 'employee')
+
+        # Determine if this new owner should be a primary owner
+        # Superusers create primary owners; primary owners create secondary owners
+        request = self.context.get('request')
+        is_primary = False
+        if role == 'owner' and request and request.user.is_authenticated:
+            is_primary = request.user.is_superuser  # Only superadmin-created owners are primary
 
         # Generate unique username from first_name with counter suffix
         base_username = first_name.lower().strip()
@@ -89,6 +108,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 last_name=validated_data.get('last_name', ''),
                 email=validated_data.get('email', ''),
                 role=role,
+                is_primary_owner=is_primary,
                 must_change_password=False,  # They set a password, no need to change
             )
         else:
@@ -101,6 +121,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 last_name=validated_data.get('last_name', ''),
                 email=validated_data.get('email', ''),
                 role=role,
+                is_primary_owner=is_primary,
                 must_change_password=True,
             )
             user.set_unusable_password()

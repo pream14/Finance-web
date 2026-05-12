@@ -12,6 +12,10 @@ class User(AbstractUser):
     
     phone_number = models.CharField(max_length=15, unique=True, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
+    is_primary_owner = models.BooleanField(
+        default=False,
+        help_text='Primary owners (created by superadmin) can add other owners. Secondary owners cannot.'
+    )
     area = models.CharField(max_length=50, blank=True, null=True)
     must_change_password = models.BooleanField(
         default=True,

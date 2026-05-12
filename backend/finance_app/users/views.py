@@ -30,6 +30,7 @@ def current_user(request):
         'full_name': user.get_full_name() or user.username,
         'role': getattr(user, 'role', 'employee'),
         'is_superuser': user.is_superuser,
+        'is_primary_owner': getattr(user, 'is_primary_owner', False),
         'must_change_password': getattr(user, 'must_change_password', False),
         'organizations': OrganizationMinimalSerializer(orgs, many=True).data,
     })
