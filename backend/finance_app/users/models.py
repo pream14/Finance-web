@@ -10,7 +10,7 @@ class User(AbstractUser):
         ('employee', 'Employee'),
     )
     
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    phone_number = models.CharField(max_length=15, unique=True, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     area = models.CharField(max_length=50, blank=True, null=True)
     must_change_password = models.BooleanField(

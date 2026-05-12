@@ -16,7 +16,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { authApi } from '@/lib/api'
 import { ArrowLeft, Loader2, Plus, Pencil, Ban, CheckCircle, Search, Building2, MessageCircle, Mail, Copy, RefreshCw, Link2 } from 'lucide-react'
 
@@ -66,9 +66,11 @@ export default function EmployerManagementPage() {
         phone_number: '',
         email: '',
         role: 'employee',
-        password: '', // Optional for edit, auto-generated (phone) for create
-        organization_id: '', // Which org to assign employee to
+        password: '',
     })
+
+    // Selected org IDs for multi-org assignment
+    const [selectedOrgIds, setSelectedOrgIds] = useState<number[]>([])
 
     // Owner's organizations
     const [ownerOrgs, setOwnerOrgs] = useState<Organization[]>([])
@@ -111,8 +113,9 @@ export default function EmployerManagementPage() {
             email: '',
             role: 'employee',
             password: '',
-            organization_id: ownerOrgs.length === 1 ? String(ownerOrgs[0].id) : '',
         })
+        // Auto-select all orgs if owner has only 1, otherwise clear
+        setSelectedOrgIds(ownerOrgs.length === 1 ? [ownerOrgs[0].id] : [])
         setEditingUser(null)
         setFormError(null)
         setInviteResult(null)
@@ -132,8 +135,8 @@ export default function EmployerManagementPage() {
             email: user.email || '',
             role: user.role,
             password: '',
-            organization_id: '',
         })
+        setSelectedOrgIds([])
         setFormError(null)
         setIsDialogOpen(true)
     }
@@ -156,11 +159,10 @@ export default function EmployerManagementPage() {
                 // Create — no password needed, invite link will be generated
                 const createData: any = { ...formData }
                 delete createData.password
-                // Pass org IDs
-                if (createData.organization_id) {
-                    createData.organization_ids = [parseInt(createData.organization_id)]
+                // Pass selected org IDs
+                if (selectedOrgIds.length > 0) {
+                    createData.organization_ids = selectedOrgIds
                 }
-                delete createData.organization_id
                 const result = await authApi.register(createData)
 
                 // Show invite share dialog
@@ -435,25 +437,34 @@ export default function EmployerManagementPage() {
                         {/* Org Selector — shown only for owners with 2+ orgs, on create only */}
                         {!editingUser && ownerOrgs.length > 1 && (
                             <div className="space-y-2">
-                                <Label htmlFor="org">Assign to Organization *</Label>
-                                <Select
-                                    value={formData.organization_id}
-                                    onValueChange={(val) => setFormData({ ...formData, organization_id: val })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select organization" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {ownerOrgs.map(org => (
-                                            <SelectItem key={org.id} value={String(org.id)}>
-                                                <div className="flex items-center gap-2">
-                                                    <Building2 className="h-3 w-3" />
-                                                    {org.name}
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label>Assign to Organization(s) *</Label>
+                                <div className="border border-border/50 rounded-lg p-3 space-y-2">
+                                    {ownerOrgs.map(org => (
+                                        <label
+                                            key={org.id}
+                                            className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                                        >
+                                            <Checkbox
+                                                checked={selectedOrgIds.includes(org.id)}
+                                                onCheckedChange={(checked) => {
+                                                    setSelectedOrgIds(prev =>
+                                                        checked
+                                                            ? [...prev, org.id]
+                                                            : prev.filter(id => id !== org.id)
+                                                    )
+                                                }}
+                                            />
+                                            <div className="flex items-center gap-2">
+                                                <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="text-sm font-medium">{org.name}</span>
+                                                <span className="text-xs text-muted-foreground">({org.code})</span>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                {selectedOrgIds.length === 0 && (
+                                    <p className="text-xs text-destructive">Select at least one organization</p>
+                                )}
                             </div>
                         )}
 
@@ -476,7 +487,7 @@ export default function EmployerManagementPage() {
                             <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={formLoading}>
+                            <Button type="submit" disabled={formLoading || (!editingUser && ownerOrgs.length > 1 && selectedOrgIds.length === 0)}>
                                 {formLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 {editingUser ? 'Save Changes' : 'Create Employer'}
                             </Button>

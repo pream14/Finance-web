@@ -29,9 +29,32 @@ class UserCreateSerializer(serializers.ModelSerializer):
             return token.token
         return None
 
+    def validate_phone_number(self, value):
+        """Ensure phone number is globally unique across all users."""
+        if not value:
+            raise serializers.ValidationError("Phone number is required.")
+
+        # Strip whitespace/dashes for consistent matching
+        cleaned = value.strip()
+
+        existing = User.objects.filter(phone_number=cleaned).first()
+        if existing:
+            # Build a helpful error message showing who already has this number
+            name = existing.get_full_name() or existing.username
+            role = existing.role or 'user'
+            orgs = list(existing.organizations.values_list('name', flat=True))
+            org_info = f" in {', '.join(orgs)}" if orgs else ""
+
+            raise serializers.ValidationError(
+                f"This phone number is already registered to {name} ({role}{org_info}). "
+                f"Each user must have a unique phone number."
+            )
+
+        return cleaned
+
     def validate(self, attrs):
-        if not attrs.get('phone_number'):
-            raise serializers.ValidationError({"phone_number": "Phone number is required."})
+        if not attrs.get('first_name'):
+            raise serializers.ValidationError({"first_name": "First name is required for username generation."})
         return attrs
 
     def create(self, validated_data):
@@ -39,18 +62,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         first_name = validated_data.get('first_name')
         organization_ids = validated_data.pop('organization_ids', [])
         role = validated_data.get('role', 'employee')
-        
-        if not first_name:
-             raise serializers.ValidationError({"first_name": "First name is required for username generation."})
-
-        # Check phone number uniqueness — only block if same phone exists for a non-employee
-        existing_by_phone = User.objects.filter(phone_number=phone_number)
-        if existing_by_phone.exists():
-            existing_user = existing_by_phone.first()
-            if existing_user.role != 'employee' and role != 'employee':
-                raise serializers.ValidationError({
-                    "phone_number": f"A user with this phone number already exists ({existing_user.first_name}, role: {existing_user.role})."
-                })
 
         # Generate unique username from first_name with counter suffix
         base_username = first_name.lower().strip()
@@ -115,6 +126,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserListSerializer(serializers.ModelSerializer):
+    """Used for listing and updating users."""
     organizations = OrganizationMinimalSerializer(many=True, read_only=True)
     organization_ids = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False,
@@ -126,6 +138,32 @@ class UserListSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'email', 'role', 'is_active', 'organizations', 'organization_ids']
         read_only_fields = ['username']
 
+    def validate_phone_number(self, value):
+        """Ensure phone number is globally unique (excluding the current user being edited)."""
+        if not value:
+            return value
+
+        cleaned = value.strip()
+
+        # When editing, exclude the current user from the uniqueness check
+        existing = User.objects.filter(phone_number=cleaned)
+        if self.instance:
+            existing = existing.exclude(id=self.instance.id)
+
+        match = existing.first()
+        if match:
+            name = match.get_full_name() or match.username
+            role = match.role or 'user'
+            orgs = list(match.organizations.values_list('name', flat=True))
+            org_info = f" in {', '.join(orgs)}" if orgs else ""
+
+            raise serializers.ValidationError(
+                f"This phone number is already registered to {name} ({role}{org_info}). "
+                f"Each user must have a unique phone number."
+            )
+
+        return cleaned
+
     def update(self, instance, validated_data):
         org_ids = validated_data.pop('organization_ids', None)
         instance = super().update(instance, validated_data)
@@ -134,4 +172,3 @@ class UserListSerializer(serializers.ModelSerializer):
             orgs = Organization.objects.filter(id__in=org_ids)
             instance.organizations.set(orgs)
         return instance
-
