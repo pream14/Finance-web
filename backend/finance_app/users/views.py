@@ -237,3 +237,91 @@ def resend_invite(request, user_id):
         'expires_at': invite.expires_at.isoformat(),
     })
 
+
+# ─── Self-Service Signup ──────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def self_signup(request):
+    """Public endpoint: create a new Organization + Owner account.
+    
+    No authentication required — this is the self-service signup flow.
+    """
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from rest_framework.authtoken.models import Token
+    from organizations.models import Organization
+
+    org_name = (request.data.get('org_name') or '').strip()
+    first_name = (request.data.get('first_name') or '').strip()
+    last_name = (request.data.get('last_name') or '').strip()
+    phone_number = (request.data.get('phone_number') or '').strip()
+    email = (request.data.get('email') or '').strip()
+    password = request.data.get('password', '')
+
+    # Validate required fields
+    if not org_name:
+        return Response({'error': 'Organization name is required.'}, status=400)
+    if not first_name:
+        return Response({'error': 'First name is required.'}, status=400)
+    if not phone_number:
+        return Response({'error': 'Phone number is required.'}, status=400)
+    if not password:
+        return Response({'error': 'Password is required.'}, status=400)
+
+    # Check phone number uniqueness
+    if User.objects.filter(phone_number=phone_number).exists():
+        return Response({'error': 'This phone number is already registered. Please login instead.'}, status=400)
+
+    # Validate password strength
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return Response({'error': ' '.join(e.messages)}, status=400)
+
+    # Generate unique username from first_name
+    base_username = first_name.lower().replace(' ', '')
+    username = base_username
+    counter = 2
+    while User.objects.filter(username=username).exists():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    # Create organization
+    org = Organization.objects.create(name=org_name)
+
+    # Create user as primary owner
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        phone_number=phone_number,
+        email=email,
+        role='owner',
+        is_primary_owner=True,
+        must_change_password=False,
+    )
+
+    # Link user to organization
+    user.organizations.add(org)
+
+    # Create auth token for auto-login
+    token = Token.objects.create(user=user)
+
+    # Log the event
+    try:
+        from .auth import _log_security_event, _get_client_ip
+        _log_security_event('USER_CREATED', username, _get_client_ip(request), f'Self-signup: org={org_name}')
+    except Exception:
+        pass
+
+    return Response({
+        'token': token.key,
+        'user_id': user.id,
+        'username': user.username,
+        'org_id': org.id,
+        'org_name': org.name,
+        'message': f'Welcome! Your organization "{org_name}" has been created.',
+    }, status=201)

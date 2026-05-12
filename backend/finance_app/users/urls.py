@@ -11,4 +11,6 @@ urlpatterns = [
     path('invite/<str:token>/', views.validate_invite, name='validate_invite'),
     path('invite/<str:token>/accept/', views.accept_invite, name='accept_invite'),
     path('<int:user_id>/resend-invite/', views.resend_invite, name='resend_invite'),
+    # Self-service signup (no auth required)
+    path('signup/', views.self_signup, name='self_signup'),
 ]

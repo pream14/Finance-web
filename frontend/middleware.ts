@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip auth pages, API routes, static assets, and the root redirect
+  // Skip auth pages, API routes, static assets, landing page, and signup
   if (
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/api/') ||
@@ -11,6 +11,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/icon') ||
     pathname.startsWith('/apple-icon') ||
+    pathname.startsWith('/logo') ||
     pathname === '/'
   ) {
     return NextResponse.next();
