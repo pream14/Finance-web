@@ -625,9 +625,9 @@ export default function SuperAdminPage() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Phone Number *</label>
+              <label className="text-sm font-medium mb-1 block">Whatsapp Number *</label>
               <Input
-                placeholder="Phone number"
+                placeholder="Whatsapp number"
                 value={ownerForm.phone_number}
                 onChange={e => setOwnerForm(prev => ({ ...prev, phone_number: e.target.value }))}
               />

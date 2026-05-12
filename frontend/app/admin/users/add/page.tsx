@@ -407,7 +407,7 @@ export default function EmployerManagementPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="phone">Phone Number *</Label>
+                            <Label htmlFor="phone">Whatsapp Number *</Label>
                             <Input
                                 id="phone"
                                 type="tel"

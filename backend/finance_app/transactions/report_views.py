@@ -280,9 +280,9 @@ class ReportDownloadView(APIView):
         if fmt == 'pdf':
             return self._generate_pdf(filename, report_type, summary, breakdown, data['filters'], data)
         else:
-            return self._generate_csv(filename, report_type, summary, breakdown)
+            return self._generate_csv(filename, report_type, summary, breakdown, data)
 
-    def _generate_csv(self, filename, report_type, summary, breakdown):
+    def _generate_csv(self, filename, report_type, summary, breakdown, full_data=None):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
         writer = csv.writer(response)

@@ -107,10 +107,12 @@ def change_password(request):
 
 # ─── Invite Token Endpoints ──────────────────────────────────────────────────
 from rest_framework.permissions import AllowAny
+from rest_framework.decorators import authentication_classes
 from .models import InviteToken
 
 
 @api_view(['GET'])
+@authentication_classes([])  # No auth needed — skip CSRF enforcement
 @permission_classes([AllowAny])
 def validate_invite(request, token):
     """Check if an invite token is valid. Returns user info if valid.
@@ -149,6 +151,7 @@ def validate_invite(request, token):
 
 
 @api_view(['POST'])
+@authentication_classes([])  # No auth needed — skip CSRF enforcement
 @permission_classes([AllowAny])
 def accept_invite(request, token):
     """Accept an invite: set the user's password and mark token as used.
