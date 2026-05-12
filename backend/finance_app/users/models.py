@@ -84,4 +84,37 @@ class InviteToken(models.Model):
     class Meta:
         db_table = 'users_invitetoken'
         ordering = ['-created_at']
+
+
+class SecurityLog(models.Model):
+    """Audit log for security-relevant events."""
+    EVENT_TYPES = (
+        ('LOGIN_SUCCESS', 'Login Success'),
+        ('LOGIN_FAILED', 'Login Failed'),
+        ('LOGIN_BLOCKED', 'Login Blocked (Lockout)'),
+        ('LOGIN_INACTIVE', 'Login Attempt on Inactive Account'),
+        ('PASSWORD_CHANGED', 'Password Changed'),
+        ('PASSWORD_RESET', 'Password Reset via Invite'),
+        ('USER_CREATED', 'User Created'),
+        ('USER_DEACTIVATED', 'User Deactivated'),
+        ('TOKEN_ROTATED', 'Token Rotated'),
+    )
+
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES)
+    username = models.CharField(max_length=150)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    details = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'users_securitylog'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['event_type', 'created_at']),
+            models.Index(fields=['username', 'created_at']),
+        ]
+
+    def __str__(self):
+        status = self.get_event_type_display()
+        return f"[{status}] {self.username} at {self.created_at}"
 

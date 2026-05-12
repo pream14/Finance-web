@@ -16,11 +16,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Read the role cookie set at login
+  // Read the role cookie AND auth token cookie
   const userRole = request.cookies.get('user_role')?.value;
+  const authToken = request.cookies.get('auth_token')?.value;
 
-  // No role cookie = not logged in → redirect to login
-  if (!userRole) {
+  // SECURITY: Both cookies must be present.
+  // user_role alone can be spoofed via DevTools.
+  // auth_token proves the user actually logged in through the proper flow.
+  if (!userRole || !authToken) {
     const loginUrl = new URL('/auth/login', request.url);
     return NextResponse.redirect(loginUrl);
   }

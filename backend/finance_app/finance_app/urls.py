@@ -5,17 +5,16 @@ The `urlpatterns` list routes URLs to views. For more information    https://doc
 """
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework.authtoken import views as auth_views
-from django.views.decorators.csrf import csrf_exempt
+from users.auth import secure_login
 
 urlpatterns = [
-    path('sysadmin/', admin.site.urls),
+    path('sysadmin/', admin.site.urls),  # Non-standard path, requires superuser login
     path('api/organizations/', include('organizations.urls')),
     path('api/customers/', include('customers.url')),
     path('api/transactions/', include('transactions.url')),
     path('api/users/', include('users.urls')),
     path('api/', include('expenses.url')),
     path('api-auth/', include('rest_framework.urls')),
-    # Wrap the obtain_auth_token with csrf_exempt
-    path('api-auth/token/', csrf_exempt(auth_views.obtain_auth_token)),
+    # Custom secure login with lockout + token rotation + audit logging
+    path('api-auth/token/', secure_login),
 ]

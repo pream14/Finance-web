@@ -229,6 +229,15 @@ class TransactionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(created_at__date__lte=end_date)
         
         return queryset.select_related('loan', 'loan__customer', 'created_by').order_by('-created_at')
+
+    def get_object(self):
+        """Object-level permission: verify the transaction belongs to the user's org."""
+        obj = super().get_object()
+        user_org_ids = self._get_user_org_ids()
+        if obj.loan and obj.loan.organization_id not in user_org_ids:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to access this transaction.")
+        return obj
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

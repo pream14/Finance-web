@@ -115,8 +115,8 @@ TEMPLATES = [
 # WSGI application
 WSGI_APPLICATION = 'finance_app.wsgi.application'  # Adjust if your project name is different
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+# CORS settings — NEVER allow all origins on a finance app
+CORS_ALLOW_ALL_ORIGINS = False  # Hardcoded: env var override removed for safety
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 

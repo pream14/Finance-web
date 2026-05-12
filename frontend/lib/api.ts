@@ -423,8 +423,9 @@ export const authApi = {
     } catch (e) {
       // Best-effort - continue with client-side cleanup
     }
-    // Also clear the user_role cookie from client side as a fallback
+    // Also clear cookies from client side as a fallback
     document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     removeAuthToken();
   },
 };

@@ -27,10 +27,13 @@ export default function LoginPage() {
       await authApi.login(username.trim(), password)
       const user = await authApi.getCurrentUser()
       const role = String(user?.role || '').toLowerCase()
-      // Set user_role cookie so Next.js middleware can enforce route access
-      const isAdmin = role === 'owner' || role === 'admin'
-      // Store the actual role so middleware can distinguish owner (for /superadmin)
+
+      // Set user_role cookie for middleware route protection
       document.cookie = `user_role=${role}; path=/; max-age=86400; samesite=lax`
+      // Set auth_token cookie so middleware can verify the user is actually logged in
+      // This prevents role cookie spoofing — middleware checks BOTH cookies exist
+      const token = localStorage.getItem('auth_token') || ''
+      document.cookie = `auth_token=${token}; path=/; max-age=86400; samesite=lax`
 
       // First login: force password change before accessing anything
       if (user?.must_change_password) {
@@ -38,6 +41,7 @@ export default function LoginPage() {
         return
       }
 
+      const isAdmin = role === 'owner' || role === 'admin'
       if (isAdmin) {
         router.push('/admin/dashboard')
       } else {

@@ -202,6 +202,13 @@ def accept_invite(request, token):
     # Mark token as used
     invite.mark_used()
 
+    # Log the security event
+    try:
+        from .auth import _log_security_event, _get_client_ip
+        _log_security_event('PASSWORD_RESET', user.username, _get_client_ip(request), 'Password set via invite token')
+    except Exception:
+        pass  # Don't fail the request if logging fails
+
     return Response({
         'status': 'success',
         'message': 'Password set successfully! You can now login.',
