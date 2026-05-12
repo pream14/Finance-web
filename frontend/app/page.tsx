@@ -46,7 +46,7 @@ const FEATURES = [
   {
     icon: IndianRupee,
     title: 'Loan Management',
-    description: 'Create and manage DC Loans, Monthly Interest Loans, and DL Loans with automatic interest calculations.',
+    description: 'Create and manage Daily Collection Loans, Monthly Interest Loans, and Daily interest Loans with automatic interest calculations.',
     color: 'text-blue-600',
     bg: 'bg-blue-500/10',
   },
@@ -445,45 +445,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Testimonials ─── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <RevealSection className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
-              Trusted by Finance Businesses
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              See what our users have to say.
-            </p>
-          </RevealSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {TESTIMONIALS.map((t, i) => (
-              <RevealSection key={t.name} delay={i * 100}>
-                <Card className="border-border/50 shadow-sm h-full">
-                  <CardContent className="pt-6">
-                    <div className="flex gap-1 mb-4">
-                      {Array.from({ length: t.rating }).map((_, j) => (
-                        <Star key={j} className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground leading-relaxed mb-4">"{t.text}"</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-bold text-primary">{t.name.split(' ').map(n => n[0]).join('')}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{t.name}</p>
-                        <p className="text-xs text-muted-foreground">{t.role}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </RevealSection>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ─── CTA Banner ─── */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary/5">
