@@ -106,6 +106,21 @@ async function apiRequest<T>(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
 
+    // Handle subscription expired — redirect to billing
+    if (response.status === 403 && error.subscription_expired) {
+      if (typeof window !== 'undefined') {
+        const msg = error.error || 'Your subscription has expired. Please upgrade to continue.';
+        alert(msg);
+        window.location.href = '/admin/billing';
+      }
+      throw new Error(error.error || 'Subscription expired');
+    }
+
+    // Handle plan limit exceeded
+    if (response.status === 403 && error.limit_exceeded) {
+      throw new Error(error.error || 'Plan limit exceeded. Please upgrade.');
+    }
+
     // Check for common error fields
     const errorMessage = error.error || error.detail;
 

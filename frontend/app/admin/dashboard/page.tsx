@@ -128,6 +128,7 @@ export default function AdminDashboard() {
   const [expandedOverdue, setExpandedOverdue] = useState(false)
   const [expandedAlmostPaid, setExpandedAlmostPaid] = useState(false)
   const [isSuperUser, setIsSuperUser] = useState(false)
+  const [subscription, setSubscription] = useState<any>(null)
 
   // Collection dialog state
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
@@ -187,7 +188,10 @@ export default function AdminDashboard() {
     fetchDashboardStats()
     // Check if user is superuser
     authApi.getCurrentUser().then(u => {
-      if (u && !cancelled) setIsSuperUser(!!u.is_superuser)
+      if (u && !cancelled) {
+        setIsSuperUser(!!u.is_superuser)
+        if (u.subscription) setSubscription(u.subscription)
+      }
     }).catch(() => {})
     return () => { cancelled = true }
   }, [start, end])
@@ -492,6 +496,40 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        {/* Subscription Banner */}
+        {subscription && subscription.is_trial && subscription.days_remaining <= 10 && (
+          <div className={`mb-6 rounded-lg border px-4 py-3 flex items-center justify-between flex-wrap gap-3 ${
+            subscription.days_remaining <= 3 ? 'bg-red-500/5 border-red-500/40' : 'bg-blue-500/5 border-blue-500/40'
+          }`}>
+            <div className="flex items-center gap-3">
+              <Clock className={`w-5 h-5 ${subscription.days_remaining <= 3 ? 'text-red-500' : 'text-blue-500'}`} />
+              <span className="text-sm font-medium text-foreground">
+                {subscription.days_remaining === 0
+                  ? 'Your free trial expires today!'
+                  : `${subscription.days_remaining} day${subscription.days_remaining !== 1 ? 's' : ''} left in your free trial`}
+              </span>
+            </div>
+            <Link href="/admin/billing">
+              <Button size="sm" variant={subscription.days_remaining <= 3 ? 'default' : 'outline'} className={subscription.days_remaining <= 3 ? 'bg-red-600 hover:bg-red-700 text-white' : ''}>
+                <CreditCard className="w-4 h-4 mr-1" /> Upgrade Now
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {subscription && subscription.is_read_only && (
+          <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              <span className="text-sm font-medium text-red-600">Your subscription has expired — account is read-only</span>
+            </div>
+            <Link href="/admin/billing">
+              <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+                <CreditCard className="w-4 h-4 mr-1" /> Upgrade Now
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Priority Alerts Section */}
         {dashboardStats && (
