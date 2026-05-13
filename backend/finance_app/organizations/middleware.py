@@ -19,6 +19,7 @@ EXEMPT_PATHS = (
     '/api/users/change-password/',
     '/sysadmin/',          # Django admin
     '/api/organizations/subscription/',  # Billing page (must work even when expired)
+    '/api/organizations/payment/',  # Payment (must work even when expired)
     '/api/organizations/',  # Org listing (needed for org selector) — must be last
 )
 

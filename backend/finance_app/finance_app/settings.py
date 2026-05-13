@@ -207,3 +207,7 @@ if not DEBUG:
 
     # Clickjacking protection
     X_FRAME_OPTIONS = 'DENY'
+
+# ─── Razorpay Payment Integration ─────────────────────────────────────────────
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
