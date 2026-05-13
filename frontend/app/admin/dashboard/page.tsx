@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key, Menu } from 'lucide-react'
+import { TrendingUp, DollarSign, BarChart3, Calendar, AlertTriangle, Clock, CheckCircle, Activity, Bell, Wallet, IndianRupee, Settings, LogOut, UserPlus, Key, Menu, CreditCard } from 'lucide-react'
 import { transactionsApi, expensesApi, incomeApi, authApi, dashboardApi } from '@/lib/api'
 import OrgSelector from '@/components/org-selector'
 
@@ -407,6 +407,13 @@ export default function AdminDashboard() {
                   </SheetClose>
                   <SheetClose asChild>
                     <Button variant="ghost" asChild className="w-full justify-start">
+                      <Link href="/admin/billing" className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-emerald-500" /> Plan & Billing
+                      </Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button variant="ghost" asChild className="w-full justify-start">
                       <Link href="/auth/change-password" className="flex items-center gap-2">
                         <Key className="h-4 w-4" /> Change Password
                       </Link>
@@ -458,6 +465,12 @@ export default function AdminDashboard() {
                   <Link href="/admin/users/add" className="flex items-center gap-2">
                     <UserPlus className="h-4 w-4" />
                     Add Staff
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/billing" className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-emerald-500" />
+                    Plan & Billing
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

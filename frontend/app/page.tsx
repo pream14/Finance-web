@@ -145,7 +145,7 @@ const PRICING = [
   },
   {
     name: 'Business',
-    price: '1,999',
+    price: '1,500',
     period: '/month',
     description: 'For large operations with unlimited scale',
     features: [

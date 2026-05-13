@@ -21,6 +21,31 @@ def current_user(request):
     """Return the authenticated user's profile including organization info."""
     user = request.user
     orgs = user.organizations.all()
+
+    # Get subscription info for the user's primary org
+    subscription_data = None
+    if orgs.exists():
+        try:
+            from organizations.models import Subscription
+            sub = Subscription.objects.get(organization=orgs.first())
+            sub.check_and_expire()  # Auto-expire if needed
+            subscription_data = {
+                'plan': sub.plan,
+                'plan_display': sub.get_plan_display(),
+                'status': sub.status,
+                'status_display': sub.get_status_display(),
+                'is_trial': sub.is_trial,
+                'is_active': sub.is_active,
+                'is_read_only': sub.is_read_only,
+                'days_remaining': sub.days_remaining,
+                'trial_ends_at': sub.trial_ends_at.isoformat() if sub.trial_ends_at else None,
+                'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+                'max_users': sub.max_users,
+                'max_customers': sub.max_customers,
+            }
+        except Exception:
+            pass
+
     return Response({
         'id': user.id,
         'username': user.username,
@@ -33,6 +58,7 @@ def current_user(request):
         'is_primary_owner': getattr(user, 'is_primary_owner', False),
         'must_change_password': getattr(user, 'must_change_password', False),
         'organizations': OrganizationMinimalSerializer(orgs, many=True).data,
+        'subscription': subscription_data,
     })
 
 from rest_framework import generics
@@ -291,6 +317,10 @@ def self_signup(request):
     # Create organization
     org = Organization.objects.create(name=org_name)
 
+    # Create 10-day free trial subscription
+    from organizations.models import Subscription
+    subscription = Subscription.create_trial(org)
+
     # Create user as primary owner
     user = User.objects.create_user(
         username=username,
@@ -323,5 +353,11 @@ def self_signup(request):
         'username': user.username,
         'org_id': org.id,
         'org_name': org.name,
-        'message': f'Welcome! Your organization "{org_name}" has been created.',
+        'subscription': {
+            'plan': subscription.plan,
+            'status': subscription.status,
+            'trial_ends_at': subscription.trial_ends_at.isoformat() if subscription.trial_ends_at else None,
+            'days_remaining': subscription.days_remaining,
+        },
+        'message': f'Welcome! Your organization "{org_name}" has been created with a 10-day free trial.',
     }, status=201)

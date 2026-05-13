@@ -71,6 +71,7 @@ MIDDLEWARE = [
     'finance_app.settings.ExemptCSRFMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'organizations.middleware.SubscriptionMiddleware',  # Must be after AuthenticationMiddleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
