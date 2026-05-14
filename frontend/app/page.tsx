@@ -203,7 +203,7 @@ export default function LandingPage() {
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
               <IndianRupee className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">Name</span>
+            <span className="text-xl font-bold text-foreground">Senthur Tech</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
@@ -482,7 +482,7 @@ export default function LandingPage() {
                 <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                   <IndianRupee className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <span className="text-xl font-bold text-foreground">Name</span>
+                <span className="text-xl font-bold text-foreground">Senthur Tech</span>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed max-w-md">
                 The complete finance management platform for money lending businesses. Manage loans, track collections, and grow your business digitally.
