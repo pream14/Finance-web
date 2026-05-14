@@ -105,18 +105,8 @@ export default function BillingPage() {
       const orderData = await orderRes.json()
 
       if (!orderRes.ok) {
-        // If Razorpay not configured, fall back to direct upgrade
         if (orderRes.status === 503) {
-          const upgradeRes = await fetch(`${API_BASE}/organizations/subscription/upgrade/`, {
-            method: 'POST',
-            headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ org_id: subscription.organization.id, plan: planName }),
-          })
-          const upgradeData = await upgradeRes.json()
-          if (!upgradeRes.ok) throw new Error(upgradeData.error || 'Upgrade failed')
-          setSuccess(upgradeData.message)
-          fetchSubscription()
-          return
+          throw new Error('Payment gateway is not ready. Please contact support at +91 74185 73018.')
         }
         throw new Error(orderData.error || 'Failed to create order')
       }
