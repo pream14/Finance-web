@@ -1,5 +1,5 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, BasePermission
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated, BasePermission, AllowAny
 from rest_framework.response import Response
 from organizations.serializers import OrganizationMinimalSerializer
 
@@ -314,50 +314,65 @@ def self_signup(request):
         username = f"{base_username}{counter}"
         counter += 1
 
-    # Create organization
-    org = Organization.objects.create(name=org_name)
-
-    # Create 10-day free trial subscription
-    from organizations.models import Subscription
-    subscription = Subscription.create_trial(org)
-
-    # Create user as primary owner
-    user = User.objects.create_user(
-        username=username,
-        password=password,
-        first_name=first_name,
-        last_name=last_name,
-        phone_number=phone_number,
-        email=email,
-        role='owner',
-        is_primary_owner=True,
-        must_change_password=False,
-    )
-
-    # Link user to organization
-    user.organizations.add(org)
-
-    # Create auth token for auto-login
-    token = Token.objects.create(user=user)
-
-    # Log the event
     try:
-        from .auth import _log_security_event, _get_client_ip
-        _log_security_event('USER_CREATED', username, _get_client_ip(request), f'Self-signup: org={org_name}')
-    except Exception:
-        pass
+        # Create organization
+        org = Organization.objects.create(name=org_name)
 
-    return Response({
-        'token': token.key,
-        'user_id': user.id,
-        'username': user.username,
-        'org_id': org.id,
-        'org_name': org.name,
-        'subscription': {
-            'plan': subscription.plan,
-            'status': subscription.status,
-            'trial_ends_at': subscription.trial_ends_at.isoformat() if subscription.trial_ends_at else None,
-            'days_remaining': subscription.days_remaining,
-        },
-        'message': f'Welcome! Your organization "{org_name}" has been created with a 10-day free trial.',
-    }, status=201)
+        # Create 10-day free trial subscription
+        try:
+            from organizations.models import Subscription
+            subscription = Subscription.create_trial(org)
+        except Exception:
+            subscription = None
+
+        # Create user as primary owner
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            phone_number=phone_number,
+            email=email,
+            role='owner',
+            is_primary_owner=True,
+            must_change_password=False,
+        )
+
+        # Link user to organization
+        user.organizations.add(org)
+
+        # Create auth token for auto-login
+        token = Token.objects.create(user=user)
+
+        # Log the event
+        try:
+            from .auth import _log_security_event, _get_client_ip
+            _log_security_event('USER_CREATED', username, _get_client_ip(request), f'Self-signup: org={org_name}')
+        except Exception:
+            pass
+
+        response_data = {
+            'token': token.key,
+            'user_id': user.id,
+            'username': user.username,
+            'org_id': org.id,
+            'org_name': org.name,
+            'message': f'Welcome! Your organization "{org_name}" has been created with a 10-day free trial.',
+        }
+
+        if subscription:
+            response_data['subscription'] = {
+                'plan': subscription.plan,
+                'status': subscription.status,
+                'trial_ends_at': subscription.trial_ends_at.isoformat() if subscription.trial_ends_at else None,
+                'days_remaining': subscription.days_remaining,
+            }
+
+        return Response(response_data, status=201)
+
+    except Exception as e:
+        # If org was created but user creation failed, clean up
+        import traceback
+        traceback.print_exc()
+        return Response({'error': f'Signup failed: {str(e)}'}, status=500)
+

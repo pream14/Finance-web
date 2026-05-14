@@ -362,7 +362,7 @@ export default function CollectionsPage() {
       try {
         todayTxns = await transactionsApi.getAll({ start_date: today, end_date: today, include_all: 'true' })
       } catch (e) { /* ignore */ }
-      setEntries(todayTxns)
+      setEntries(Array.isArray(todayTxns) ? [...todayTxns].reverse() : [])
 
       const customersWithLoans = data.map((customer: any) => ({
         ...customer,
@@ -461,7 +461,7 @@ export default function CollectionsPage() {
       const today = new Date().toISOString().split('T')[0]
       // Fetch ALL entries for duplicate check
       const data = await transactionsApi.getAll({ start_date: today, end_date: today, include_all: 'true' })
-      setEntries(data)
+      setEntries(Array.isArray(data) ? [...data].reverse() : [])
     } catch (err) {
       console.error('Error fetching entries:', err)
     }
