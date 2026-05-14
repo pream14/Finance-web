@@ -75,7 +75,7 @@ export default function BillingPage() {
   async function fetchSubscription() {
     try {
       const token = localStorage.getItem('auth_token')
-      const res = await fetch(`${API_BASE}/api/organizations/subscription/`, {
+      const res = await fetch(`${API_BASE}/organizations/subscription/`, {
         headers: { 'Authorization': `Token ${token}` },
       })
       if (!res.ok) throw new Error('Failed to load subscription')
@@ -97,7 +97,7 @@ export default function BillingPage() {
 
     try {
       // Step 1: Create Razorpay order
-      const orderRes = await fetch(`${API_BASE}/api/organizations/payment/create-order/`, {
+      const orderRes = await fetch(`${API_BASE}/organizations/payment/create-order/`, {
         method: 'POST',
         headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ org_id: subscription.organization.id, plan: planName }),
@@ -107,7 +107,7 @@ export default function BillingPage() {
       if (!orderRes.ok) {
         // If Razorpay not configured, fall back to direct upgrade
         if (orderRes.status === 503) {
-          const upgradeRes = await fetch(`${API_BASE}/api/organizations/subscription/upgrade/`, {
+          const upgradeRes = await fetch(`${API_BASE}/organizations/subscription/upgrade/`, {
             method: 'POST',
             headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ org_id: subscription.organization.id, plan: planName }),
@@ -136,7 +136,7 @@ export default function BillingPage() {
         handler: async function (response: any) {
           // Step 3: Verify payment on backend
           try {
-            const verifyRes = await fetch(`${API_BASE}/api/organizations/payment/verify/`, {
+            const verifyRes = await fetch(`${API_BASE}/organizations/payment/verify/`, {
               method: 'POST',
               headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({
