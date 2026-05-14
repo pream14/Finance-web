@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Building2, Users, Plus, Pencil, Trash2, ArrowLeft,
   Shield, Phone, MapPin, ChevronDown, ChevronUp, UserPlus, X,
-  MessageCircle, Mail, Copy, Link2, CheckCircle
+  MessageCircle, Mail, Copy, Link2, CheckCircle,
+  CreditCard, IndianRupee, TrendingUp, AlertTriangle, Clock
 } from 'lucide-react'
 import { organizationsApi, authApi } from '@/lib/api'
 
@@ -42,7 +43,9 @@ export default function SuperAdminPage() {
   const [users, setUsers] = useState<UserItem[]>([])
   const [loading, setLoading] = useState(true)
   const [isSuperUser, setIsSuperUser] = useState(false)
-  const [activeTab, setActiveTab] = useState<'organizations' | 'users'>('organizations')
+  const [activeTab, setActiveTab] = useState<'organizations' | 'users' | 'subscriptions'>('organizations')
+  const [subStats, setSubStats] = useState<any>(null)
+  const [subLoading, setSubLoading] = useState(false)
 
   // Org dialog state
   const [orgDialogOpen, setOrgDialogOpen] = useState(false)
@@ -90,6 +93,18 @@ export default function SuperAdminPage() {
       console.error('Failed to load super admin data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadSubscriptionStats() {
+    setSubLoading(true)
+    try {
+      const stats = await organizationsApi.subscriptionStats()
+      setSubStats(stats)
+    } catch (err) {
+      console.error('Failed to load subscription stats:', err)
+    } finally {
+      setSubLoading(false)
     }
   }
 
@@ -311,6 +326,17 @@ export default function SuperAdminPage() {
             <Users className="h-4 w-4 inline mr-1.5" />
             Users ({users.length})
           </button>
+          <button
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'subscriptions'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => { setActiveTab('subscriptions'); if (!subStats) loadSubscriptionStats() }}
+          >
+            <CreditCard className="h-4 w-4 inline mr-1.5" />
+            Revenue
+          </button>
         </div>
       </div>
 
@@ -485,6 +511,163 @@ export default function SuperAdminPage() {
                 </Card>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── Subscriptions/Revenue Tab ──────────────────────── */}
+        {activeTab === 'subscriptions' && (
+          <div className="space-y-6">
+            {subLoading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading revenue data...</div>
+            ) : subStats ? (
+              <>
+                {/* Revenue Stats Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <IndianRupee className="h-4 w-4 text-emerald-500" />
+                        <span className="text-xs font-medium text-muted-foreground">Monthly Revenue (MRR)</span>
+                      </div>
+                      <p className="text-2xl font-bold text-emerald-600">₹{parseFloat(subStats.mrr).toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Building2 className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs font-medium text-muted-foreground">Total Organizations</span>
+                      </div>
+                      <p className="text-2xl font-bold">{subStats.total_orgs}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp className="h-4 w-4 text-purple-500" />
+                        <span className="text-xs font-medium text-muted-foreground">Active Paid</span>
+                      </div>
+                      <p className="text-2xl font-bold text-purple-600">{subStats.status_counts?.active || 0}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs font-medium text-muted-foreground">Active Trials</span>
+                      </div>
+                      <p className="text-2xl font-bold text-amber-600">{subStats.status_counts?.trial || 0}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Plan Distribution */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Plan Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {Object.entries(subStats.plan_counts || {}).map(([plan, count]: [string, any]) => (
+                        <div key={plan} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
+                          <span className="text-sm font-medium capitalize">{plan}</span>
+                          <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${
+                            plan === 'business' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                            plan === 'pro' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                            plan === 'starter' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                            'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          }`}>{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Trials Expiring Soon */}
+                {subStats.expiring_soon?.length > 0 && (
+                  <Card className="border-amber-500/40">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        Trials Expiring Soon
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {subStats.expiring_soon.map((s: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-500/5">
+                            <span className="font-medium text-sm">{s.org_name}</span>
+                            <span className="text-xs text-amber-600 font-medium">
+                              {s.days_remaining === 0 ? 'Expires today!' : `${s.days_remaining} day${s.days_remaining !== 1 ? 's' : ''} left`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Per-Org Subscription Table */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">All Subscriptions</CardTitle>
+                    <CardDescription>Detailed subscription info for each organization</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Organization</th>
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Plan</th>
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Status</th>
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Revenue</th>
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Users</th>
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Customers</th>
+                            <th className="text-left py-2 px-2 font-medium text-muted-foreground">Expires</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subStats.organizations?.map((org: any) => (
+                            <tr key={org.org_id} className="border-b border-border/50 hover:bg-muted/30">
+                              <td className="py-2.5 px-2 font-medium">{org.org_name}</td>
+                              <td className="py-2.5 px-2">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  org.plan === 'business' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                  org.plan === 'pro' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                  org.plan === 'starter' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                }`}>{org.plan_display}</span>
+                              </td>
+                              <td className="py-2.5 px-2">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  org.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                  org.status === 'trial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>{org.status_display}</span>
+                              </td>
+                              <td className="py-2.5 px-2">₹{parseFloat(org.amount_per_month).toLocaleString()}/mo</td>
+                              <td className="py-2.5 px-2">{org.users}/{org.max_users}</td>
+                              <td className="py-2.5 px-2">{org.customers}/{org.max_customers}</td>
+                              <td className="py-2.5 px-2 text-xs text-muted-foreground">
+                                {org.is_trial
+                                  ? `${org.days_remaining}d trial left`
+                                  : org.current_period_end
+                                    ? new Date(org.current_period_end).toLocaleDateString()
+                                    : '—'
+                                }
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">No subscription data available</div>
+            )}
           </div>
         )}
       </main>

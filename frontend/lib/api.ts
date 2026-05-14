@@ -168,6 +168,8 @@ export const organizationsApi = {
     }),
   delete: (id: number) =>
     apiRequest<void>(`/organizations/${id}/`, { method: 'DELETE' }),
+  subscriptionStats: () =>
+    apiRequest<any>('/organizations/subscription/stats/'),
 };
 
 // Customers API

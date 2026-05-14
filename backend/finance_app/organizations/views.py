@@ -157,3 +157,90 @@ def upgrade_plan(request):
         'max_users': sub.max_users,
         'max_customers': sub.max_customers,
     })
+
+
+@api_view(['GET'])
+@perm_classes([permissions.IsAuthenticated])
+def subscription_stats(request):
+    """Super admin endpoint: revenue dashboard with all subscription data."""
+    if not request.user.is_superuser:
+        return Response({'error': 'Superuser access required.'}, status=403)
+
+    from django.db.models import Sum, Count, Q
+    from django.utils import timezone
+    from datetime import timedelta
+
+    subs = Subscription.objects.select_related('organization').all()
+
+    # Check and expire old trials
+    for sub in subs:
+        sub.check_and_expire()
+
+    # Reload after expiring
+    subs = Subscription.objects.select_related('organization').all()
+
+    # MRR (Monthly Recurring Revenue) — only active paid plans
+    mrr = subs.filter(status='active').exclude(plan='trial').aggregate(
+        total=Sum('amount_per_month')
+    )['total'] or 0
+
+    # Plan distribution
+    plan_counts = {}
+    for plan_key, plan_label in Subscription.PLAN_CHOICES:
+        plan_counts[plan_key] = subs.filter(plan=plan_key).count()
+
+    # Status distribution
+    status_counts = {}
+    for status_key, status_label in Subscription.STATUS_CHOICES:
+        status_counts[status_key] = subs.filter(status=status_key).count()
+
+    # Trials expiring soon (next 3 days)
+    now = timezone.now()
+    expiring_soon = subs.filter(
+        status='trial',
+        trial_ends_at__lte=now + timedelta(days=3),
+        trial_ends_at__gte=now,
+    )
+
+    # Per-org subscription table
+    from customers.models import Customer
+    org_details = []
+    for sub in subs.order_by('-created_at'):
+        org = sub.organization
+        user_count = org.users.filter(is_active=True).count()
+        customer_count = Customer.objects.filter(organization=org).count()
+        org_details.append({
+            'org_id': org.id,
+            'org_name': org.name,
+            'plan': sub.plan,
+            'plan_display': sub.get_plan_display(),
+            'status': sub.status,
+            'status_display': sub.get_status_display(),
+            'is_trial': sub.is_trial,
+            'days_remaining': sub.days_remaining,
+            'amount_per_month': str(sub.amount_per_month),
+            'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+            'trial_ends_at': sub.trial_ends_at.isoformat() if sub.trial_ends_at else None,
+            'users': user_count,
+            'max_users': sub.max_users,
+            'customers': customer_count,
+            'max_customers': sub.max_customers,
+            'created_at': sub.created_at.isoformat(),
+        })
+
+    return Response({
+        'mrr': str(mrr),
+        'total_orgs': subs.count(),
+        'plan_counts': plan_counts,
+        'status_counts': status_counts,
+        'expiring_soon': [
+            {
+                'org_name': s.organization.name,
+                'days_remaining': s.days_remaining,
+                'trial_ends_at': s.trial_ends_at.isoformat() if s.trial_ends_at else None,
+            }
+            for s in expiring_soon
+        ],
+        'organizations': org_details,
+    })
+

@@ -121,9 +121,9 @@ export default function SignupPage() {
 
       setSuccess(true)
 
-      // Redirect to dashboard after a brief success message
+      // Redirect to onboarding wizard
       setTimeout(() => {
-        router.push('/admin/dashboard')
+        router.push('/onboarding')
       }, 2000)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -145,7 +145,7 @@ export default function SignupPage() {
               Your organization <strong className="text-foreground">{formData.org_name}</strong> has been created.
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your 10-day free trial has started. Redirecting to dashboard...
+              Your 10-day free trial has started. Setting up your workspace...
             </p>
             <div className="mt-6">
               <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
