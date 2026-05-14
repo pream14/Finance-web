@@ -30,6 +30,8 @@ interface SubscriptionData {
   current_users: number
   current_customers: number
   organization: { id: number; name: string }
+  scheduled_plan: string | null
+  scheduled_plan_display: string | null
   available_plans: Array<{
     name: string
     display: string
@@ -94,6 +96,34 @@ export default function BillingPage() {
     setSuccess('')
 
     const token = localStorage.getItem('auth_token')
+
+    // Determine if this is a downgrade
+    const currentPrice = subscription.available_plans.find(p => p.name === subscription.plan)?.price || 0
+    const newPrice = subscription.available_plans.find(p => p.name === planName)?.price || 0
+    const isDowngrade = newPrice < currentPrice && subscription.status === 'active'
+
+    if (isDowngrade) {
+      // Downgrade: call upgrade API directly (it schedules the downgrade)
+      try {
+        const res = await fetch(`${API_BASE}/organizations/subscription/upgrade/`, {
+          method: 'POST',
+          headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ org_id: subscription.organization.id, plan: planName }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Downgrade failed')
+        setSuccess(data.message || 'Downgrade scheduled successfully.')
+        if (data.warnings?.length) {
+          setError(data.warnings.join(' '))
+        }
+        fetchSubscription()
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setUpgrading(null)
+      }
+      return
+    }
 
     try {
       // Step 1: Create Razorpay order
@@ -362,21 +392,76 @@ export default function BillingPage() {
           </Card>
         </div>
 
+        {/* Scheduled Downgrade Banner */}
+        {subscription.scheduled_plan && (
+          <Card className="border-amber-500/50 bg-amber-500/5">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Downgrade Scheduled</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your plan will change to <strong>{subscription.scheduled_plan_display}</strong> on{' '}
+                      {subscription.current_period_end
+                        ? new Date(subscription.current_period_end).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : 'the end of your billing period'}.
+                      You&apos;ll keep your current {subscription.plan_display} features until then.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 text-xs"
+                  onClick={async () => {
+                    const token = localStorage.getItem('auth_token')
+                    try {
+                      await fetch(`${API_BASE}/organizations/subscription/upgrade/`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ org_id: subscription.organization.id, plan: subscription.plan }),
+                      })
+                      setSuccess('Downgrade cancelled. Your current plan will continue.')
+                      fetchSubscription()
+                    } catch (err: any) {
+                      setError(err.message)
+                    }
+                  }}
+                >
+                  Cancel Downgrade
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Plan Cards */}
         <div id="plans">
           <h2 className="text-2xl font-bold text-foreground mb-6">
-            {subscription.is_trial || subscription.is_read_only ? 'Choose a Plan' : 'Upgrade Your Plan'}
+            {subscription.is_trial || subscription.is_read_only ? 'Choose a Plan' : 'Manage Your Plan'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {subscription.available_plans.map((plan) => {
               const isCurrentPlan = plan.name === subscription.plan
+              const isScheduledPlan = plan.name === subscription.scheduled_plan
               const features = PLAN_FEATURES[plan.name] || []
               const isPro = plan.name === 'pro'
+              const currentPlanPrice = subscription.available_plans.find(p => p.name === subscription.plan)?.price || 0
+              const isDowngrade = plan.price < currentPlanPrice && subscription.status === 'active'
+              const isUpgrade = plan.price > currentPlanPrice || subscription.status !== 'active'
+
+              let buttonLabel = `Upgrade to ${plan.display}`
+              if (isCurrentPlan) buttonLabel = 'Current Plan'
+              else if (isScheduledPlan) buttonLabel = 'Downgrade Scheduled'
+              else if (upgrading === plan.name) buttonLabel = 'Processing...'
+              else if (isDowngrade) buttonLabel = `Downgrade to ${plan.display}`
 
               return (
-                <Card key={plan.name} className={`relative border-border/50 shadow-sm hover:shadow-lg transition-all h-full flex flex-col ${isPro ? 'border-primary shadow-md scale-[1.02]' : ''} ${isCurrentPlan ? 'ring-2 ring-primary' : ''}`}>
+                <Card key={plan.name} className={`relative border-border/50 shadow-sm hover:shadow-lg transition-all h-full flex flex-col ${isPro ? 'border-primary shadow-md scale-[1.02]' : ''} ${isCurrentPlan ? 'ring-2 ring-primary' : ''} ${isScheduledPlan ? 'ring-2 ring-amber-500' : ''}`}>
                   {isPro && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full">Most Popular</div>}
                   {isCurrentPlan && <div className="absolute -top-3 right-4 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full">Current</div>}
+                  {isScheduledPlan && <div className="absolute -top-3 right-4 px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full">Scheduled</div>}
                   <CardHeader className="text-center pb-2">
                     <CardTitle className="text-lg font-semibold">{plan.display}</CardTitle>
                     <div className="mt-3">
@@ -397,12 +482,17 @@ export default function BillingPage() {
                       ))}
                     </ul>
                     <Button
-                      onClick={() => handleUpgrade(plan.name)}
-                      disabled={isCurrentPlan || upgrading !== null}
-                      className={`mt-6 w-full ${isPro ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : ''}`}
-                      variant={isPro ? 'default' : 'outline'}
+                      onClick={() => {
+                        if (isDowngrade) {
+                          if (!confirm(`Are you sure you want to downgrade to ${plan.display}? The change will take effect at the end of your current billing period.`)) return
+                        }
+                        handleUpgrade(plan.name)
+                      }}
+                      disabled={isCurrentPlan || isScheduledPlan || upgrading !== null}
+                      className={`mt-6 w-full ${isDowngrade ? 'border-amber-500 text-amber-600 hover:bg-amber-500/10' : ''} ${isPro && !isDowngrade ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : ''}`}
+                      variant={isDowngrade ? 'outline' : (isPro ? 'default' : 'outline')}
                     >
-                      {upgrading === plan.name ? 'Processing...' : isCurrentPlan ? 'Current Plan' : `Upgrade to ${plan.display}`}
+                      {buttonLabel}
                     </Button>
                   </CardContent>
                 </Card>

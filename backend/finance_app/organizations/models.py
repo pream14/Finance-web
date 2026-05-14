@@ -100,6 +100,9 @@ class Subscription(models.Model):
     razorpay_subscription_id = models.CharField(max_length=100, null=True, blank=True)
     razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
 
+    # Scheduled downgrade (set when user downgrades, applied at end of current period)
+    scheduled_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -149,16 +152,19 @@ class Subscription(models.Model):
             return max(0, delta.days)
         return 0
 
-    def check_and_expire(self):
-        """Auto-expire if trial/period has ended. Returns True if expired."""
-        if self.is_expired and self.status not in ('expired', 'cancelled'):
-            self.status = 'expired'
-            self.save(update_fields=['status', 'updated_at'])
-            return True
-        return False
-
     def upgrade_to(self, plan_name):
-        """Upgrade subscription to a paid plan."""
+        """Change subscription plan with smart upgrade/downgrade logic.
+
+        Upgrade (e.g. Starter → Pro):
+          - Immediate effect
+          - Remaining days from current period carry forward
+          - New limits apply right away
+
+        Downgrade (e.g. Pro → Starter):
+          - Scheduled for end of current billing period
+          - Current plan stays active until period ends
+          - Warns if current usage exceeds new plan limits
+        """
         from django.utils import timezone
         from datetime import timedelta
 
@@ -166,14 +172,95 @@ class Subscription(models.Model):
         if not limits:
             raise ValueError(f"Unknown plan: {plan_name}")
 
-        self.plan = plan_name
-        self.status = 'active'
+        old_plan = self.plan
+        old_price = PLAN_LIMITS.get(old_plan, {}).get('price', 0)
+        new_price = limits['price']
+
+        # Determine if upgrade or downgrade
+        is_upgrade = new_price > old_price
+
+        if is_upgrade or self.status in ('trial', 'expired', 'cancelled'):
+            # UPGRADE or from trial/expired: Apply immediately
+            # Carry forward remaining days from current period
+            remaining_days = 0
+            if self.current_period_end and self.status == 'active':
+                remaining_days = max(0, (self.current_period_end - timezone.now().date()).days)
+
+            self.plan = plan_name
+            self.status = 'active'
+            self.amount_per_month = limits['price']
+            self.max_users = limits['max_users']
+            self.max_customers = limits['max_customers']
+            self.current_period_start = timezone.now().date()
+            # New period = 30 days + any remaining days from old plan
+            self.current_period_end = timezone.now().date() + timedelta(days=30 + remaining_days)
+            # Clear any scheduled downgrade
+            self.scheduled_plan = None
+            self.save()
+        else:
+            # DOWNGRADE: Schedule for end of current period
+            self.scheduled_plan = plan_name
+            self.save(update_fields=['scheduled_plan', 'updated_at'])
+
+    def apply_scheduled_downgrade(self):
+        """Apply a scheduled downgrade when the current period ends.
+        Called by check_and_expire or a cron job.
+        """
+        if not self.scheduled_plan:
+            return False
+
+        from django.utils import timezone
+        from datetime import timedelta
+
+        limits = PLAN_LIMITS.get(self.scheduled_plan)
+        if not limits:
+            self.scheduled_plan = None
+            self.save(update_fields=['scheduled_plan', 'updated_at'])
+            return False
+
+        self.plan = self.scheduled_plan
         self.amount_per_month = limits['price']
         self.max_users = limits['max_users']
         self.max_customers = limits['max_customers']
         self.current_period_start = timezone.now().date()
         self.current_period_end = timezone.now().date() + timedelta(days=30)
+        self.status = 'active'
+        self.scheduled_plan = None
         self.save()
+        return True
+
+    def check_and_expire(self):
+        """Auto-expire if trial/period has ended. Returns True if expired."""
+        if self.is_expired and self.status not in ('expired', 'cancelled'):
+            # If there's a scheduled downgrade, apply it instead of expiring
+            if self.scheduled_plan:
+                return self.apply_scheduled_downgrade()
+            self.status = 'expired'
+            self.save(update_fields=['status', 'updated_at'])
+            return True
+        return False
+
+    def get_downgrade_warnings(self, new_plan_name):
+        """Check if downgrading would cause issues with current usage."""
+        limits = PLAN_LIMITS.get(new_plan_name, {})
+        warnings = []
+
+        current_users = self.organization.users.filter(is_active=True).count()
+        if current_users > limits.get('max_users', 999):
+            warnings.append(
+                f'You have {current_users} active users but {new_plan_name} plan allows only {limits["max_users"]}. '
+                f'You will need to deactivate {current_users - limits["max_users"]} user(s) before the downgrade takes effect.'
+            )
+
+        from customers.models import Customer
+        current_customers = Customer.objects.filter(organization=self.organization).count()
+        if current_customers > limits.get('max_customers', 9999):
+            warnings.append(
+                f'You have {current_customers} customers but {new_plan_name} plan allows only {limits["max_customers"]}. '
+                f'Existing customers will remain but you cannot add new ones after downgrade.'
+            )
+
+        return warnings
 
     @classmethod
     def create_trial(cls, organization):
@@ -191,3 +278,4 @@ class Subscription(models.Model):
             max_users=trial_limits['max_users'],
             max_customers=trial_limits['max_customers'],
         )
+

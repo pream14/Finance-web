@@ -38,6 +38,7 @@ export default function OnboardingPage() {
     principal_amount: '',
     daily_collection_amount: '100',
     monthly_interest_rate: '3',
+    interest_cycle_day: new Date().getDate().toString(),
     daily_interest_rate: '0.1',
   })
   const [loanSaving, setLoanSaving] = useState(false)
@@ -53,10 +54,10 @@ export default function OnboardingPage() {
   }, [])
 
   const handleCreateCustomer = async () => {
-    if (!customerForm.name.trim()) {
-      alert('Customer name is required')
-      return
-    }
+    if (!customerForm.name.trim()) { alert('Customer name is required'); return }
+    if (!customerForm.phone_number.trim()) { alert('Phone number is required'); return }
+    if (!customerForm.address.trim()) { alert('Address is required'); return }
+    if (!customerForm.area.trim()) { alert('Area is required'); return }
     setCustomerSaving(true)
     try {
       const customer = await customersApi.create(customerForm)
@@ -82,12 +83,12 @@ export default function OnboardingPage() {
         customer: createdCustomer.id,
         loan_type: loanForm.loan_type,
         principal_amount: amount,
-        remaining_amount: amount,
       }
       if (loanForm.loan_type === 'DC Loan') {
         loanData.daily_collection_amount = parseFloat(loanForm.daily_collection_amount) || 100
       } else if (loanForm.loan_type === 'Monthly Interest Loan') {
         loanData.monthly_interest_rate = parseFloat(loanForm.monthly_interest_rate) || 3
+        loanData.interest_cycle_day = parseInt(loanForm.interest_cycle_day) || new Date().getDate()
       } else if (loanForm.loan_type === 'DL Loan') {
         loanData.daily_interest_rate = parseFloat(loanForm.daily_interest_rate) || 0.1
       }
@@ -193,15 +194,24 @@ export default function OnboardingPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Phone Number</label>
+                <label className="text-sm font-medium mb-1 block">Phone Number *</label>
                 <Input
+                  type="tel"
                   placeholder="e.g. 9876543210"
                   value={customerForm.phone_number}
                   onChange={e => setCustomerForm(p => ({ ...p, phone_number: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Area</label>
+                <label className="text-sm font-medium mb-1 block">Address *</label>
+                <Input
+                  placeholder="e.g. 12, Main Street, Madurai"
+                  value={customerForm.address}
+                  onChange={e => setCustomerForm(p => ({ ...p, address: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Area *</label>
                 <Input
                   placeholder="e.g. T.Nagar"
                   value={customerForm.area}
@@ -264,15 +274,28 @@ export default function OnboardingPage() {
                 </div>
               )}
               {loanForm.loan_type === 'Monthly Interest Loan' && (
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Monthly Interest Rate (%)</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={loanForm.monthly_interest_rate}
-                    onChange={e => setLoanForm(p => ({ ...p, monthly_interest_rate: e.target.value }))}
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Monthly Interest Rate (%)</label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={loanForm.monthly_interest_rate}
+                      onChange={e => setLoanForm(p => ({ ...p, monthly_interest_rate: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Interest Cycle Day (1-31)</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={loanForm.interest_cycle_day}
+                      onChange={e => setLoanForm(p => ({ ...p, interest_cycle_day: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Day of month when interest is due</p>
+                  </div>
+                </>
               )}
               {loanForm.loan_type === 'DL Loan' && (
                 <div>

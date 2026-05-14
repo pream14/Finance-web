@@ -90,6 +90,8 @@ def get_subscription(request):
         'max_customers': sub.max_customers,
         'current_users': current_users,
         'current_customers': current_customers,
+        'scheduled_plan': sub.scheduled_plan,
+        'scheduled_plan_display': dict(Subscription.PLAN_CHOICES).get(sub.scheduled_plan, '') if sub.scheduled_plan else None,
         'organization': {
             'id': org.id,
             'name': org.name,
@@ -143,14 +145,33 @@ def upgrade_plan(request):
     except Subscription.DoesNotExist:
         sub = Subscription.create_trial(org)
 
-    # TODO: When Razorpay is integrated, verify payment_id here before upgrading
-    # razorpay_payment_id = request.data.get('razorpay_payment_id')
-    # if not verify_payment(razorpay_payment_id): return error
+    # Check for downgrade warnings
+    old_price = PLAN_LIMITS.get(sub.plan, {}).get('price', 0)
+    new_price = PLAN_LIMITS.get(plan_name, {}).get('price', 0)
+    is_downgrade = new_price < old_price and sub.status == 'active'
+
+    warnings = []
+    if is_downgrade:
+        warnings = sub.get_downgrade_warnings(plan_name)
 
     sub.upgrade_to(plan_name)
 
+    # Reload to get latest state
+    sub.refresh_from_db()
+
+    if is_downgrade and sub.scheduled_plan:
+        return Response({
+            'message': f'Your plan will be downgraded to {dict(Subscription.PLAN_CHOICES).get(plan_name, plan_name)} at the end of your current billing period ({sub.current_period_end.strftime("%d %b %Y")}).',
+            'is_downgrade': True,
+            'scheduled_plan': sub.scheduled_plan,
+            'current_plan': sub.plan,
+            'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+            'warnings': warnings,
+        })
+
     return Response({
         'message': f'Successfully upgraded to {sub.get_plan_display()} plan!',
+        'is_downgrade': False,
         'plan': sub.plan,
         'status': sub.status,
         'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
