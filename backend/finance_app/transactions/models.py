@@ -112,8 +112,13 @@ class Loan(models.Model):
         """Calculate the date until which interest is covered.
         
         Each payment covers one cycle. If paid BEFORE the cycle day,
-        it covers the upcoming cycle. If paid ON or AFTER, it covers
-        the current cycle. Returns the date when next payment is due.
+        it is treated as a late payment for the previous cycle — coverage
+        extends only to the current month's cycle day. If paid ON or AFTER
+        the cycle day, it covers the current cycle — coverage extends to
+        the next month's cycle day.
+        
+        Returns the date when the next payment is due (exclusive).
+        is_current_cycle_interest_paid() returns True when today < this date.
         """
         if not self.last_interest_payment_date or not self.interest_cycle_day:
             return self.start_date
@@ -124,14 +129,10 @@ class Loan(models.Model):
         effective_day = min(cycle_day, last_day)
         
         if lpd.day < effective_day:
-            # Paid BEFORE cycle day → covers the upcoming cycle
-            # Covered until next month's cycle day
-            if lpd.month == 12:
-                ny, nm = lpd.year + 1, 1
-            else:
-                ny, nm = lpd.year, lpd.month + 1
-            nd = min(cycle_day, calendar.monthrange(ny, nm)[1])
-            return date(ny, nm, nd)
+            # Paid BEFORE cycle day → this is a LATE payment for the
+            # previous cycle.  Coverage extends only up to (not
+            # including) the current month's cycle day.
+            return date(lpd.year, lpd.month, effective_day)
         else:
             # Paid ON or AFTER cycle day → covers the current cycle
             # Covered until next month's cycle day

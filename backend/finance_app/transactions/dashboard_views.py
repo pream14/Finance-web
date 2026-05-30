@@ -91,12 +91,13 @@ class DashboardStatsView(APIView):
             interest_rate = loan.monthly_interest_rate or Decimal('0')
             interest_due = (loan.remaining_amount * interest_rate / 100)
             
-            # Check if interest was already collected this month
-            month_start = today.replace(day=1)
-            interest_collected_this_month = loan.transactions.filter(
-                created_at__date__gte=month_start,
-                interest_amount__gt=0
-            ).exists()
+            # Check if interest for the CURRENT cycle is paid using the
+            # model's cycle-tracking logic (last_interest_payment_date +
+            # _get_interest_covered_until).  The old approach of "any
+            # interest transaction since month_start" incorrectly marked
+            # a late previous-cycle payment (e.g. April 30 paid on May 3)
+            # as covering the current cycle (May 30).
+            interest_collected_this_cycle = loan.is_current_cycle_interest_paid()
             
             monthly_interest_due_list.append({
                 'loan_id': loan.id,
@@ -107,7 +108,7 @@ class DashboardStatsView(APIView):
                 'remaining_amount': str(loan.remaining_amount),
                 'interest_rate': str(interest_rate),
                 'interest_due': str(interest_due),
-                'is_collected': interest_collected_this_month,
+                'is_collected': interest_collected_this_cycle,
             })
         
         # 2. Overdue Payments - Only Monthly Interest Loans
